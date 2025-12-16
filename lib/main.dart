@@ -1,0 +1,97 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'services/auth_service.dart';
+import 'services/api_service.dart';
+import 'theme/app_theme.dart';
+import 'screens/login_screen.dart';
+// import 'screens/home_screen.dart';
+import 'screens/client_dashboard_screen.dart';
+import 'screens/client_profile_screen.dart';
+import 'screens/diet/create_diet_screen.dart';
+import 'screens/training/create_training_screen.dart';
+import 'screens/training/training_detail_screen.dart';
+import 'screens/training/notebook_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
+  final authService = AuthService();
+  await authService.init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authService),
+        Provider(create: (_) => ApiService()),
+      ],
+      child: const MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthService>(context);
+
+    final router = GoRouter(
+      refreshListenable: auth,
+      initialLocation: '/',
+      redirect: (context, state) {
+        final loggedIn = auth.isAuthenticated;
+        final onLogin = state.matchedLocation == '/login';
+        if (!loggedIn && !onLogin) return '/login';
+        if (loggedIn && onLogin) return '/';
+        return null;
+      },
+      routes: [
+        GoRoute(
+          path: '/login',
+          builder: (context, state) => const LoginScreen(),
+        ),
+        // GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const ClientDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/clientes/:id',
+          builder: (context, state) =>
+              ClientProfileScreen(clienteId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/clientes/:id/crear-dieta',
+          builder: (context, state) =>
+              CreateDietScreen(clienteId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/clientes/:id/crear-entrenamiento',
+          builder: (context, state) =>
+              CreateTrainingScreen(clienteId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/entrenamientos/:id',
+          builder: (context, state) => TrainingDetailScreen(
+            entrenamientoId: state.pathParameters['id']!,
+          ),
+        ),
+        GoRoute(
+          path: '/entrenamientos/cuaderno/:id',
+          builder: (context, state) =>
+              NotebookScreen(entrenamientoId: state.pathParameters['id']!),
+        ),
+      ],
+    );
+
+    return MaterialApp.router(
+      title: 'Asesoría App',
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
+    );
+  }
+}
