@@ -90,6 +90,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp.router(
       title: 'Asesoría App',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: router,
     );

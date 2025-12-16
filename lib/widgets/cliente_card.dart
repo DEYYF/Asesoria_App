@@ -66,12 +66,13 @@ class _ClienteCardState extends State<ClienteCard> {
 
     // 1. Check Expiry
     if (fechaFin != null && fechaFin.isBefore(now)) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _computedStatus = 'Inactivo';
           _statusColor =
               Colors.grey; // Changed to grey for inactive vs red for Baja
         });
+      }
     }
 
     // 2. Fetch Diets to determine "En Proceso" vs "Activo" and "Last Diet"
@@ -141,10 +142,11 @@ class _ClienteCardState extends State<ClienteCard> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('No se puede llamar')));
+      }
     }
   }
 
@@ -224,12 +226,16 @@ class _ClienteCardState extends State<ClienteCard> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        c.nombre,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      Expanded(
+                        child: Text(
+                          c.nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -237,17 +243,23 @@ class _ClienteCardState extends State<ClienteCard> {
                     ],
                   ),
                   const SizedBox(height: 4),
+
                   Row(
                     children: [
                       // Email Clickable
-                      InkWell(
-                        onTap: _openEmailDialog,
-                        child: Text(
-                          c.email,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                            decoration: TextDecoration.underline,
+                      Expanded(
+                        child: InkWell(
+                          onTap: _openEmailDialog,
+                          child: Text(
+                            c.email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade500,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
@@ -259,20 +271,26 @@ class _ClienteCardState extends State<ClienteCard> {
                           color: Colors.grey.shade600,
                         ),
                         const SizedBox(width: 4),
-                        InkWell(
-                          onTap: _makeCall,
-                          child: Text(
-                            c.telefono!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                              decoration: TextDecoration.underline,
+                        Flexible(
+                          child: InkWell(
+                            onTap: _makeCall,
+                            child: Text(
+                              c.telefono!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ],
                   ),
+
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
@@ -291,6 +309,8 @@ class _ClienteCardState extends State<ClienteCard> {
                             ),
                             child: Text(
                               obj,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -314,130 +334,147 @@ class _ClienteCardState extends State<ClienteCard> {
               ),
             ),
 
-            // 3. Right Side (Status Chip, Last Diet, Dates, Actions)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Status Chip and Last Diet
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _computedStatus,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: _statusColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.restaurant_menu,
-                          size: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _ultimaDietaDias == null
-                              ? 'Sin dieta reciente'
-                              : 'Hace $_ultimaDietaDias días',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${_formatDate(c.fechaInicio)} - ${_formatDate(c.fechaFin)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-                const SizedBox(height: 16),
+            const SizedBox(width: 16),
 
-                // Action Buttons
-                Row(
-                  children: [
-                    _ActionButton(
-                      label: 'Llamar',
-                      icon: Icons.phone,
-                      onPressed: _makeCall,
-                    ),
-                    const SizedBox(width: 8),
-                    _ActionButton(
-                      label: 'Cita',
-                      icon: Icons.calendar_today,
-                      onPressed: _openCitaDialog,
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: widget.onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade600,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+            // 3. Right Side (Status Chip, Last Diet, Dates, Actions)
+            Flexible(
+              fit: FlexFit.loose,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _computedStatus,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _statusColor,
+                          ),
                         ),
                       ),
-                      child: const Text('Perfil'),
-                    ),
-                    const SizedBox(width: 4),
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
-                      onSelected: (val) {
-                        if (val == 'delete') widget.onDelete();
-                        if (val == 'toggle') widget.onToggleStatus();
-                        if (val == 'email') _openEmailDialog();
-                        if (val == 'cita') _openCitaDialog();
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'toggle',
-                          child: Text(
-                            _computedStatus == 'Inactivo' ||
-                                    _computedStatus == 'Baja'
-                                ? 'Reactivar'
-                                : 'Dar baja',
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.restaurant_menu,
+                              size: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                _ultimaDietaDias == null
+                                    ? 'Sin dieta reciente'
+                                    : 'Hace $_ultimaDietaDias días',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_formatDate(c.fechaInicio)} - ${_formatDate(c.fechaFin)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Action Buttons (wrap to avoid overflow)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      _ActionButton(
+                        label: 'Llamar',
+                        icon: Icons.phone,
+                        onPressed: _makeCall,
+                      ),
+                      _ActionButton(
+                        label: 'Cita',
+                        icon: Icons.calendar_today,
+                        onPressed: _openCitaDialog,
+                      ),
+                      ElevatedButton(
+                        onPressed: widget.onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
                           ),
                         ),
-                        const PopupMenuItem(
-                          value: 'email',
-                          child: Text('Enviar correo'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'cita',
-                          child: Text('Agendar cita'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text(
-                            'Eliminar',
-                            style: TextStyle(color: Colors.red),
+                        child: const Text('Perfil'),
+                      ),
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                        onSelected: (val) {
+                          if (val == 'delete') widget.onDelete();
+                          if (val == 'toggle') widget.onToggleStatus();
+                          if (val == 'email') _openEmailDialog();
+                          if (val == 'cita') _openCitaDialog();
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'toggle',
+                            child: Text(
+                              _computedStatus == 'Inactivo' ||
+                                      _computedStatus == 'Baja'
+                                  ? 'Reactivar'
+                                  : 'Dar baja',
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                          const PopupMenuItem(
+                            value: 'email',
+                            child: Text('Enviar correo'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'cita',
+                            child: Text('Agendar cita'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text(
+                              'Eliminar',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

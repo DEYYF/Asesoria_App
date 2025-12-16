@@ -80,11 +80,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         });
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -120,16 +121,18 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
       await api.put('/clientes/${widget.clienteId}/actualizar-tarifa', {});
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Solicitud de renovación creada')),
         );
+      }
       _loadData();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al renovar: $e')));
+      }
     }
   }
 
@@ -159,10 +162,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       await api.delete('/clientes/${widget.clienteId}');
       if (context.mounted) Navigator.pop(context);
     } catch (e) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+      }
     }
   }
 
@@ -235,24 +239,28 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       });
       _loadData();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al actualizar sesiones: $e')),
         );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_error != null)
+    }
+    if (_error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Error')),
         body: Center(child: Text(_error!)),
       );
-    if (_cliente == null)
+    }
+    if (_cliente == null) {
       return const Scaffold(body: Center(child: Text('Cliente no encontrado')));
+    }
 
     // Build Tabs
     final tabs = <Widget>[const Tab(text: 'Información y Registro')];
@@ -326,107 +334,109 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
 
     return Scaffold(
-      body: DefaultTabController(
-        length: tabs.length,
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Budget Warning
-                      if (_budgetEstado == 'pendiente')
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber,
-                                color: Colors.orange.shade800,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Presupuesto pendiente. Funciones restringidas.',
-                                  style: TextStyle(
-                                    color: Colors.orange.shade900,
+      body: SafeArea(
+        child: DefaultTabController(
+          length: tabs.length,
+          child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Budget Warning
+                        if (_budgetEstado == 'pendiente')
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber,
+                                  color: Colors.orange.shade800,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Presupuesto pendiente. Funciones restringidas.',
+                                    style: TextStyle(
+                                      color: Colors.orange.shade900,
+                                    ),
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Perfil de\n${_cliente!.nombre}',
+                                style: const TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.1,
+                                  letterSpacing: -0.5,
+                                  color: Colors.black,
+                                ),
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _StatusChip(
+                                label:
+                                    'Inicio: ${_formatDate(_cliente!.fechaInicio)}',
+                              ),
+                              const SizedBox(width: 8),
+                              _StatusChip(
+                                label: 'Fin: ${_formatDate(_cliente!.fechaFin)}',
+                              ),
+                              const SizedBox(width: 8),
+                              const _StatusChip(label: '1 Mes', isDuration: true),
                             ],
                           ),
                         ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Perfil de\n${_cliente!.nombre}',
-                              style: const TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.bold,
-                                height: 1.1,
-                                letterSpacing: -0.5,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _StatusChip(
-                              label:
-                                  'Inicio: ${_formatDate(_cliente!.fechaInicio)}',
-                            ),
-                            const SizedBox(width: 8),
-                            _StatusChip(
-                              label: 'Fin: ${_formatDate(_cliente!.fechaFin)}',
-                            ),
-                            const SizedBox(width: 8),
-                            const _StatusChip(label: '1 Mes', isDuration: true),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  TabBar(
-                    tabs: tabs,
-                    labelColor: const Color(0xFF007AFF),
-                    unselectedLabelColor: const Color(0xFF8E8E93),
-                    indicatorColor: const Color(0xFF007AFF),
-                    indicatorWeight: 2,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
+                      ],
                     ),
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    dividerColor: const Color(0xFFC6C6C8),
                   ),
                 ),
-                pinned: true,
-              ),
-            ];
-          },
-          body: TabBarView(children: tabViews),
+                SliverPersistentHeader(
+                  delegate: _SliverAppBarDelegate(
+                    TabBar(
+                      tabs: tabs,
+                      labelColor: const Color(0xFF007AFF),
+                      unselectedLabelColor: const Color(0xFF8E8E93),
+                      indicatorColor: const Color(0xFF007AFF),
+                      indicatorWeight: 2,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      dividerColor: const Color(0xFFC6C6C8),
+                    ),
+                  ),
+                  pinned: true,
+                ),
+              ];
+            },
+            body: TabBarView(children: tabViews),
+          ),
         ),
       ),
     );

@@ -1,13 +1,15 @@
-import 'package:flutter/services.dart';
+import 'dart:io';
+
+import 'package:downloadsfolder/downloadsfolder.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../models/dieta_model.dart';
-import '../models/macros_model.dart';
 
 class DietPdfGenerator {
-  static Future<void> generateAndPrint(Dieta dieta) async {
+  static Future<void> generatePDF(Dieta dieta) async {
     final doc = pw.Document();
 
     final fontRegular = await PdfGoogleFonts.openSansRegular();
@@ -35,10 +37,16 @@ class DietPdfGenerator {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (format) => doc.save(),
-      name: 'dieta_${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
-    );
+    final tempDir = await getTemporaryDirectory();
+
+    final pdfBytes = await doc.save();
+    final name = 'dieta_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
+    final file = File('${tempDir.path}/$name');
+    await file.writeAsBytes(pdfBytes);
+
+    await copyFileIntoDownloadFolder(file.path, name);
+    await openDownloadFolder();
+
   }
 
   static pw.Widget _buildHeader(
