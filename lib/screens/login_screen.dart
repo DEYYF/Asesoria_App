@@ -13,51 +13,80 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _confirmPassCtrl = TextEditingController();
   bool _error = false;
   String _errorMessage = 'Error al iniciar sesión';
   bool _isClientLogin = false;
-  bool _requiresPasswordSetup = false;
+  bool _localLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    print('LoginScreen: initState');
+  }
+
+  @override
+  void dispose() {
+    print('LoginScreen: dispose');
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleLogin(AuthService auth) async {
+    if (!mounted) return;
+
     setState(() {
       _error = false;
-      _requiresPasswordSetup = false;
+      _localLoading = true;
     });
 
-    if (_isClientLogin) {
-      final result = await auth.clientLogin(
-        _emailCtrl.text,
-        _passCtrl.text,
-        isFirstLogin: _requiresPasswordSetup,
-      );
+    try {
+      if (_isClientLogin) {
+        print('Starting client login for: ${_emailCtrl.text}');
+        final result = await auth.clientLogin(_emailCtrl.text, _passCtrl.text);
 
-      if (result == 'requiresPasswordSetup') {
-        setState(() {
-          _requiresPasswordSetup = true;
-          _errorMessage = 'Establece tu contraseña para continuar';
-        });
-        return;
-      } else if (result == true) {
-        if (context.mounted) {
-          context.go('/clientes/${auth.userId}');
+        print('After clientLogin: result=$result, mounted=$mounted');
+
+        if (!mounted) {
+          print('ABORTING: LoginScreen is no longer mounted!');
+          return;
+        }
+
+        if (result == 'requiresPasswordSetup') {
+          print('Redirecting to FirstLoginScreen...');
+          final email = Uri.encodeComponent(_emailCtrl.text);
+          context.go('/first-login?email=$email');
+          return;
+        } else if (result == true) {
+          if (context.mounted) {
+            context.go('/clientes/${auth.userId}');
+          }
+        } else {
+          setState(() {
+            _error = true;
+            _errorMessage = 'Credenciales incorrectas';
+          });
         }
       } else {
-        setState(() {
-          _error = true;
-          _errorMessage = 'Credenciales incorrectas';
-        });
+        final success = await auth.login(_emailCtrl.text, _passCtrl.text);
+
+        if (!mounted) return;
+
+        if (success) {
+          if (context.mounted) {
+            context.go('/');
+          }
+        } else {
+          setState(() {
+            _error = true;
+            _errorMessage = 'Credenciales incorrectas';
+          });
+        }
       }
-    } else {
-      final success = await auth.login(_emailCtrl.text, _passCtrl.text);
-      if (success) {
-        if (context.mounted) {
-          context.go('/');
-        }
-      } else {
+    } finally {
+      if (mounted) {
         setState(() {
-          _error = true;
-          _errorMessage = 'Credenciales incorrectas';
+          _localLoading = false;
         });
       }
     }
@@ -65,7 +94,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthService>(context);
+    // Use listen: false to avoid rebuilding the whole screen when auth notifies
+    // (We use _localLoading for the spinner)
+    final auth = Provider.of<AuthService>(context, listen: false);
 
     return Scaffold(
       body: Center(
@@ -80,113 +111,76 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              if (!_requiresPasswordSetup) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isClientLogin = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isClientLogin = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !_isClientLogin
+                                ? const Color(0xFF007AFF)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: Text(
+                            'Admin',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
                               color: !_isClientLogin
-                                  ? const Color(0xFF007AFF)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Text(
-                              'Admin',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: !_isClientLogin
-                                    ? Colors.white
-                                    : Colors.black54,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  ? Colors.white
+                                  : Colors.black54,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isClientLogin = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isClientLogin = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _isClientLogin
+                                ? const Color(0xFF007AFF)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          child: Text(
+                            'Cliente',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
                               color: _isClientLogin
-                                  ? const Color(0xFF007AFF)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Text(
-                              'Cliente',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _isClientLogin
-                                    ? Colors.white
-                                    : Colors.black54,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  ? Colors.white
+                                  : Colors.black54,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 32),
-              ],
-
-              if (_requiresPasswordSetup) ...[
-                const Icon(
-                  Icons.lock_outline,
-                  size: 64,
-                  color: Color(0xFF007AFF),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Primera vez',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Establece tu contraseña',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
-                ),
-                const SizedBox(height: 32),
-              ],
+              ),
+              const SizedBox(height: 32),
 
               TextField(
                 controller: _emailCtrl,
                 decoration: const InputDecoration(labelText: 'Email'),
-                enabled: !_requiresPasswordSetup,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passCtrl,
-                decoration: InputDecoration(
-                  labelText: _requiresPasswordSetup
-                      ? 'Nueva Contraseña'
-                      : 'Contraseña',
-                ),
+                decoration: const InputDecoration(labelText: 'Contraseña'),
                 obscureText: true,
               ),
-
-              if (_requiresPasswordSetup) ...[
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _confirmPassCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirmar Contraseña',
-                  ),
-                  obscureText: true,
-                ),
-              ],
 
               if (_error)
                 Padding(
@@ -197,36 +191,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: auth.isLoading
-                    ? null
-                    : () async {
-                        if (_requiresPasswordSetup) {
-                          if (_passCtrl.text != _confirmPassCtrl.text) {
-                            setState(() {
-                              _error = true;
-                              _errorMessage = 'Las contraseñas no coinciden';
-                            });
-                            return;
-                          }
-                          if (_passCtrl.text.length < 6) {
-                            setState(() {
-                              _error = true;
-                              _errorMessage =
-                                  'La contraseña debe tener al menos 6 caracteres';
-                            });
-                            return;
-                          }
-                        }
-                        await _handleLogin(auth);
-                      },
-                child: auth.isLoading
-                    ? const CircularProgressIndicator()
-                    : Text(
-                        _requiresPasswordSetup
-                            ? 'Establecer Contraseña'
-                            : 'Iniciar Sesión',
-                      ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _localLoading ? null : () => _handleLogin(auth),
+                  child: _localLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Iniciar Sesión'),
+                ),
               ),
             ],
           ),

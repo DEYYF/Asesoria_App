@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
 import '../../models/ejercicio_model.dart';
 import '../training/notebook_screen.dart';
@@ -228,52 +229,58 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Volver'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF007AFF),
-                      side: const BorderSide(color: Color(0xFF007AFF)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      context
-                          .push(
-                            '/entrenamientos/${widget.entrenamientoId}/editar',
-                          )
-                          .then((_) => _loadData()); // Refresh on return
+                  Builder(
+                    builder: (context) {
+                      final auth = Provider.of<AuthService>(
+                        context,
+                        listen: false,
+                      );
+                      if (auth.isClient) return const SizedBox.shrink();
+
+                      return Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              context
+                                  .push(
+                                    '/entrenamientos/${widget.entrenamientoId}/editar',
+                                  )
+                                  .then(
+                                    (_) => _loadData(),
+                                  ); // Refresh on return
+                            },
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Editar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF007AFF),
+                              side: const BorderSide(color: Color(0xFF007AFF)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: _handleDuplicate,
+                            icon: const Icon(Icons.copy, size: 16),
+                            label: const Text('Duplicar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF007AFF),
+                              side: const BorderSide(color: Color(0xFF007AFF)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: _handleDelete,
+                            icon: const Icon(Icons.delete_forever, size: 16),
+                            label: const Text('Eliminar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      );
                     },
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Editar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF007AFF),
-                      side: const BorderSide(color: Color(0xFF007AFF)),
-                    ),
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _handleDuplicate,
-                    icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Duplicar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF007AFF),
-                      side: const BorderSide(color: Color(0xFF007AFF)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: _handleDelete,
-                    icon: const Icon(Icons.delete_forever, size: 16),
-                    label: const Text('Eliminar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: _handleExportPDF,
                     icon: const Icon(Icons.picture_as_pdf, size: 16),

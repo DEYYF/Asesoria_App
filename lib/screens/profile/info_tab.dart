@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
+import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/cliente_model.dart';
 import '../../models/extra_model.dart';
-import '../../services/api_service.dart';
 
 class InfoTab extends StatefulWidget {
   final Cliente cliente;
@@ -172,46 +173,63 @@ class _InfoTabState extends State<InfoTab> {
           const SizedBox(height: 24),
           _buildSessionCounter(context),
 
-          const SizedBox(height: 24),
-          // Action Buttons Grid
-          Row(
-            children: [
-              Expanded(
-                child: _AppleButton(
-                  label: 'Añadir progreso',
-                  color: const Color(0xFF007AFF),
-                  onPressed: widget.onAddProgress,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _AppleButton(
-                  label: 'Renovar',
-                  color: const Color(0xFF34C759),
-                  onPressed: _isTariffExpired() ? widget.onRenovar : null,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _AppleButton(
-                  label: 'Cambiar Tarifa',
-                  color: Colors.blueGrey,
-                  onPressed: _isTariffExpired() ? widget.onChangeTariff : null,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _AppleButton(
-                  label: 'Extras',
-                  color: const Color(0xFFFF9500),
-                  onPressed: _isTariffExpired() ? widget.onManageExtras : null,
-                ),
-              ),
-            ],
+          Builder(
+            builder: (context) {
+              final auth = Provider.of<AuthService>(context, listen: false);
+              if (auth.isClient) return const SizedBox.shrink();
+
+              return Column(
+                children: [
+                  const SizedBox(height: 24),
+                  // Action Buttons Grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _AppleButton(
+                          label: 'Añadir progreso',
+                          color: const Color(0xFF007AFF),
+                          onPressed: widget.onAddProgress,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _AppleButton(
+                          label: 'Renovar',
+                          color: const Color(0xFF34C759),
+                          onPressed: _isTariffExpired()
+                              ? widget.onRenovar
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _AppleButton(
+                          label: 'Cambiar Tarifa',
+                          color: Colors.blueGrey,
+                          onPressed: _isTariffExpired()
+                              ? widget.onChangeTariff
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _AppleButton(
+                          label: 'Extras',
+                          color: const Color(0xFFFF9500),
+                          onPressed: _isTariffExpired()
+                              ? widget.onManageExtras
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 32),
@@ -320,27 +338,34 @@ class _InfoTabState extends State<InfoTab> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.remove_circle,
-                  color: Color(0xFFFF3B30),
-                  size: 32,
-                ),
-                onPressed: () => widget.onSessionAction?.call('decrement'),
-              ),
-              const SizedBox(width: 32),
-              IconButton(
-                icon: const Icon(
-                  Icons.add_circle,
-                  color: Color(0xFF34C759),
-                  size: 32,
-                ),
-                onPressed: () => widget.onSessionAction?.call('increment'),
-              ),
-            ],
+          Builder(
+            builder: (context) {
+              final auth = Provider.of<AuthService>(context, listen: false);
+              if (auth.isClient) return const SizedBox.shrink();
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.remove_circle,
+                      color: Color(0xFFFF3B30),
+                      size: 32,
+                    ),
+                    onPressed: () => widget.onSessionAction?.call('decrement'),
+                  ),
+                  const SizedBox(width: 32),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.add_circle,
+                      color: Color(0xFF34C759),
+                      size: 32,
+                    ),
+                    onPressed: () => widget.onSessionAction?.call('increment'),
+                  ),
+                ],
+              );
+            },
           ),
           const Text(
             'Se reinicia cada mes',

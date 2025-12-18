@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 import '../../models/dieta_model.dart';
 import '../../models/macros_model.dart';
 import '../../services/api_service.dart';
@@ -29,7 +30,8 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
   Future<Dieta?> _fetchDiet() async {
     final api = Provider.of<ApiService>(context, listen: false);
     final res = await api.get('/dietas/${widget.dietaId}');
-    if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}: ${res.body}');
+    if (res.statusCode != 200)
+      throw Exception('HTTP ${res.statusCode}: ${res.body}');
     final data = jsonDecode(res.body);
     return Dieta.fromJson(data);
   }
@@ -41,11 +43,15 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
       if (res.statusCode == 200 && mounted) {
         Navigator.pop(context);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dieta eliminada')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Dieta eliminada')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
       }
     }
   }
@@ -55,7 +61,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
       await DietPdfGenerator.generatePDF(dieta);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al exportar PDF: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al exportar PDF: $e')));
       }
     }
   }
@@ -71,8 +79,14 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
           decoration: const InputDecoration(labelText: 'Nota de la versión'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, noteController.text), child: const Text('Guardar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, noteController.text),
+            child: const Text('Guardar'),
+          ),
         ],
       ),
     );
@@ -92,7 +106,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
             );
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => DietDetailScreen(dietaId: newId)),
+              MaterialPageRoute(
+                builder: (_) => DietDetailScreen(dietaId: newId),
+              ),
             );
           }
         } else {
@@ -100,7 +116,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar versión: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al guardar versión: $e')),
+          );
         }
       }
     }
@@ -112,7 +130,10 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
       builder: (ctx) => RevisionsDialog(
         dietaId: widget.dietaId,
         onRestored: (newId) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DietDetailScreen(dietaId: newId)));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => DietDetailScreen(dietaId: newId)),
+          );
         },
       ),
     );
@@ -123,11 +144,19 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Eliminar dieta'),
-        content: const Text('Esta acción no se puede deshacer. ¿Seguro que quieres eliminar esta dieta?'),
+        content: const Text(
+          'Esta acción no se puede deshacer. ¿Seguro que quieres eliminar esta dieta?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: _handleDelete,
             child: const Text('Eliminar'),
           ),
@@ -183,7 +212,8 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
                               ),
                             ),
                           );
-                          if (mounted) setState(() => _dietFuture = _fetchDiet());
+                          if (mounted)
+                            setState(() => _dietFuture = _fetchDiet());
                         },
                         onDelete: _showDeleteDialog,
                       ),
@@ -223,7 +253,9 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = dieta.createdAt != null ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!) : '-';
+    final dateStr = dieta.createdAt != null
+        ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
+        : '-';
 
     return Card(
       color: Colors.blue.shade50.withOpacity(0.3),
@@ -245,7 +277,8 @@ class _HeaderCard extends StatelessWidget {
                     children: [
                       Text(
                         'Detalle de la Dieta',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
@@ -253,8 +286,14 @@ class _HeaderCard extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           _iconText(Icons.calendar_month, dateStr),
-                          _iconText(Icons.local_fire_department, '${dieta.macros.kcal.round()} kcal objetivo'),
-                          _iconText(Icons.flag, dieta.objetivo?.toUpperCase() ?? '-'),
+                          _iconText(
+                            Icons.local_fire_department,
+                            '${dieta.macros.kcal.round()} kcal objetivo',
+                          ),
+                          _iconText(
+                            Icons.flag,
+                            dieta.objetivo?.toUpperCase() ?? '-',
+                          ),
                         ],
                       ),
                     ],
@@ -268,11 +307,49 @@ class _HeaderCard extends StatelessWidget {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
-                _ActionButton(icon: Icons.picture_as_pdf, label: 'Exportar', onTap: onExport, isPrimary: true),
-                _ActionButton(icon: Icons.save_as, label: 'Guardar versión', onTap: onSaveVersion),
-                _ActionButton(icon: Icons.history, label: 'Historial', onTap: onHistory),
-                _ActionButton(icon: Icons.edit, label: 'Editar', onTap: onEdit),
-                _ActionButton(icon: Icons.delete_outline, label: 'Eliminar', color: Colors.red, onTap: onDelete),
+                _ActionButton(
+                  icon: Icons.picture_as_pdf,
+                  label: 'Exportar',
+                  onTap: onExport,
+                  isPrimary: true,
+                ),
+                Builder(
+                  builder: (context) {
+                    final auth = Provider.of<AuthService>(
+                      context,
+                      listen: false,
+                    );
+                    if (auth.isClient) return const SizedBox.shrink();
+
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ActionButton(
+                          icon: Icons.save_as,
+                          label: 'Guardar versión',
+                          onTap: onSaveVersion,
+                        ),
+                        _ActionButton(
+                          icon: Icons.history,
+                          label: 'Historial',
+                          onTap: onHistory,
+                        ),
+                        _ActionButton(
+                          icon: Icons.edit,
+                          label: 'Editar',
+                          onTap: onEdit,
+                        ),
+                        _ActionButton(
+                          icon: Icons.delete_outline,
+                          label: 'Eliminar',
+                          color: Colors.red,
+                          onTap: onDelete,
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ],
@@ -315,10 +392,23 @@ class _InfoAndMacros extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Información general', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Información general',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const Divider(height: 24),
-                  _InfoRow('Fecha de creación:', dieta.createdAt != null ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!) : '-'),
-                  _InfoRow('Calorías totales:', '${dieta.macros.kcal.round()} kcal'),
+                  _InfoRow(
+                    'Fecha de creación:',
+                    dieta.createdAt != null
+                        ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
+                        : '-',
+                  ),
+                  _InfoRow(
+                    'Calorías totales:',
+                    '${dieta.macros.kcal.round()} kcal',
+                  ),
                   _InfoRow('Objetivo:', dieta.objetivo?.toUpperCase() ?? '-'),
                   _InfoRow('Estado:', dieta.estado.toUpperCase()),
                 ],
@@ -332,15 +422,30 @@ class _InfoAndMacros extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: _MacroCard(label: 'Proteínas', val: dieta.macros.proteinas, icon: Icons.egg_alt, color: Colors.blue),
+                child: _MacroCard(
+                  label: 'Proteínas',
+                  val: dieta.macros.proteinas,
+                  icon: Icons.egg_alt,
+                  color: Colors.blue,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _MacroCard(label: 'Carbohidratos', val: dieta.macros.carbohidratos, icon: Icons.breakfast_dining, color: Colors.orange),
+                child: _MacroCard(
+                  label: 'Carbohidratos',
+                  val: dieta.macros.carbohidratos,
+                  icon: Icons.breakfast_dining,
+                  color: Colors.orange,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _MacroCard(label: 'Grasas', val: dieta.macros.grasas, icon: Icons.water_drop, color: Colors.purple),
+                child: _MacroCard(
+                  label: 'Grasas',
+                  val: dieta.macros.grasas,
+                  icon: Icons.water_drop,
+                  color: Colors.purple,
+                ),
               ),
             ],
           ),
@@ -349,20 +454,12 @@ class _InfoAndMacros extends StatelessWidget {
         if (isWide) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              info,
-              const SizedBox(width: 16),
-              macros,
-            ],
+            children: [info, const SizedBox(width: 16), macros],
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            info,
-            const SizedBox(height: 12),
-            macros,
-          ],
+          children: [info, const SizedBox(height: 12), macros],
         );
       },
     );
@@ -402,7 +499,9 @@ class _MealsCard extends StatelessWidget {
           children: [
             Text(
               'Comidas',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const Divider(height: 24),
             ...dieta.comidas.map((comida) => _MealItem(comida: comida)),
@@ -433,15 +532,25 @@ class _MealItem extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(comida.titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-              if (k > 0) Text('${k.round()} kcal', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                comida.titulo,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              if (k > 0)
+                Text(
+                  '${k.round()} kcal',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
             ],
           ),
         ),
         if (comida.opciones.isEmpty)
           const Padding(
             padding: EdgeInsets.all(12),
-            child: Text('Sin alimentos', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+            child: Text(
+              'Sin alimentos',
+              style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+            ),
           )
         else
           ...comida.opciones.map((op) => _OptionRow(op: op)),
@@ -476,7 +585,11 @@ class _OptionRowState extends State<_OptionRow> {
           subtitle: Text(_getSubtitle(op)),
           trailing: hasIngredients
               ? IconButton(
-                  icon: Icon(_expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                  icon: Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                  ),
                   onPressed: () => setState(() => _expanded = !_expanded),
                 )
               : null,
@@ -497,7 +610,10 @@ class _OptionRowState extends State<_OptionRow> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('- ${it.nombre ?? "Ingrediente"}'),
-                          Text('${it.gramos} g', style: const TextStyle(color: Colors.grey)),
+                          Text(
+                            '${it.gramos} g',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
                         ],
                       ),
                     ),
@@ -512,9 +628,17 @@ class _OptionRowState extends State<_OptionRow> {
   Icon _getIcon(String tipo) {
     switch (tipo) {
       case 'receta':
-        return const Icon(Icons.restaurant_menu, size: 20, color: Colors.orange);
+        return const Icon(
+          Icons.restaurant_menu,
+          size: 20,
+          color: Colors.orange,
+        );
       case 'combinacion':
-        return const Icon(Icons.emoji_food_beverage, size: 20, color: Colors.brown);
+        return const Icon(
+          Icons.emoji_food_beverage,
+          size: 20,
+          color: Colors.brown,
+        );
       default:
         return const Icon(Icons.local_dining, size: 20, color: Colors.green);
     }
@@ -563,7 +687,9 @@ class _ActionButton extends StatelessWidget {
             onPressed: onTap,
             icon: Icon(icon, size: 18, color: c),
             label: Text(label, style: TextStyle(color: c)),
-            style: OutlinedButton.styleFrom(side: BorderSide(color: c.withOpacity(0.5))),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: c.withOpacity(0.5)),
+            ),
           );
   }
 }
@@ -617,11 +743,23 @@ class _MacroCard extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: color),
               const SizedBox(width: 4),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, overflow: .ellipsis))),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    overflow: .ellipsis,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
-          Text('${val.round()} g', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            '${val.round()} g',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -656,10 +794,18 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
             if (detail != null) ...[
               const SizedBox(height: 8),
-              Text(detail!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(
+                detail!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ],
             const SizedBox(height: 12),
             _RetryButton(onTap: onRetry),

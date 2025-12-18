@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
 
 class TrainingTab extends StatefulWidget {
@@ -67,15 +68,21 @@ class _TrainingTabState extends State<TrainingTab> {
             const SizedBox(height: 8),
             const Text('Crea el primer plan para este cliente'),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                // Navigate to Create Training
-                context.push(
-                  '/clientes/${widget.clienteId}/crear-entrenamiento',
+            Builder(
+              builder: (context) {
+                final auth = Provider.of<AuthService>(context, listen: false);
+                if (auth.isClient) return const SizedBox.shrink();
+                return ElevatedButton.icon(
+                  onPressed: () {
+                    // Navigate to Create Training
+                    context.push(
+                      '/clientes/${widget.clienteId}/crear-entrenamiento',
+                    );
+                  },
+                  icon: const Icon(Icons.fitness_center),
+                  label: const Text('Crear entrenamiento'),
                 );
               },
-              icon: const Icon(Icons.fitness_center),
-              label: const Text('Crear entrenamiento'),
             ),
           ],
         ),
@@ -94,14 +101,20 @@ class _TrainingTabState extends State<TrainingTab> {
                 'Entrenamientos',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  context.push(
-                    '/clientes/${widget.clienteId}/crear-entrenamiento',
+              Builder(
+                builder: (context) {
+                  final auth = Provider.of<AuthService>(context, listen: false);
+                  if (auth.isClient) return const SizedBox.shrink();
+                  return ElevatedButton.icon(
+                    onPressed: () {
+                      context.push(
+                        '/clientes/${widget.clienteId}/crear-entrenamiento',
+                      );
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nuevo plan'),
                   );
                 },
-                icon: const Icon(Icons.add),
-                label: const Text('Nuevo plan'),
               ),
             ],
           ),

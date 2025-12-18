@@ -1,3 +1,4 @@
+import 'package:asesoria_app/screens/first_login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
@@ -50,16 +51,23 @@ class MyApp extends StatelessWidget {
       redirect: (context, state) {
         final loggedIn = auth.isAuthenticated;
         final onLogin = state.matchedLocation == '/login';
+        final onFirstLogin = state.matchedLocation == '/first-login';
 
-        // Not logged in - redirect to login
-        if (!loggedIn && !onLogin) return '/login';
+        print(
+          'Router Redirect: path=${state.matchedLocation}, loggedIn=$loggedIn, onLogin=$onLogin, onFirstLogin=$onFirstLogin',
+        );
+
+        // Not logged in - redirect to login (allow first-login screen)
+        if (!loggedIn && !onLogin && !onFirstLogin) {
+          print('Redirecting to /login (auth required)');
+          return '/login';
+        }
 
         // Logged in on login page - redirect to appropriate home
-        if (loggedIn && onLogin) {
-          if (auth.isClient) {
-            return '/clientes/${auth.userId}';
-          }
-          return '/';
+        if (loggedIn && (onLogin || onFirstLogin)) {
+          final target = auth.isClient ? '/clientes/${auth.userId}' : '/';
+          print('Already logged in, redirecting to $target');
+          return target;
         }
 
         // Client access restrictions
@@ -68,6 +76,7 @@ class MyApp extends StatelessWidget {
 
           // Prevent clients from accessing dashboard
           if (currentPath == '/') {
+            print('Client tried to access dashboard, redirecting to profile');
             return '/clientes/${auth.userId}';
           }
 
@@ -75,6 +84,9 @@ class MyApp extends StatelessWidget {
           if (currentPath.startsWith('/clientes/')) {
             final pathClientId = state.pathParameters['id'];
             if (pathClientId != null && pathClientId != auth.userId) {
+              print(
+                'Client tried to access another profile, redirecting to own',
+              );
               return '/clientes/${auth.userId}';
             }
           }
@@ -86,6 +98,13 @@ class MyApp extends StatelessWidget {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/first-login',
+          builder: (context, state) {
+            final email = state.uri.queryParameters['email'] ?? '';
+            return FirstLoginScreen(email: email);
+          },
         ),
         // GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(

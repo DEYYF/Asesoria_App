@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/cliente_model.dart';
 import 'profile/info_tab.dart';
 import 'profile/diet_tab.dart';
@@ -444,27 +445,66 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                 ),
                               ),
                             ),
-                            if (_hasEntrenamiento && _canEditFeatures)
-                              ElevatedButton.icon(
-                                onPressed: _navigateToRegisterTraining,
-                                icon: const Icon(
-                                  Icons.fitness_center,
-                                  size: 18,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Builder(
+                                  builder: (context) {
+                                    final auth = Provider.of<AuthService>(
+                                      context,
+                                      listen: false,
+                                    );
+                                    if (auth.isClient) {
+                                      return _AestheticHeaderButton(
+                                        onPressed: () async {
+                                          await auth.logout();
+                                          if (context.mounted) {
+                                            context.go('/login');
+                                          }
+                                        },
+                                        icon: Icons.logout_rounded,
+                                        label: 'Cerrar Sesión',
+                                        backgroundColor: const Color(
+                                          0xFFFFE5E5,
+                                        ),
+                                        foregroundColor: const Color(
+                                          0xFFFF3B30,
+                                        ),
+                                      );
+                                    } else {
+                                      return _AestheticHeaderButton(
+                                        onPressed: () {
+                                          if (context.canPop()) {
+                                            context.pop();
+                                          } else {
+                                            context.go('/');
+                                          }
+                                        },
+                                        icon: Icons.arrow_back_rounded,
+                                        label: 'Volver',
+                                        backgroundColor: const Color(
+                                          0xFFF2F2F7,
+                                        ),
+                                        foregroundColor: const Color(
+                                          0xFF8E8E93,
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ),
-                                label: const Text('Registrar'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF007AFF),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
+                                if (_hasEntrenamiento && _canEditFeatures) ...[
+                                  const SizedBox(height: 12),
+                                  _AestheticHeaderButton(
+                                    onPressed: _navigateToRegisterTraining,
+                                    icon: Icons.fitness_center_rounded,
+                                    label: 'Registrar',
+                                    backgroundColor: const Color(0xFFE5F1FF),
+                                    foregroundColor: const Color(0xFF007AFF),
+                                    isPrimary: true,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 2,
-                                ),
-                              ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -608,4 +648,65 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
+}
+
+class _AestheticHeaderButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final bool isPrimary;
+
+  const _AestheticHeaderButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isPrimary
+                ? [
+                    BoxShadow(
+                      color: foregroundColor.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: foregroundColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: foregroundColor,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

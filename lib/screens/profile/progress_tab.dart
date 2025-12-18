@@ -10,6 +10,7 @@ import '../../widgets/heatmap_panel.dart';
 import '../../services/api_service.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
 class ProgressTab extends StatefulWidget {
@@ -158,27 +159,35 @@ class _ProgressTabState extends State<ProgressTab> {
                   letterSpacing: -0.5,
                 ),
               ),
-              if (widget.onAddProgress != null)
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF007AFF).withOpacity(0.1),
-                      shape: BoxShape.circle,
+              Builder(
+                builder: (context) {
+                  final auth = Provider.of<AuthService>(context, listen: false);
+                  if (auth.isClient || widget.onAddProgress == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF007AFF).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add_circle,
+                        color: Color(0xFF007AFF),
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.add_circle,
-                      color: Color(0xFF007AFF),
-                      size: 24,
-                    ),
-                  ),
-                  onPressed: _viewMode == 'rendimiento'
-                      ? _navigateToRegisterTraining
-                      : widget.onAddProgress,
-                  tooltip: _viewMode == 'rendimiento'
-                      ? 'Registrar Entrenamiento'
-                      : 'Añadir Progreso',
-                ),
+                    onPressed: _viewMode == 'rendimiento'
+                        ? _navigateToRegisterTraining
+                        : widget.onAddProgress,
+                    tooltip: _viewMode == 'rendimiento'
+                        ? 'Registrar Entrenamiento'
+                        : 'Añadir Progreso',
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: 20),

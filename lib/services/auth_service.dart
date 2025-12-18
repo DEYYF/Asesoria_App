@@ -34,7 +34,7 @@ class AuthService with ChangeNotifier {
 
   Future<bool> login(String email, String password) async {
     _isLoading = true;
-    notifyListeners();
+    // Don't notify here to avoid router refreshes during loading
 
     final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
 
@@ -55,17 +55,16 @@ class AuthService with ChangeNotifier {
         await prefs.setString('auth_user', jsonEncode(_user));
 
         _isLoading = false;
-        notifyListeners();
+        notifyListeners(); // Notify only on authentication change
         return true;
       } else {
         _isLoading = false;
-        notifyListeners();
+        // Don't notify on error, we return false and handling screen will re-render
         return false;
       }
     } catch (e) {
       print('Login error: $e');
       _isLoading = false;
-      notifyListeners();
       return false;
     }
   }
@@ -76,7 +75,7 @@ class AuthService with ChangeNotifier {
     bool isFirstLogin = false,
   }) async {
     _isLoading = true;
-    notifyListeners();
+    // Don't notify here to avoid router refreshes during loading
 
     final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
 
@@ -94,10 +93,14 @@ class AuthService with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        // Debug: print response
+        print('Client login response: $data');
+
         // Check if password setup is required
         if (data['requiresPasswordSetup'] == true) {
-          _isLoading = false;
-          notifyListeners();
+          print('Password setup required detected');
+          _isLoading =
+              false; // Reset without notifyListeners to avoid unmounting
           return 'requiresPasswordSetup';
         }
 
@@ -110,18 +113,19 @@ class AuthService with ChangeNotifier {
         await prefs.setString('auth_user', jsonEncode(_user));
 
         _isLoading = false;
-        notifyListeners();
+        notifyListeners(); // Notify only on authentication change
         return true;
       } else {
         _isLoading = false;
-        notifyListeners();
         return false;
       }
     } catch (e) {
       print('Client login error: $e');
       _isLoading = false;
-      notifyListeners();
       return false;
+    } finally {
+      // Always ensure loading is false but don't notify unless we explicitly want a rebuild
+      _isLoading = false;
     }
   }
 
