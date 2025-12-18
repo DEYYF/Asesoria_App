@@ -11,6 +11,7 @@ import '../widgets/dialogs/add_progress_dialog.dart';
 import '../widgets/dialogs/manage_extras_dialog.dart';
 import '../widgets/dialogs/change_tariff_dialog.dart';
 import '../widgets/dialogs/edit_info_dialog.dart';
+import 'profile/journal_tab.dart';
 
 class ClientProfileScreen extends StatefulWidget {
   final String clienteId;
@@ -306,6 +307,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         tabViews.add(
           ProgressTab(cliente: _cliente!, onAddProgress: _showAddProgress),
         );
+        tabs.add(const Tab(text: 'Libreta'));
+        tabViews.add(JournalTab(cliente: _cliente!));
       } else {
         tabs.add(
           const Tab(
@@ -325,6 +328,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             child: Row(
               children: [
                 Text('Progreso'),
+                SizedBox(width: 4),
+                Icon(Icons.lock, size: 14),
+              ],
+            ),
+          ),
+        );
+        tabViews.add(const _LockedView());
+
+        tabs.add(
+          const Tab(
+            child: Row(
+              children: [
+                Text('Libreta'),
                 SizedBox(width: 4),
                 Icon(Icons.lock, size: 14),
               ],

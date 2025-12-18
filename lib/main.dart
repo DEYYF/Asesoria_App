@@ -14,9 +14,14 @@ import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
 
+import 'package:intl/date_symbol_data_local.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+
+  // Initialize Spanish locale date formatting
+  await initializeDateFormatting('es');
 
   final authService = AuthService();
   await authService.init();
