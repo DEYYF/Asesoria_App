@@ -3,19 +3,26 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/progreso_model.dart';
 
-class MuscleChart extends StatelessWidget {
+class MuscleChart extends StatefulWidget {
   final List<Progreso> historial;
 
   const MuscleChart({super.key, required this.historial});
 
   @override
+  State<MuscleChart> createState() => _MuscleChartState();
+}
+
+class _MuscleChartState extends State<MuscleChart> {
+  String? _selectedMuscle; // null means "Todos" (all muscles)
+
+  @override
   Widget build(BuildContext context) {
-    if (historial.isEmpty)
+    if (widget.historial.isEmpty)
       return const Center(child: Text('Sin datos musculares'));
 
     // Extract all diverse muscle measurements
     final Map<String, List<FlSpot>> muscleSpots = {};
-    final sortedHistorial = List<Progreso>.from(historial)
+    final sortedHistorial = List<Progreso>.from(widget.historial)
       ..sort((a, b) => a.fecha.compareTo(b.fecha));
 
     for (int i = 0; i < sortedHistorial.length; i++) {
@@ -32,6 +39,15 @@ class MuscleChart extends StatelessWidget {
 
     if (muscleSpots.isEmpty)
       return const Center(child: Text('Sin registros musculares'));
+
+    // Filter by selected muscle if one is chosen
+    final Map<String, List<FlSpot>> filteredMuscleSpots =
+        _selectedMuscle == null
+        ? muscleSpots
+        : {_selectedMuscle!: muscleSpots[_selectedMuscle!]!};
+
+    // Get list of muscle names for dropdown
+    final muscleNames = muscleSpots.keys.toList()..sort();
 
     final colors = [
       Colors.blue,
@@ -55,6 +71,52 @@ class MuscleChart extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 16),
+
+            // Muscle Selection Dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  isExpanded: true,
+                  value: _selectedMuscle,
+                  hint: const Text('Seleccionar Músculo'),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Todos'),
+                    ),
+                    ...muscleNames.map(
+                      (name) => DropdownMenuItem<String?>(
+                        value: name,
+                        child: Text(name),
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    setState(() => _selectedMuscle = val);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             SizedBox(
               height: 300,
               child: LineChart(
@@ -103,7 +165,7 @@ class MuscleChart extends StatelessWidget {
                     show: true,
                     border: Border.all(color: Colors.grey.shade200),
                   ),
-                  lineBarsData: muscleSpots.entries
+                  lineBarsData: filteredMuscleSpots.entries
                       .toList()
                       .asMap()
                       .entries
@@ -124,7 +186,7 @@ class MuscleChart extends StatelessWidget {
                     touchTooltipData: LineTouchTooltipData(
                       getTooltipItems: (touchedSpots) {
                         return touchedSpots.map((LineBarSpot touchedSpot) {
-                          final muscleName = muscleSpots.keys.elementAt(
+                          final muscleName = filteredMuscleSpots.keys.elementAt(
                             touchedSpot.barIndex,
                           );
                           return LineTooltipItem(
@@ -142,7 +204,9 @@ class MuscleChart extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: muscleSpots.keys.toList().asMap().entries.map((e) {
+              children: filteredMuscleSpots.keys.toList().asMap().entries.map((
+                e,
+              ) {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

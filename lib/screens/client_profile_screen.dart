@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/cliente_model.dart';
@@ -248,6 +249,41 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
   }
 
+  Future<void> _navigateToRegisterTraining() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get('/entrenamientos/cliente/${widget.clienteId}');
+      if (res.statusCode == 200) {
+        final List<dynamic> trainings = jsonDecode(res.body);
+        if (trainings.isNotEmpty) {
+          // Get the most recent active training
+          final activeTraining = trainings.first;
+          final entrenamientoId = activeTraining['_id'];
+          // Navigate to notebook screen
+          if (mounted) {
+            context.push('/entrenamientos/cuaderno/$entrenamientoId');
+          }
+        } else {
+          // No training plan found
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No hay plan de entrenamiento activo'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error navigating to training: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el entrenamiento')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -408,6 +444,27 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                 ),
                               ),
                             ),
+                            if (_hasEntrenamiento && _canEditFeatures)
+                              ElevatedButton.icon(
+                                onPressed: _navigateToRegisterTraining,
+                                icon: const Icon(
+                                  Icons.fitness_center,
+                                  size: 18,
+                                ),
+                                label: const Text('Registrar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF007AFF),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 16),

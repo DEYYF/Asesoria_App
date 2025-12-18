@@ -13,7 +13,55 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
   bool _error = false;
+  String _errorMessage = 'Error al iniciar sesión';
+  bool _isClientLogin = false;
+  bool _requiresPasswordSetup = false;
+
+  Future<void> _handleLogin(AuthService auth) async {
+    setState(() {
+      _error = false;
+      _requiresPasswordSetup = false;
+    });
+
+    if (_isClientLogin) {
+      final result = await auth.clientLogin(
+        _emailCtrl.text,
+        _passCtrl.text,
+        isFirstLogin: _requiresPasswordSetup,
+      );
+
+      if (result == 'requiresPasswordSetup') {
+        setState(() {
+          _requiresPasswordSetup = true;
+          _errorMessage = 'Establece tu contraseña para continuar';
+        });
+        return;
+      } else if (result == true) {
+        if (context.mounted) {
+          context.go('/clientes/${auth.userId}');
+        }
+      } else {
+        setState(() {
+          _error = true;
+          _errorMessage = 'Credenciales incorrectas';
+        });
+      }
+    } else {
+      final success = await auth.login(_emailCtrl.text, _passCtrl.text);
+      if (success) {
+        if (context.mounted) {
+          context.go('/');
+        }
+      } else {
+        setState(() {
+          _error = true;
+          _errorMessage = 'Credenciales incorrectas';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,22 +79,121 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 32),
+
+              if (!_requiresPasswordSetup) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _isClientLogin = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: !_isClientLogin
+                                  ? const Color(0xFF007AFF)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: Text(
+                              'Admin',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: !_isClientLogin
+                                    ? Colors.white
+                                    : Colors.black54,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _isClientLogin = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _isClientLogin
+                                  ? const Color(0xFF007AFF)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: Text(
+                              'Cliente',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _isClientLogin
+                                    ? Colors.white
+                                    : Colors.black54,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+
+              if (_requiresPasswordSetup) ...[
+                const Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Color(0xFF007AFF),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Primera vez',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Establece tu contraseña',
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+                const SizedBox(height: 32),
+              ],
+
               TextField(
                 controller: _emailCtrl,
                 decoration: const InputDecoration(labelText: 'Email'),
+                enabled: !_requiresPasswordSetup,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passCtrl,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
+                decoration: InputDecoration(
+                  labelText: _requiresPasswordSetup
+                      ? 'Nueva Contraseña'
+                      : 'Contraseña',
+                ),
                 obscureText: true,
               ),
+
+              if (_requiresPasswordSetup) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _confirmPassCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar Contraseña',
+                  ),
+                  obscureText: true,
+                ),
+              ],
+
               if (_error)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    'Error al iniciar sesión',
-                    style: TextStyle(color: Colors.red),
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ),
               const SizedBox(height: 32),
@@ -54,20 +201,32 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: auth.isLoading
                     ? null
                     : () async {
-                        setState(() => _error = false);
-                        final success = await auth.login(
-                          _emailCtrl.text,
-                          _passCtrl.text,
-                        );
-                        if (success) {
-                          if (context.mounted) context.go('/');
-                        } else {
-                          setState(() => _error = true);
+                        if (_requiresPasswordSetup) {
+                          if (_passCtrl.text != _confirmPassCtrl.text) {
+                            setState(() {
+                              _error = true;
+                              _errorMessage = 'Las contraseñas no coinciden';
+                            });
+                            return;
+                          }
+                          if (_passCtrl.text.length < 6) {
+                            setState(() {
+                              _error = true;
+                              _errorMessage =
+                                  'La contraseña debe tener al menos 6 caracteres';
+                            });
+                            return;
+                          }
                         }
+                        await _handleLogin(auth);
                       },
                 child: auth.isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('Iniciar Sesión'),
+                    : Text(
+                        _requiresPasswordSetup
+                            ? 'Establecer Contraseña'
+                            : 'Iniciar Sesión',
+                      ),
               ),
             ],
           ),

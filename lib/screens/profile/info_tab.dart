@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'dart:convert';
 import '../../models/cliente_model.dart';
+import '../../models/extra_model.dart';
+import '../../services/api_service.dart';
 
-class InfoTab extends StatelessWidget {
+class InfoTab extends StatefulWidget {
   final Cliente cliente;
   final VoidCallback? onRenovar;
   final VoidCallback? onDelete;
@@ -24,6 +28,65 @@ class InfoTab extends StatelessWidget {
   });
 
   @override
+  State<InfoTab> createState() => _InfoTabState();
+}
+
+class _InfoTabState extends State<InfoTab> {
+  List<Extra> _extrasDisponibles = [];
+  bool _isLoadingExtras = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtras();
+  }
+
+  Future<void> _loadExtras() async {
+    setState(() => _isLoadingExtras = true);
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final resExtras = await api.get('/extras');
+      if (resExtras.statusCode == 200) {
+        final listExtras = (jsonDecode(resExtras.body) as List)
+            .map((i) => Extra.fromJson(i))
+            .toList();
+        setState(() {
+          _extrasDisponibles = listExtras;
+          _isLoadingExtras = false;
+        });
+      } else {
+        setState(() => _isLoadingExtras = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading extras: $e');
+      setState(() => _isLoadingExtras = false);
+    }
+  }
+
+  List<Extra> get _clienteExtras {
+    if (widget.cliente.extras == null || widget.cliente.extras!.isEmpty) {
+      return [];
+    }
+    // Get IDs from widget.cliente.extras
+    final clienteExtraIds = widget.cliente.extras!.map((e) {
+      if (e is Map) {
+        return e['_id'] ?? e['id'] ?? e.toString();
+      }
+      return e.toString();
+    }).toList();
+
+    // Filter _extrasDisponibles to only those the client has
+    return _extrasDisponibles
+        .where((extra) => clienteExtraIds.contains(extra.id))
+        .toList();
+  }
+
+  bool _isTariffExpired() {
+    if (widget.cliente.fechaFin == null) return false;
+    return widget.cliente.fechaFin!.isBefore(DateTime.now());
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -36,17 +99,17 @@ class InfoTab extends StatelessWidget {
               _sectionTitle('INFORMACIÓN PERSONAL'),
               IconButton(
                 icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                onPressed: onEditInfo,
+                onPressed: widget.onEditInfo,
                 tooltip: 'Editar información',
               ),
             ],
           ),
           _buildGroup([
-            _appleRow('Nombre', cliente.nombre),
-            _appleRow('Email', cliente.email),
-            _appleRow('Teléfono', cliente.telefono ?? '-'),
-            _appleRow('Sexo', cliente.sexo ?? '-'),
-            _appleRow('Altura', '${cliente.altura ?? '-'} cm'),
+            _appleRow('Nombre', widget.cliente.nombre),
+            _appleRow('Email', widget.cliente.email),
+            _appleRow('Teléfono', widget.cliente.telefono ?? '-'),
+            _appleRow('Sexo', widget.cliente.sexo ?? '-'),
+            _appleRow('Altura', '${widget.cliente.altura ?? '-'} cm'),
           ]),
 
           const SizedBox(height: 24),
@@ -54,12 +117,12 @@ class InfoTab extends StatelessWidget {
           _buildGroup([
             _appleRow(
               'Tarifa',
-              '${cliente.tipoServicio} (${cliente.tiempoTarifa ?? '1 Mes'})',
+              '${widget.cliente.tipoServicio} (${widget.cliente.tiempoTarifa ?? '1 Mes'})',
               valueColor: Colors.blue,
             ),
             _appleRow(
               'Vigencia',
-              '${_formatDate(cliente.fechaInicio)} - ${_formatDate(cliente.fechaFin)}',
+              '${_formatDate(widget.cliente.fechaInicio)} - ${_formatDate(widget.cliente.fechaFin)}',
             ),
           ]),
 
@@ -78,7 +141,7 @@ class InfoTab extends StatelessWidget {
             ),
           ),
 
-          if (cliente.extras != null && cliente.extras!.isNotEmpty) ...[
+          if (!_isLoadingExtras && _clienteExtras.isNotEmpty) ...[
             const SizedBox(height: 24),
             _sectionTitle('EXTRAS'),
             SizedBox(
@@ -86,12 +149,10 @@ class InfoTab extends StatelessWidget {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: cliente.extras!.map((e) {
-                  // e can be String ID or Object. Handle both.
-                  final label = e is Map ? e['nombre'] : e.toString();
+                children: _clienteExtras.map((extra) {
                   return Chip(
                     label: Text(
-                      label,
+                      '${extra.nombre} (+${extra.precio}€/mes)',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -119,7 +180,7 @@ class InfoTab extends StatelessWidget {
                 child: _AppleButton(
                   label: 'Añadir progreso',
                   color: const Color(0xFF007AFF),
-                  onPressed: onAddProgress,
+                  onPressed: widget.onAddProgress,
                 ),
               ),
               const SizedBox(width: 12),
@@ -127,7 +188,7 @@ class InfoTab extends StatelessWidget {
                 child: _AppleButton(
                   label: 'Renovar',
                   color: const Color(0xFF34C759),
-                  onPressed: onRenovar,
+                  onPressed: _isTariffExpired() ? widget.onRenovar : null,
                 ),
               ),
             ],
@@ -139,7 +200,7 @@ class InfoTab extends StatelessWidget {
                 child: _AppleButton(
                   label: 'Cambiar Tarifa',
                   color: Colors.blueGrey,
-                  onPressed: onChangeTariff,
+                  onPressed: _isTariffExpired() ? widget.onChangeTariff : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -147,7 +208,7 @@ class InfoTab extends StatelessWidget {
                 child: _AppleButton(
                   label: 'Extras',
                   color: const Color(0xFFFF9500),
-                  onPressed: onManageExtras,
+                  onPressed: _isTariffExpired() ? widget.onManageExtras : null,
                 ),
               ),
             ],
@@ -249,7 +310,7 @@ class InfoTab extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${cliente.sesionesCounter ?? 2}',
+                  '${widget.cliente.sesionesCounter ?? 2}',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -268,7 +329,7 @@ class InfoTab extends StatelessWidget {
                   color: Color(0xFFFF3B30),
                   size: 32,
                 ),
-                onPressed: () => onSessionAction?.call('decrement'),
+                onPressed: () => widget.onSessionAction?.call('decrement'),
               ),
               const SizedBox(width: 32),
               IconButton(
@@ -277,7 +338,7 @@ class InfoTab extends StatelessWidget {
                   color: Color(0xFF34C759),
                   size: 32,
                 ),
-                onPressed: () => onSessionAction?.call('increment'),
+                onPressed: () => widget.onSessionAction?.call('increment'),
               ),
             ],
           ),

@@ -50,8 +50,36 @@ class MyApp extends StatelessWidget {
       redirect: (context, state) {
         final loggedIn = auth.isAuthenticated;
         final onLogin = state.matchedLocation == '/login';
+
+        // Not logged in - redirect to login
         if (!loggedIn && !onLogin) return '/login';
-        if (loggedIn && onLogin) return '/';
+
+        // Logged in on login page - redirect to appropriate home
+        if (loggedIn && onLogin) {
+          if (auth.isClient) {
+            return '/clientes/${auth.userId}';
+          }
+          return '/';
+        }
+
+        // Client access restrictions
+        if (loggedIn && auth.isClient) {
+          final currentPath = state.matchedLocation;
+
+          // Prevent clients from accessing dashboard
+          if (currentPath == '/') {
+            return '/clientes/${auth.userId}';
+          }
+
+          // Prevent clients from accessing other client profiles
+          if (currentPath.startsWith('/clientes/')) {
+            final pathClientId = state.pathParameters['id'];
+            if (pathClientId != null && pathClientId != auth.userId) {
+              return '/clientes/${auth.userId}';
+            }
+          }
+        }
+
         return null;
       },
       routes: [

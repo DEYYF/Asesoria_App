@@ -10,6 +10,7 @@ import '../../widgets/heatmap_panel.dart';
 import '../../services/api_service.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 class ProgressTab extends StatefulWidget {
   final Cliente cliente;
@@ -92,6 +93,42 @@ class _ProgressTabState extends State<ProgressTab> {
     }
   }
 
+  void _navigateToRegisterTraining() async {
+    // First, we need to get the active training plan for this client
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get('/entrenamientos/cliente/${widget.cliente.id}');
+      if (res.statusCode == 200) {
+        final List<dynamic> trainings = jsonDecode(res.body);
+        if (trainings.isNotEmpty) {
+          // Get the most recent active training
+          final activeTraining = trainings.first;
+          final entrenamientoId = activeTraining['_id'];
+          // Navigate to notebook screen
+          if (mounted) {
+            context.push('/entrenamientos/cuaderno/$entrenamientoId');
+          }
+        } else {
+          // No training plan found
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No hay plan de entrenamiento activo'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error navigating to training: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el entrenamiento')),
+        );
+      }
+    }
+  }
+
   List<ExerciseHistoryRecord> get _filteredData {
     if (_historyData.isEmpty) return [];
     if (_timeFilter == 'ALL') return _historyData;
@@ -135,8 +172,12 @@ class _ProgressTabState extends State<ProgressTab> {
                       size: 24,
                     ),
                   ),
-                  onPressed: widget.onAddProgress,
-                  tooltip: 'Añadir Registro',
+                  onPressed: _viewMode == 'rendimiento'
+                      ? _navigateToRegisterTraining
+                      : widget.onAddProgress,
+                  tooltip: _viewMode == 'rendimiento'
+                      ? 'Registrar Entrenamiento'
+                      : 'Añadir Progreso',
                 ),
             ],
           ),
@@ -550,6 +591,8 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildEvolutionChart(List<ExerciseHistoryRecord> data) {
+    if (data.isEmpty) return const SizedBox.shrink();
+
     List<FlSpot> spots = [];
     List<FlSpot> spots2 = [];
 
@@ -570,6 +613,48 @@ class _ProgressTabState extends State<ProgressTab> {
       }
     }
 
+    // Calculate dynamic Y-axis range
+    double minY = 0;
+    double maxY = 100;
+
+    if (spots.isNotEmpty) {
+      final allYValues = <double>[];
+      allYValues.addAll(spots.map((s) => s.y));
+      if (_metric == 'strength' && spots2.isNotEmpty) {
+        allYValues.addAll(spots2.map((s) => s.y));
+      }
+
+      final dataMin = allYValues.reduce((a, b) => a < b ? a : b);
+      final dataMax = allYValues.reduce((a, b) => a > b ? a : b);
+
+      // Add 10% padding above and below for better visualization
+      final range = dataMax - dataMin;
+      final padding = range > 0 ? range * 0.1 : dataMax * 0.1;
+
+      minY = (dataMin - padding).clamp(0, double.infinity);
+      maxY = dataMax + padding;
+
+      // Ensure minimum range for better visualization
+      if (maxY - minY < 10) {
+        final center = (maxY + minY) / 2;
+        minY = (center - 5).clamp(0, double.infinity);
+        maxY = center + 5;
+      }
+    }
+
+    // Calculate appropriate interval for Y-axis labels
+    final yRange = maxY - minY;
+    double interval = 1;
+    if (yRange > 100) {
+      interval = (yRange / 5).ceilToDouble();
+    } else if (yRange > 50) {
+      interval = 10;
+    } else if (yRange > 20) {
+      interval = 5;
+    } else if (yRange > 10) {
+      interval = 2;
+    }
+
     // Colors
     final mainColor = _metric == 'strength'
         ? const Color(0xFF007AFF)
@@ -579,6 +664,8 @@ class _ProgressTabState extends State<ProgressTab> {
 
     return LineChart(
       LineChartData(
+        minY: minY,
+        maxY: maxY,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
@@ -589,13 +676,27 @@ class _ProgressTabState extends State<ProgressTab> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 30,
-              getTitlesWidget: (val, meta) => Text(
-                val >= 1000
-                    ? '${(val / 1000).toStringAsFixed(0)}k'
-                    : val.toInt().toString(),
-                style: const TextStyle(fontSize: 10, color: Color(0xFF8E8E93)),
-              ),
+              reservedSize: 40,
+              interval: interval,
+              getTitlesWidget: (val, meta) {
+                // Format large numbers
+                if (val >= 1000) {
+                  return Text(
+                    '${(val / 1000).toStringAsFixed(1)}k',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  );
+                }
+                return Text(
+                  val.toInt().toString(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF8E8E93),
+                  ),
+                );
+              },
             ),
           ),
           bottomTitles: AxisTitles(
