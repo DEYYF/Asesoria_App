@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../models/ejercicio_model.dart';
 import '../../models/entrenamiento_model.dart';
 
 class CreateTrainingScreen extends StatefulWidget {
-  final String clienteId;
-  const CreateTrainingScreen({super.key, required this.clienteId});
+  final String? clienteId;
+  final String? entrenamientoId;
+
+  const CreateTrainingScreen({super.key, this.clienteId, this.entrenamientoId});
 
   @override
   State<CreateTrainingScreen> createState() => _CreateTrainingScreenState();
@@ -27,18 +30,69 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   // Data
   List<Ejercicio> _allEjercicios = [];
 
-  // Training Structure State
-  // We'll effectively build an Entrenamiento object in state but maybe easier to use easier structure
-  // Mirroring React: List of Weeks, which have Days, which have Items.
+  // Training Structure
   List<SemanaEntrenamiento> _semanas = [];
+  String? _loadedClienteId;
 
   @override
   void initState() {
     super.initState();
-    _loadEjercicios();
-    // Initialize with 1 Week, 1 Day
-    _addSemana();
+    _loadData();
   }
+
+  Future<void> _loadData() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+
+    // 1. Load Exercises
+    try {
+      final res = await api.get(
+        '/ejercicios',
+        params: {'t': DateTime.now().millisecondsSinceEpoch.toString()},
+      );
+      if (res.statusCode == 200) {
+        final dynamic decoded = jsonDecode(res.body);
+        List list = [];
+        if (decoded is List)
+          list = decoded;
+        else if (decoded is Map<String, dynamic>) {
+          if (decoded.containsKey('items'))
+            list = decoded['items'];
+          else if (decoded.containsKey('ejercicios'))
+            list = decoded['ejercicios'];
+        }
+        _allEjercicios = list.map((e) => Ejercicio.fromJson(e)).toList();
+      }
+    } catch (e) {
+      // Silent fail on init, showing later? Or SnackBar
+    }
+
+    // 2. Load Training if Editing
+    if (widget.entrenamientoId != null) {
+      try {
+        final res = await api.get('/entrenamientos/${widget.entrenamientoId}');
+        if (res.statusCode == 200) {
+          final ent = Entrenamiento.fromJson(jsonDecode(res.body));
+          _tituloController.text = ent.titulo;
+          _objetivoController.text = ent.objetivo ?? '';
+          _semanas = ent.semanas;
+          _loadedClienteId = ent.clienteId;
+        }
+      } catch (e) {
+        if (mounted)
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error cargando plan: $e')));
+      }
+    } else {
+      // New Plan
+      _loadedClienteId = widget.clienteId;
+      _addSemana();
+    }
+
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  // --- Logic Helpers ---
 
   void _addSemana() {
     setState(() {
@@ -51,33 +105,61 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     });
   }
 
-  void _addDia(int weekIndex) {
+  void _copySemana(int idx) {
     setState(() {
-      final week = _semanas[weekIndex];
+      final original = _semanas[idx];
+      // Deep copy logic
+      final newDias = original.dias.map((d) {
+        final newItems = d.items.map((i) => _cloneItem(i)).toList();
+        return DiaEntrenamiento(nombre: d.nombre, items: newItems);
+      }).toList();
+
+      _semanas.add(
+        SemanaEntrenamiento(numero: _semanas.length + 1, dias: newDias),
+      );
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Semana duplicada')));
+  }
+
+  void _addDia(int weekIdx) {
+    setState(() {
+      final week = _semanas[weekIdx];
       week.dias.add(
         DiaEntrenamiento(nombre: 'Día ${week.dias.length + 1}', items: []),
       );
     });
   }
 
-  Future<void> _loadEjercicios() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-    try {
-      final res = await api.get('/ejercicios');
-      if (res.statusCode == 200) {
-        final List list = jsonDecode(res.body);
-        if (mounted) {
-          setState(() {
-            _allEjercicios = list.map((e) => Ejercicio.fromJson(e)).toList();
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _copyDia(int weekIdx, int dayIdx) {
+    setState(() {
+      final original = _semanas[weekIdx].dias[dayIdx];
+      final newItems = original.items.map((i) => _cloneItem(i)).toList();
+
+      _semanas[weekIdx].dias.add(
+        DiaEntrenamiento(nombre: '${original.nombre} (Copia)', items: newItems),
+      );
+    });
+  }
+
+  ItemEntrenamiento _cloneItem(ItemEntrenamiento item) {
+    final s = item.esquema ?? EsquemaSerie();
+    return ItemEntrenamiento(
+      orden: item.orden,
+      ejercicio: item.ejercicio,
+      ejercicioId: item.ejercicioId,
+      ejercicioNombre: item.ejercicioNombre,
+      grupoId: item.grupoId,
+      esquema: EsquemaSerie(
+        series: s.series,
+        repsMin: s.repsMin,
+        repsMax: s.repsMax,
+        rir: s.rir,
+        descanso: s.descanso,
+        notas: s.notas,
+      ),
+    );
   }
 
   Future<void> _handleSave() async {
@@ -85,47 +167,71 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     if (_semanas.isEmpty) return;
 
     setState(() => _isSaving = true);
+    final auth = Provider.of<AuthService>(context, listen: false);
     final api = Provider.of<ApiService>(context, listen: false);
+    final asesorId = auth.user?['_id'] ?? auth.user?['id'];
+
+    if (asesorId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: No se identificó al asesor')),
+        );
+      }
+      setState(() => _isSaving = false);
+      return;
+    }
+
+    // Validate loaded client ID
+    if (_loadedClienteId == null) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Falta ID del Cliente')),
+        );
+      setState(() => _isSaving = false);
+      return;
+    }
 
     try {
-      // Build payload
       final ent = Entrenamiento(
-        clienteId: widget.clienteId,
+        id: widget.entrenamientoId, // Include ID if editing
+        clienteId: _loadedClienteId!, // Use loaded or passed ID
+        asesorId: asesorId,
         titulo: _tituloController.text.trim(),
         objetivo: _objetivoController.text.trim(),
         semanas: _semanas,
       );
 
-      // We need to convert to JSON but ensure IDs are strings in 'ejercicio' field
-      // The model toJson handles this structure naturally.
+      // Add ToJson payload
       final payload = ent.toJson();
 
-      final res = await api.post('/entrenamientos', payload);
+      final res = widget.entrenamientoId != null
+          ? await api.put('/entrenamientos/${widget.entrenamientoId}', payload)
+          : await api.post('/entrenamientos', payload);
 
       if (res.statusCode == 201 || res.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Entrenamiento guardado')),
           );
-          context.pop(); // Go back
+          context.pop();
         }
       } else {
-        if (mounted) {
+        if (mounted)
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error: ${res.body}')));
-        }
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error excepción: $e')));
-      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
+
+  // --- Widgets ---
 
   @override
   Widget build(BuildContext context) {
@@ -133,21 +239,28 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
-        title: const Text('Crear Entrenamiento'),
+        title: Text(
+          widget.entrenamientoId != null
+              ? 'Editar Entrenamiento'
+              : 'Crear Entrenamiento',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        foregroundColor: Colors.black,
         actions: [
-          IconButton(
+          TextButton.icon(
             onPressed: _isSaving ? null : _handleSave,
             icon: _isSaving
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.save),
+            label: const Text('Guardar'),
           ),
         ],
       ),
@@ -156,83 +269,156 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Header Info
-            TextFormField(
-              controller: _tituloController,
-              decoration: const InputDecoration(labelText: 'Título'),
-              validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _objetivoController,
-              decoration: const InputDecoration(labelText: 'Objetivo'),
+            // Header Card
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _tituloController,
+                      decoration: const InputDecoration(
+                        labelText: 'Título del Plan',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.title),
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Requerido' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _objetivoController,
+                      decoration: const InputDecoration(
+                        labelText: 'Objetivo Principal',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.flag),
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 24),
 
             // Weeks
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _semanas.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 24),
-              itemBuilder: (context, idx) {
-                return _buildSemanaCard(idx);
-              },
+            ..._semanas.asMap().entries.map(
+              (entry) => _buildSemanaCard(entry.key, entry.value),
             ),
 
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _addSemana,
-              icon: const Icon(Icons.add),
-              label: const Text('Añadir Semana'),
+            const SizedBox(height: 24),
+
+            // Add Week Button
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: _addSemana,
+                icon: const Icon(Icons.add),
+                label: const Text('Añadir Semana'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSemanaCard(int weekIdx) {
-    final semana = _semanas[weekIdx];
-    return Card(
-      elevation: 2,
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        title: Text(
-          'Semana ${semana.numero}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: () {
-            setState(() {
-              _semanas.removeAt(weekIdx);
-              // Re-number subsequent weeks?
-              for (int i = 0; i < _semanas.length; i++) {
-                // We're modifying the objects in place basically, creating new list for safety?
-                // actually 'numero' is final in model, so we need to reconstruct if we want to renumber properly.
-                // Assuming backend might handle, or we just leave numbers. React code re-maps index+1 on save.
-                // I'll leave numbers as is for now or use index+1 display.
-              }
-            });
-          },
-        ),
+  Widget _buildSemanaCard(int weekIdx, SemanaEntrenamiento semana) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
         children: [
+          // Week Header
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Semana ${semana.numero}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.copy,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
+                      onPressed: () => _copySemana(weekIdx),
+                      tooltip: 'Duplicar Semana',
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        size: 20,
+                        color: Colors.red,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _semanas.removeAt(weekIdx);
+                        });
+                      },
+                      tooltip: 'Eliminar Semana',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Days
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                ...semana.dias.asMap().entries.map((entry) {
-                  int dayIdx = entry.key;
-                  DiaEntrenamiento dia = entry.value;
-                  return _buildDiaCard(weekIdx, dayIdx, dia);
-                }).toList(),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
+                ...semana.dias.asMap().entries.map(
+                  (dEntry) => _buildDiaCard(weekIdx, dEntry.key, dEntry.value),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
                   onPressed: () => _addDia(weekIdx),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_circle, size: 16),
                   label: const Text('Añadir Día'),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    backgroundColor: Colors.blue.shade50,
+                    foregroundColor: Colors.blue,
+                  ),
                 ),
               ],
             ),
@@ -243,40 +429,58 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   }
 
   Widget _buildDiaCard(int weekIdx, int dayIdx, DiaEntrenamiento dia) {
-    return Card(
-      color: Colors.grey.shade50,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Day Title Row
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
               children: [
+                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     initialValue: dia.nombre,
-                    decoration: InputDecoration(
-                      labelText: 'Nombre del Día',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(
                       isDense: true,
-                      contentPadding: const EdgeInsets.all(8),
+                      border: InputBorder.none,
+                      hintText: 'Nombre del día (ej. Pecho/Tríceps)',
                     ),
-                    onChanged: (val) {
+                    onChanged: (v) {
                       setState(() {
-                        // Modifying list in place - risky but okay for mutable lists if internal structure allows
-                        // Wait, my model fields are FINAL. I cannot change them directly.
-                        // I need to REPLACE the Dia object.
-                        final oldDia = _semanas[weekIdx].dias[dayIdx];
+                        // In-place update of mutable object
+                        // Actually need to replace object in list to trigger update if immutable
+                        // Assuming mutable list in Semana but Dia fields might be final?
+                        // Re-constructing Dia to be safe:
+                        final items = dia.items;
                         _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-                          nombre: val,
-                          items: oldDia.items,
+                          nombre: v,
+                          items: items,
                         );
                       });
                     },
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: const Icon(
+                    Icons.copy,
+                    size: 18,
+                    color: Colors.blueGrey,
+                  ),
+                  onPressed: () => _copyDia(weekIdx, dayIdx),
+                  tooltip: 'Duplicar Día',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, size: 18, color: Colors.red),
                   onPressed: () {
                     setState(() {
                       _semanas[weekIdx].dias.removeAt(dayIdx);
@@ -285,289 +489,350 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Items
-            ...dia.items
-                .asMap()
-                .entries
-                .map(
-                  (entry) =>
-                      _buildItemRow(weekIdx, dayIdx, entry.key, entry.value),
-                )
-                .toList(),
+          ),
+          const Divider(height: 1),
 
-            TextButton.icon(
-              onPressed: () => _addItem(weekIdx, dayIdx),
-              icon: const Icon(Icons.add_circle_outline, size: 18),
+          // Reorderable List of Exercises
+          // Using ReorderableListView inside a column needs physics limit and shrinkwrap
+          if (dia.items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Sin ejercicios',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          else
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: dia.items.length,
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) newIndex -= 1;
+                  final item = dia.items.removeAt(oldIndex);
+                  dia.items.insert(newIndex, item);
+                  // Update orden property
+                  for (var i = 0; i < dia.items.length; i++) {
+                    // Again, need to reconstruct ItemEntrenamiento if fields are final
+                    final it = dia.items[i];
+                    dia.items[i] = ItemEntrenamiento(
+                      orden: i,
+                      ejercicio: it.ejercicio,
+                      ejercicioId: it.ejercicioId,
+                      ejercicioNombre: it.ejercicioNombre,
+                      grupoId: it.grupoId,
+                      esquema: it.esquema,
+                    );
+                  }
+                  // Re-assign dia to refresh state deeply check
+                  _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
+                    nombre: dia.nombre,
+                    items: dia.items,
+                  );
+                });
+              },
+              itemBuilder: (context, itemIdx) {
+                final item = dia.items[itemIdx];
+                return Container(
+                  key: ValueKey('${item.ejercicioId}_$itemIdx'),
+                  child: _buildExerciseRow(weekIdx, dayIdx, itemIdx, item),
+                );
+              },
+            ),
+
+          // Add Exercise Button
+          Container(
+            padding: const EdgeInsets.all(8),
+            color: Colors.grey.shade50,
+            child: TextButton.icon(
+              onPressed: () => _showExercisePicker(context, weekIdx, dayIdx),
+              icon: const Icon(Icons.add),
               label: const Text('Añadir Ejercicio'),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _addItem(int weekIdx, int dayIdx) {
-    setState(() {
-      final dia = _semanas[weekIdx].dias[dayIdx];
-      final newItems = List<ItemEntrenamiento>.from(dia.items);
-      newItems.add(
-        ItemEntrenamiento(
-          orden: newItems.length,
-          esquema: EsquemaSerie(
-            series: 3,
-            repsMin: 8,
-            repsMax: 12,
-            rir: 1,
-            descanso: 90,
-          ),
-        ),
-      );
-
-      // Replace Dia
-      _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-        nombre: dia.nombre,
-        items: newItems,
-      );
-    });
-  }
-
-  Widget _buildItemRow(
-    int weekIdx,
-    int dayIdx,
-    int itemIdx,
-    ItemEntrenamiento item,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          // Row 1: Exercise Selector + Delete
-          Row(
-            children: [
-              Expanded(
-                child: Autocomplete<Ejercicio>(
-                  displayStringForOption: (e) => e.nombre,
-                  initialValue: item.ejercicio != null
-                      ? TextEditingValue(text: item.ejercicio!.nombre)
-                      : null,
-                  optionsBuilder: (textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<Ejercicio>.empty();
-                    }
-                    return _allEjercicios.where((e) {
-                      return e.nombre.toLowerCase().contains(
-                        textEditingValue.text.toLowerCase(),
-                      );
-                    });
-                  },
-                  onSelected: (Ejercicio selection) {
-                    setState(() {
-                      // Update item with selected exercise
-                      final dia = _semanas[weekIdx].dias[dayIdx];
-                      final items = List<ItemEntrenamiento>.from(dia.items);
-                      final oldItem = items[itemIdx];
-
-                      items[itemIdx] = ItemEntrenamiento(
-                        ejercicio: selection,
-                        ejercicioId: selection.id,
-                        ejercicioNombre: selection.nombre,
-                        orden: oldItem.orden,
-                        esquema: oldItem.esquema,
-                      );
-
-                      _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-                        nombre: dia.nombre,
-                        items: items,
-                      );
-                    });
-                  },
-                  fieldViewBuilder:
-                      (
-                        context,
-                        textEditingController,
-                        focusNode,
-                        onFieldSubmitted,
-                      ) {
-                        // Pre-fill if we have an item name but it wasn't selected via autocomplete (e.g. from existing?)
-                        // Here we are creating new, so it's empty or what we typed.
-                        return TextField(
-                          controller: textEditingController,
-                          focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'Ejercicio',
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            isDense: true,
-                          ),
-                        );
-                      },
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.grey, size: 20),
-                onPressed: () {
-                  setState(() {
-                    final dia = _semanas[weekIdx].dias[dayIdx];
-                    final items = List<ItemEntrenamiento>.from(dia.items);
-                    items.removeAt(itemIdx);
-                    _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-                      nombre: dia.nombre,
-                      items: items,
-                    );
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Row 2: Schema Inputs (Series, Reps, RIR, Rest)
-          Row(
-            children: [
-              _buildNumInput(
-                label: 'Series',
-                val: item.esquema?.series,
-                onChanged: (v) =>
-                    _updateSchema(weekIdx, dayIdx, itemIdx, 'series', v),
-              ),
-              const SizedBox(width: 8),
-              _buildNumInput(
-                label: 'Reps Min',
-                val: item.esquema?.repsMin,
-                onChanged: (v) =>
-                    _updateSchema(weekIdx, dayIdx, itemIdx, 'repsMin', v),
-              ),
-              const SizedBox(width: 8),
-              _buildNumInput(
-                label: 'Reps Max',
-                val: item.esquema?.repsMax,
-                onChanged: (v) =>
-                    _updateSchema(weekIdx, dayIdx, itemIdx, 'repsMax', v),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildNumInput(
-                label: 'RIR',
-                val: item.esquema?.rir,
-                onChanged: (v) =>
-                    _updateSchema(weekIdx, dayIdx, itemIdx, 'rir', v),
-              ),
-              const SizedBox(width: 8),
-              _buildNumInput(
-                label: 'Desc (s)',
-                val: item.esquema?.descanso,
-                onChanged: (v) =>
-                    _updateSchema(weekIdx, dayIdx, itemIdx, 'descanso', v),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  initialValue: item.esquema?.notas,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 12,
-                    ),
-                  ),
-                  onChanged: (v) =>
-                      _updateSchema(weekIdx, dayIdx, itemIdx, 'notas', v),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNumInput({
-    required String label,
-    required num? val,
-    required Function(String) onChanged,
-  }) {
-    return Expanded(
-      child: TextFormField(
-        initialValue: val?.toString() ?? '',
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          labelText: label,
-          isDense: true,
-          border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 12,
+  Widget _buildExerciseRow(
+    int wIdx,
+    int dIdx,
+    int iIdx,
+    ItemEntrenamiento item,
+  ) {
+    return Container(
+      color: Colors.white, // Required for dragging visuals
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            leading: const Icon(Icons.drag_indicator, color: Colors.grey),
+            title: Text(
+              item.ejercicioNombre ?? 'Ejercicio',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(item.ejercicio?.grupo ?? 'General'),
+            trailing: IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+              onPressed: () {
+                setState(() {
+                  _semanas[wIdx].dias[dIdx].items.removeAt(iIdx);
+                });
+              },
+            ),
           ),
-        ),
-        onChanged: onChanged,
+          // Schema Inputs Row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              children: [
+                _miniInput(
+                  'Series',
+                  item.esquema?.series,
+                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'series', v),
+                ),
+                const SizedBox(width: 8),
+                _miniInput(
+                  'Reps',
+                  item.esquema?.repsMin,
+                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'repsMin', v),
+                ), // Simplify to just repsMin/target for now? Or Range
+                const Text(' - ', style: TextStyle(color: Colors.grey)),
+                _miniInput(
+                  'Max',
+                  item.esquema?.repsMax,
+                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'repsMax', v),
+                ),
+                const SizedBox(width: 8),
+                _miniInput(
+                  'RIR',
+                  item.esquema?.rir,
+                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'rir', v),
+                ),
+                const SizedBox(width: 8),
+                _miniInput(
+                  'Desc (s)',
+                  item.esquema?.descanso,
+                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'descanso', v),
+                  flex: 2,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+        ],
       ),
     );
   }
 
-  void _updateSchema(
-    int wIdx,
-    int dIdx,
-    int iIdx,
-    String field,
-    dynamic valStr,
-  ) {
-    // This is getting messy with deep immutable updates.
-    // Ideally we clone logic helper.
+  Widget _miniInput(
+    String label,
+    num? val,
+    Function(String) onChange, {
+    int flex = 1,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          SizedBox(
+            height: 32,
+            child: TextFormField(
+              initialValue: val?.toString() ?? '',
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 0,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              onChanged: onChange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Logic to show dialog
+  void _showExercisePicker(BuildContext mainCtx, int wIdx, int dIdx) {
+    showDialog(
+      context: mainCtx,
+      builder: (ctx) => _ExerciseSearchDialog(
+        ejercicios: _allEjercicios,
+        onSelected: (ej) {
+          setState(() {
+            final dia = _semanas[wIdx].dias[dIdx];
+            dia.items.add(
+              ItemEntrenamiento(
+                orden: dia.items.length,
+                ejercicio: ej,
+                ejercicioId: ej.id,
+                ejercicioNombre: ej.nombre,
+                esquema: EsquemaSerie(
+                  series: 3,
+                  repsMin: 8,
+                  repsMax: 12,
+                  rir: 2,
+                  descanso: 90,
+                ),
+              ),
+            );
+          });
+          Navigator.pop(ctx);
+        },
+      ),
+    );
+  }
+
+  void _updateSchema(int wIdx, int dIdx, int iIdx, String field, String val) {
     setState(() {
       final dia = _semanas[wIdx].dias[dIdx];
-      final items = List<ItemEntrenamiento>.from(dia.items);
-      final oldItem = items[iIdx];
-      final oldSchema = oldItem.esquema ?? EsquemaSerie();
+      final item = dia.items[iIdx];
+      final old = item.esquema ?? EsquemaSerie();
+      num? n = num.tryParse(val);
 
-      // Update specific field
-      num? valNum = num.tryParse(valStr);
-      String? valString = valStr; // for notes
-
-      EsquemaSerie newSchema = EsquemaSerie(
-        series: field == 'series'
-            ? (valNum?.toInt() ?? oldSchema.series)
-            : oldSchema.series,
-        repsMin: field == 'repsMin'
-            ? (valNum?.toInt() ?? oldSchema.repsMin)
-            : oldSchema.repsMin,
-        repsMax: field == 'repsMax'
-            ? (valNum?.toInt() ?? oldSchema.repsMax)
-            : oldSchema.repsMax,
-        rir: field == 'rir' ? (valNum ?? oldSchema.rir) : oldSchema.rir,
-        descanso: field == 'descanso'
-            ? (valNum?.toInt() ?? oldSchema.descanso)
-            : oldSchema.descanso,
-        notas: field == 'notas'
-            ? (valString ?? oldSchema.notas)
-            : oldSchema.notas,
-      );
-
-      items[iIdx] = ItemEntrenamiento(
-        ejercicio: oldItem.ejercicio,
-        ejercicioId: oldItem.ejercicioId,
-        ejercicioNombre: oldItem.ejercicioNombre,
-        orden: oldItem.orden,
-        esquema: newSchema,
-      );
-
-      _semanas[wIdx].dias[dIdx] = DiaEntrenamiento(
-        nombre: dia.nombre,
-        items: items,
+      dia.items[iIdx] = ItemEntrenamiento(
+        orden: item.orden,
+        ejercicio: item.ejercicio,
+        ejercicioId: item.ejercicioId,
+        ejercicioNombre: item.ejercicioNombre,
+        grupoId: item.grupoId,
+        esquema: EsquemaSerie(
+          series: field == 'series' ? (n?.toInt() ?? old.series) : old.series,
+          repsMin: field == 'repsMin'
+              ? (n?.toInt() ?? old.repsMin)
+              : old.repsMin,
+          repsMax: field == 'repsMax'
+              ? (n?.toInt() ?? old.repsMax)
+              : old.repsMax,
+          rir: field == 'rir' ? (n ?? old.rir) : old.rir,
+          descanso: field == 'descanso'
+              ? (n?.toInt() ?? old.descanso)
+              : old.descanso,
+          notas: old.notas,
+        ),
       );
     });
+  }
+}
+
+// Helper Dialog
+class _ExerciseSearchDialog extends StatefulWidget {
+  final List<Ejercicio> ejercicios;
+  final Function(Ejercicio) onSelected;
+
+  const _ExerciseSearchDialog({
+    required this.ejercicios,
+    required this.onSelected,
+  });
+
+  @override
+  State<_ExerciseSearchDialog> createState() => _ExerciseSearchDialogState();
+}
+
+class _ExerciseSearchDialogState extends State<_ExerciseSearchDialog> {
+  String _query = '';
+  String? _filterGroup;
+
+  @override
+  Widget build(BuildContext context) {
+    // Unique groups
+    final groups = widget.ejercicios
+        .map((e) => e.grupo)
+        .where((g) => g != null)
+        .toSet()
+        .toList();
+
+    final filtered = widget.ejercicios.where((e) {
+      final matchesSearch = e.nombre.toLowerCase().contains(
+        _query.toLowerCase(),
+      );
+      final matchesGroup = _filterGroup == null || e.grupo == _filterGroup;
+      return matchesSearch && matchesGroup;
+    }).toList();
+
+    return AlertDialog(
+      title: const Text('Seleccionar Ejercicio'),
+      content: SizedBox(
+        width: 400,
+        height: 500,
+        child: Column(
+          children: [
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Buscar...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todos'),
+                    selected: _filterGroup == null,
+                    onSelected: (b) => setState(() => _filterGroup = null),
+                  ),
+                  const SizedBox(width: 8),
+                  ...groups.map(
+                    (g) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(g!),
+                        selected: _filterGroup == g,
+                        onSelected: (b) =>
+                            setState(() => _filterGroup = b ? g : null),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No se encontraron ejercicios',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final e = filtered[index];
+                        return ListTile(
+                          title: Text(e.nombre),
+                          subtitle: Text(
+                            '${e.grupo ?? '-'} | ${e.equipo ?? '-'}',
+                          ),
+                          onTap: () => widget.onSelected(e),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
   }
 }

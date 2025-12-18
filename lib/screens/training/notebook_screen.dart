@@ -20,8 +20,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
   int _selectedWeekIdx = 0;
   int _selectedDayIdx = 0;
 
-  // Session Data: Map<ExerciseIndex, List<Map<String, dynamic>>>
-  // Using dynamic maps for flexibility in form state
+  // Map<ExerciseIndex, List<Map<String, dynamic>>>
   Map<int, List<Map<String, dynamic>>> _formData = {};
   String _comentarios = "";
   bool _isSaving = false;
@@ -42,7 +41,6 @@ class _NotebookScreenState extends State<NotebookScreen> {
           setState(() {
             _ent = ent;
             _isLoading = false;
-            // Initialize form data for the default selection
             _initFormData(ent, 0, 0);
           });
         } else {
@@ -79,7 +77,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
     if (val == null) return;
     setState(() {
       _selectedWeekIdx = val;
-      _selectedDayIdx = 0; // Reset day
+      _selectedDayIdx = 0;
       if (_ent != null) _initFormData(_ent!, val, 0);
     });
   }
@@ -95,8 +93,8 @@ class _NotebookScreenState extends State<NotebookScreen> {
   void _updateSerie(int exIdx, int sIdx, String field, String val) {
     setState(() {
       final list = _formData[exIdx]!;
-      list[sIdx][field] = val; // Store as string for input
-      _formData[exIdx] = list; // trigger update
+      list[sIdx][field] = val;
+      _formData[exIdx] = list;
     });
   }
 
@@ -107,14 +105,12 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
     try {
       final dia = _ent!.semanas[_selectedWeekIdx].dias[_selectedDayIdx];
-
       final ejerciciosPayload = <Map<String, dynamic>>[];
 
       for (int i = 0; i < dia.items.length; i++) {
         final item = dia.items[i];
         final seriesData = _formData[i] ?? [];
 
-        // Filter out empty rows (where weight AND reps are empty)
         final validSeries = seriesData
             .where(
               (s) =>
@@ -130,14 +126,15 @@ class _NotebookScreenState extends State<NotebookScreen> {
             })
             .toList();
 
-        ejerciciosPayload.add({
-          'ejercicio': item.ejercicioId ?? item.ejercicio?.id, // ID
-          'ejercicioNombre':
-              item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
-          'series': validSeries,
-          'notas':
-              '', // Should add notes field per exercise? React has generic comments or exercise notes.
-        });
+        if (validSeries.isNotEmpty) {
+          ejerciciosPayload.add({
+            'ejercicio': item.ejercicioId ?? item.ejercicio?.id,
+            'ejercicioNombre':
+                item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
+            'series': validSeries,
+            'notas': '',
+          });
+        }
       }
 
       final payload = {
@@ -153,9 +150,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
       if (mounted) {
         if (res.statusCode == 201 || res.statusCode == 200) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Sesión registrada')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sesión registrada correctamente')),
+          );
           context.pop();
         } else {
           ScaffoldMessenger.of(
@@ -193,59 +190,83 @@ class _NotebookScreenState extends State<NotebookScreen> {
       );
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA), // Light grey background
       appBar: AppBar(
-        title: const Text('Registrar Sesión'),
-        actions: [
-          IconButton(
-            onPressed: _isSaving ? null : _handleSave,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Icon(Icons.check),
-          ),
-        ],
+        title: const Text(
+          'Registrar Sesión',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: BackButton(
+          color: Colors.black,
+          onPressed: () => context.pop(),
+        ),
       ),
       body: Column(
         children: [
           // Selectors
           Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.blue.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
             child: Row(
               children: [
                 Expanded(
-                  child: DropdownButton<int>(
-                    value: _selectedWeekIdx,
-                    isExpanded: true,
-                    items: List.generate(
-                      semanas.length,
-                      (index) => DropdownMenuItem(
-                        value: index,
-                        child: Text('Semana ${semanas[index].numero}'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _selectedWeekIdx,
+                        isExpanded: true,
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: Colors.blue,
+                        ),
+                        items: List.generate(
+                          semanas.length,
+                          (index) => DropdownMenuItem(
+                            value: index,
+                            child: Text('Semana ${semanas[index].numero}'),
+                          ),
+                        ),
+                        onChanged: _handleWeekChange,
                       ),
                     ),
-                    onChanged: _handleWeekChange,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: DropdownButton<int>(
-                    value: _selectedDayIdx,
-                    isExpanded: true,
-                    items: List.generate(
-                      dias.length,
-                      (index) => DropdownMenuItem(
-                        value: index,
-                        child: Text(dias[index].nombre),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _selectedDayIdx,
+                        isExpanded: true,
+                        icon: const Icon(
+                          Icons.arrow_drop_down,
+                          color: Colors.blue,
+                        ),
+                        items: List.generate(
+                          dias.length,
+                          (index) => DropdownMenuItem(
+                            value: index,
+                            child: Text(dias[index].nombre),
+                          ),
+                        ),
+                        onChanged: _handleDayChange,
                       ),
                     ),
-                    onChanged: _handleDayChange,
                   ),
                 ),
               ],
@@ -255,129 +276,276 @@ class _NotebookScreenState extends State<NotebookScreen> {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: currentDia.items.length + 1, // +1 for comment section
-              separatorBuilder: (_, __) => const SizedBox(height: 24),
+              itemCount: currentDia.items.length + 1,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
+                // Comment Card
                 if (index == currentDia.items.length) {
-                  // Comments Section
-                  return TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Comentarios de la sesión',
-                      border: OutlineInputBorder(),
+                  return Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
                     ),
-                    maxLines: 3,
-                    onChanged: (v) => _comentarios = v,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Comentarios finales',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: '¿Cómo te sentiste? ¿Alguna molestia?',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.all(12),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            maxLines: 3,
+                            onChanged: (v) => _comentarios = v,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 }
 
+                // Exercise Card
                 final item = currentDia.items[index];
                 final seriesData = _formData[index] ?? [];
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.ejercicioNombre ??
-                          item.ejercicio?.nombre ??
-                          'Ejercicio',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Header
-                    Row(
-                      children: const [
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            'Serie',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Peso (kg)',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Reps',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'RIR',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // Inputs
-                    ...seriesData.asMap().entries.map((entry) {
-                      final sIdx = entry.key;
-                      final sData = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
+                return Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            SizedBox(
-                              width: 40,
-                              child: Center(
-                                child: Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
-                                    shape: BoxShape.circle,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.fitness_center,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.ejercicioNombre ??
+                                        item.ejercicio?.nombre ??
+                                        'Ejercicio',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    '${sIdx + 1}',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: _TableInput(
-                                hint: 'kg',
-                                value: sData['peso'],
-                                onChanged: (v) =>
-                                    _updateSerie(index, sIdx, 'peso', v),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _TableInput(
-                                hint: 'reps',
-                                value: sData['reps'],
-                                onChanged: (v) =>
-                                    _updateSerie(index, sIdx, 'reps', v),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _TableInput(
-                                hint: 'rir',
-                                value: sData['rir'],
-                                onChanged: (v) =>
-                                    _updateSerie(index, sIdx, 'rir', v),
+                                  if (item.ejercicio?.grupo != null)
+                                    Text(
+                                      item.ejercicio!.grupo!,
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      );
-                    }).toList(),
-                  ],
+                        const SizedBox(height: 16),
+
+                        // Header Row
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: const [
+                              SizedBox(
+                                width: 32,
+                                child: Center(
+                                  child: Text(
+                                    '#',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  'PESO (KG)',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'REPS',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'RIR',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Inputs
+                        ...seriesData.asMap().entries.map((entry) {
+                          final sIdx = entry.key;
+                          final sData = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 32,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${sIdx + 1}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _TableInput(
+                                    value: sData['peso'],
+                                    onChanged: (v) =>
+                                        _updateSerie(index, sIdx, 'peso', v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _TableInput(
+                                    value: sData['reps'],
+                                    onChanged: (v) =>
+                                        _updateSerie(index, sIdx, 'reps', v),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _TableInput(
+                                    value: sData['rir'],
+                                    onChanged: (v) =>
+                                        _updateSerie(index, sIdx, 'rir', v),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
                 );
               },
+            ),
+          ),
+
+          // Bottom Bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, -4),
+                  blurRadius: 16,
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _handleSave,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF007AFF), // iOS Blue
+                  elevation: 0,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Finalizar y Guardar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
             ),
           ),
         ],
@@ -387,28 +555,30 @@ class _NotebookScreenState extends State<NotebookScreen> {
 }
 
 class _TableInput extends StatelessWidget {
-  final String hint;
   final String value;
   final Function(String) onChanged;
-  const _TableInput({
-    required this.hint,
-    required this.value,
-    required this.onChanged,
-  });
+  const _TableInput({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      initialValue: value,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      decoration: InputDecoration(
-        hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        isDense: true,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      onChanged: onChanged,
+      child: TextFormField(
+        initialValue: value,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 12),
+          isDense: true,
+        ),
+        onChanged: onChanged,
+      ),
     );
   }
 }

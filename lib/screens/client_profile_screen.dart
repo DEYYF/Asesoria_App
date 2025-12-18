@@ -303,7 +303,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         tabs.add(const Tab(text: 'Entrenamiento'));
         tabViews.add(TrainingTab(clienteId: _cliente!.id));
         tabs.add(const Tab(text: 'Progreso'));
-        tabViews.add(ProgressTab(clienteId: _cliente!.id));
+        tabViews.add(
+          ProgressTab(cliente: _cliente!, onAddProgress: _showAddProgress),
+        );
       } else {
         tabs.add(
           const Tab(
@@ -403,10 +405,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                               ),
                               const SizedBox(width: 8),
                               _StatusChip(
-                                label: 'Fin: ${_formatDate(_cliente!.fechaFin)}',
+                                label:
+                                    'Fin: ${_formatDate(_cliente!.fechaFin)}',
                               ),
                               const SizedBox(width: 8),
-                              const _StatusChip(label: '1 Mes', isDuration: true),
+                              const _StatusChip(
+                                label: '1 Mes',
+                                isDuration: true,
+                              ),
                             ],
                           ),
                         ),

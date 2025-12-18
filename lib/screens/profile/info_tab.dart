@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/cliente_model.dart';
-import '../../models/progreso_model.dart';
-import '../../widgets/charts/weight_chart.dart';
-import '../../widgets/charts/body_fat_chart.dart';
-import '../../widgets/charts/muscle_chart.dart';
-import '../../widgets/heatmap_panel.dart';
 
 class InfoTab extends StatelessWidget {
   final Cliente cliente;
@@ -30,14 +25,6 @@ class InfoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<Progreso> historial = cliente.historialProgreso != null
-        ? cliente.historialProgreso!
-              .map((json) => Progreso.fromJson(json))
-              .toList()
-        : [];
-
-    final ultimoProgreso = historial.isNotEmpty ? historial.last : null;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       child: Column(
@@ -167,24 +154,7 @@ class InfoTab extends StatelessWidget {
           ),
 
           const SizedBox(height: 32),
-          if (historial.isNotEmpty) ...[
-            _sectionTitle('MAPA CORPORAL'),
-            HeatmapPanel(historial: historial),
-            const SizedBox(height: 24),
-            _sectionTitle('EVOLUCIÓN'),
-            WeightChart(historial: historial),
-            const SizedBox(height: 16),
-            BodyFatChart(historial: historial),
-            const SizedBox(height: 16),
-            MuscleChart(historial: historial),
-          ] else ...[
-            const Center(
-              child: Text(
-                'No hay registros de progreso',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ],
+          // Charts moved to ProgressTab
         ],
       ),
     );

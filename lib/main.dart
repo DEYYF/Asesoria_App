@@ -85,6 +85,13 @@ class MyApp extends StatelessWidget {
           builder: (context, state) =>
               NotebookScreen(entrenamientoId: state.pathParameters['id']!),
         ),
+        GoRoute(
+          path: '/entrenamientos/:id/editar',
+          builder: (context, state) => CreateTrainingScreen(
+            entrenamientoId: state.pathParameters['id'],
+            clienteId: null, // Context will load via API
+          ),
+        ),
       ],
     );
 

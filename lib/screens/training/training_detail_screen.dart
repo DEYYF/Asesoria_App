@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
 import '../../models/ejercicio_model.dart';
 import '../training/notebook_screen.dart';
+import '../../utils/training_pdf_generator.dart';
 
 class TrainingDetailScreen extends StatefulWidget {
   final String entrenamientoId;
@@ -82,30 +83,102 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     }
   }
 
-  void _launchVideo(String? url) async {
-    if (url == null || url.isEmpty) return;
+  Future<void> _handleExportPDF() async {
+    if (_ent == null) return;
     try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      await TrainingPdfGenerator.generatePDF(_ent!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF generado correctamente')),
+        );
+      }
     } catch (e) {
-      // ignore
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al generar PDF: $e')));
+      }
     }
   }
 
-  String _getYoutubeThumbnail(String? url) {
-    if (url == null || url.isEmpty) return '';
+  Future<void> _handleDuplicate() async {
+    if (_ent == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Duplicar Plan'),
+        content: Text('¿Deseas crear una copia de "${_ent!.titulo}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Duplicar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final uri = Uri.parse(url);
-      String? videoId;
-      if (uri.host.contains('youtube.com')) {
-        videoId = uri.queryParameters['v'];
-      } else if (uri.host.contains('youtu.be')) {
-        videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+      final copy = Entrenamiento(
+        clienteId: _ent!.clienteId,
+        asesorId: _ent!.asesorId,
+        titulo: '${_ent!.titulo} (Copia)',
+        objetivo: _ent!.objetivo,
+        semanas: _ent!.semanas,
+      );
+
+      final res = await api.post('/entrenamientos', copy.toJson());
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Entrenamiento duplicado correctamente'),
+            ),
+          );
+          context.pop();
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: ${res.body}')));
+        }
       }
-      if (videoId != null) {
-        return 'https://img.youtube.com/vi/$videoId/0.jpg';
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Excepción: $e')));
       }
-    } catch (_) {}
-    return '';
+    }
+  }
+
+  Widget _buildInfoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade700),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -123,7 +196,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         : '-';
 
     return Scaffold(
-      backgroundColor: Colors.white, // Match clean white background
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -135,9 +208,9 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
           children: [
             const Icon(Icons.fitness_center, color: Colors.black),
             const SizedBox(width: 8),
-            Text(
+            const Text(
               'Rutina entrenamiento',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
               ),
@@ -167,9 +240,11 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Editar: Pendiente')),
-                      );
+                      context
+                          .push(
+                            '/entrenamientos/${widget.entrenamientoId}/editar',
+                          )
+                          .then((_) => _loadData()); // Refresh on return
                     },
                     icon: const Icon(Icons.edit, size: 16),
                     label: const Text('Editar'),
@@ -180,11 +255,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Duplicar: Pendiente')),
-                      );
-                    },
+                    onPressed: _handleDuplicate,
                     icon: const Icon(Icons.copy, size: 16),
                     label: const Text('Duplicar'),
                     style: OutlinedButton.styleFrom(
@@ -204,13 +275,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Exportar PDF: Pendiente'),
-                        ),
-                      );
-                    },
+                    onPressed: _handleExportPDF,
                     icon: const Icon(Icons.picture_as_pdf, size: 16),
                     label: const Text('Exportar PDF'),
                     style: ElevatedButton.styleFrom(
@@ -282,78 +347,9 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   ...sem.dias.map((dia) {
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Day Header
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  dia.nombre,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        '${dia.items.length} ejercicio(s)',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade700,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const Icon(
-                                        Icons.keyboard_arrow_up,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1),
-                          // Table Header
-                          _buildTableHeader(),
-                          // Table Body
-                          ...dia.items
-                              .map((item) => _buildExerciseRow(item))
-                              .toList(),
-                        ],
-                      ),
-                    );
+                    return _DaySection(dia: dia);
                   }).toList(),
+                  const SizedBox(height: 16),
                 ],
               );
             }).toList(),
@@ -362,27 +358,127 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
       ),
     );
   }
+}
 
-  Widget _buildInfoChip(IconData icon, String label) {
+class _DaySection extends StatefulWidget {
+  final DiaEntrenamiento dia;
+  const _DaySection({required this.dia});
+
+  @override
+  State<_DaySection> createState() => _DaySectionState();
+}
+
+class _DaySectionState extends State<_DaySection> {
+  bool _isExpanded = true;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.grey.shade700),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      child: Column(
+        children: [
+          // Day Header (Clickable)
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.dia.nombre,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${widget.dia.items.length} ejercicio(s)',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Icon(
+                          _isExpanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_isExpanded) ...[
+            const Divider(height: 1),
+            // Table Header
+            _buildTableHeader(),
+            // Table Body
+            ...widget.dia.items.map((item) => _buildExerciseRow(item)).toList(),
+          ],
+        ],
+      ),
     );
+  }
+
+  void _launchVideo(String? url) async {
+    if (url == null || url.isEmpty) return;
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  String _getYoutubeThumbnail(String? url) {
+    if (url == null || url.isEmpty) return '';
+    try {
+      final uri = Uri.parse(url);
+      String? videoId;
+      if (uri.host.contains('youtube.com')) {
+        videoId = uri.queryParameters['v'];
+      } else if (uri.host.contains('youtu.be')) {
+        videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+      }
+      if (videoId != null) {
+        return 'https://img.youtube.com/vi/$videoId/0.jpg';
+      }
+    } catch (_) {}
+    return '';
   }
 
   Widget _buildTableHeader() {
