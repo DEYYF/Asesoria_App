@@ -8,6 +8,7 @@ import '../models/tarifa_model.dart';
 import '../utils/isolate_utils.dart';
 import '../widgets/cliente_card.dart';
 import '../widgets/add_client_dialog.dart';
+import '../widgets/dialogs/bulk_email_dialog.dart';
 
 class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
@@ -342,7 +343,16 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
 
                         // Action Buttons
                         OutlinedButton.icon(
-                          onPressed: () {}, // Dummy
+                          onPressed: displayedList.isEmpty
+                              ? null
+                              : () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => BulkEmailDialog(
+                                      clientes: displayedList,
+                                    ),
+                                  );
+                                },
                           icon: const Icon(Icons.email_outlined, size: 18),
                           label: const Text('Enviar Email Masivo'),
                           style: OutlinedButton.styleFrom(
