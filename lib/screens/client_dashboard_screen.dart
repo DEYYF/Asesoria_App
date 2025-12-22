@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../models/cliente_model.dart';
 import '../models/tarifa_model.dart';
+import '../utils/isolate_utils.dart';
 import '../widgets/cliente_card.dart';
 import '../widgets/add_client_dialog.dart';
 
@@ -58,15 +58,14 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
       final resTarifas = await api.get('/tarifas');
 
       if (resClientes.statusCode == 200) {
-        final listC = (jsonDecode(resClientes.body) as List)
-            .map((i) => Cliente.fromJson(i))
-            .toList();
+        // Parse clientes in isolate for better performance
+        final listC = await parseClientesInIsolate(resClientes.body);
 
         List<Tarifa> listT = [];
         if (resTarifas.statusCode == 200) {
-          listT = (jsonDecode(resTarifas.body) as List)
-              .map((i) => Tarifa.fromJson(i))
-              .toList();
+          // Parse tarifas - small list, can do on main thread
+          final data = await parseJsonInIsolate(resTarifas.body);
+          listT = (data as List).map((i) => Tarifa.fromJson(i)).toList();
         }
 
         setState(() {

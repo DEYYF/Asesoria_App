@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../utils/isolate_utils.dart';
 
 class ApiService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
@@ -76,5 +77,28 @@ class ApiService {
     } catch (e) {
       throw Exception('Error en DELETE request: $e');
     }
+  }
+
+  // ============================================================================
+  // ISOLATE-BASED HELPER METHODS
+  // ============================================================================
+
+  /// Parse JSON response in isolate for better performance
+  /// Use this for large JSON responses
+  Future<dynamic> parseJsonResponse(http.Response response) async {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return await parseJsonInIsolate(response.body);
+    }
+    throw Exception('HTTP ${response.statusCode}: ${response.body}');
+  }
+
+  /// GET request with automatic JSON parsing in isolate
+  /// Returns parsed data directly
+  Future<dynamic> getAndParse(
+    String endpoint, {
+    Map<String, dynamic>? params,
+  }) async {
+    final response = await get(endpoint, params: params);
+    return await parseJsonResponse(response);
   }
 }

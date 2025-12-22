@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/cliente_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/isolate_utils.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
 
 class JournalTab extends StatefulWidget {
   final Cliente cliente;
@@ -48,7 +48,6 @@ class _JournalTabState extends State<JournalTab> {
       );
 
       debugPrint('📡 Response status: ${res.statusCode}');
-      debugPrint('📦 Response body: ${res.body}');
 
       if (res.statusCode != 200) {
         debugPrint(
@@ -57,47 +56,30 @@ class _JournalTabState extends State<JournalTab> {
         throw Exception('Failed to load sessions');
       }
 
-      final List<dynamic> sessions = jsonDecode(res.body);
-      debugPrint('✅ Loaded ${sessions.length} sessions');
+      // Process session history in isolate for better performance
+      final result = await processSessionHistoryInIsolate(res.body);
+      debugPrint('✅ Processed ${result.sessionsMap.length} unique dates');
 
-      Map<DateTime, Map<String, dynamic>> grouped = {};
+      // Convert string-based maps to DateTime-based maps
+      Map<DateTime, Map<String, dynamic>> sessionsMap = {};
+      result.sessionsMap.forEach((key, value) {
+        sessionsMap[DateTime.parse(key)] = value as Map<String, dynamic>;
+      });
 
-      for (var session in sessions) {
-        DateTime rawDate = DateTime.parse(session['fecha']);
-        DateTime dateKey = DateTime(rawDate.year, rawDate.month, rawDate.day);
+      Map<DateTime, List<DateTime>> monthsMap = {};
+      result.monthsMap.forEach((monthKey, dates) {
+        final month = DateTime.parse(monthKey);
+        monthsMap[month] = dates.map((d) => DateTime.parse(d)).toList();
+      });
 
-        // Store the full session data
-        grouped[dateKey] = {
-          'ejercicios': session['ejercicios'] ?? [],
-          'comentarios': session['comentarios'] ?? '',
-          'semanaNumero': session['semanaNumero'],
-          'diaNombre': session['diaNombre'],
-        };
-      }
-
-      debugPrint('📅 Grouped into ${grouped.length} unique dates');
-
-      // Process Months
-      Map<DateTime, List<DateTime>> months = {};
-      for (var date in grouped.keys) {
-        DateTime monthKey = DateTime(date.year, date.month);
-        if (!months.containsKey(monthKey)) {
-          months[monthKey] = [];
-        }
-        if (!months[monthKey]!.contains(date)) {
-          months[monthKey]!.add(date);
-        }
-      }
-
-      // Sort days within months
-      for (var k in months.keys) {
-        months[k]!.sort((a, b) => b.compareTo(a)); // Descending days
-      }
+      final sortedMonths = result.sortedMonths
+          .map((s) => DateTime.parse(s))
+          .toList();
 
       setState(() {
-        _sessionsMap = grouped;
-        _monthsMap = months;
-        _sortedMonths = months.keys.toList()..sort((a, b) => b.compareTo(a));
+        _sessionsMap = sessionsMap;
+        _monthsMap = monthsMap;
+        _sortedMonths = sortedMonths;
         _isLoading = false;
       });
     } catch (e) {

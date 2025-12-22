@@ -8,7 +8,7 @@ import '../../widgets/charts/body_fat_chart.dart';
 import '../../widgets/charts/muscle_chart.dart';
 import '../../widgets/heatmap_panel.dart';
 import '../../services/api_service.dart';
-import 'dart:convert';
+import '../../utils/isolate_utils.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
@@ -51,9 +51,12 @@ class _ProgressTabState extends State<ProgressTab> {
         '/entrenamientos/registros/cliente/${widget.cliente.id}/ejercicios',
       );
       if (res.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(res.body);
+        // Parse JSON in isolate for better performance
+        final data = await parseJsonInIsolate(res.body);
+        final List<String> ejercicios = (data as List).cast<String>();
+
         setState(() {
-          _ejercicios = data.cast<String>();
+          _ejercicios = ejercicios;
           if (_ejercicios.isNotEmpty) {
             _selectedEjercicio = _ejercicios[0];
             _loadHistorial(_ejercicios[0]);
@@ -77,12 +80,15 @@ class _ProgressTabState extends State<ProgressTab> {
         '/entrenamientos/registros/cliente/${widget.cliente.id}/historial?ejercicio=${Uri.encodeComponent(ejercicio)}',
       );
       if (res.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(res.body);
+        // Parse JSON in isolate for better performance
+        final data = await parseJsonInIsolate(res.body);
+        final historyData = (data as List)
+            .map((x) => ExerciseHistoryRecord.fromJson(x))
+            .toList();
+        historyData.sort((a, b) => a.fecha.compareTo(b.fecha));
+
         setState(() {
-          _historyData = data
-              .map((x) => ExerciseHistoryRecord.fromJson(x))
-              .toList();
-          _historyData.sort((a, b) => a.fecha.compareTo(b.fecha));
+          _historyData = historyData;
           _isLoadingHistory = false;
         });
       } else {
@@ -100,8 +106,9 @@ class _ProgressTabState extends State<ProgressTab> {
     try {
       final res = await api.get('/entrenamientos/cliente/${widget.cliente.id}');
       if (res.statusCode == 200) {
-        final List<dynamic> trainings = jsonDecode(res.body);
-        if (trainings.isNotEmpty) {
+        // Parse in isolate
+        final trainings = await parseJsonInIsolate(res.body);
+        if ((trainings as List).isNotEmpty) {
           // Get the most recent active training
           final activeTraining = trainings.first;
           final entrenamientoId = activeTraining['_id'];

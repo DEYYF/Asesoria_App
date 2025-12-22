@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
 import '../services/api_service.dart';
 import '../models/ejercicio_model.dart';
+import '../utils/isolate_utils.dart';
 import 'ejercicio_detail_screen.dart';
 
 class EjerciciosScreen extends StatefulWidget {
@@ -77,12 +77,12 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
     try {
       final res = await api.get('/ejercicios');
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final List<dynamic> items = data is List ? data : (data['items'] ?? []);
+        // Parse JSON in isolate to avoid blocking UI
+        final ejercicios = await parseEjerciciosInIsolate(res.body);
 
         setState(() {
-          _ejercicios = items.map((e) => Ejercicio.fromJson(e)).toList();
-          _filteredEjercicios = _ejercicios;
+          _ejercicios = ejercicios;
+          _filteredEjercicios = ejercicios;
           _loading = false;
         });
       } else {
@@ -98,24 +98,42 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
     }
   }
 
-  void _applyFilters() {
-    setState(() {
-      _filteredEjercicios = _ejercicios.where((ejercicio) {
-        final matchesSearch =
-            _searchController.text.isEmpty ||
-            ejercicio.nombre.toLowerCase().contains(
-              _searchController.text.toLowerCase(),
-            );
-        final matchesGrupo =
-            _selectedGrupo == null || ejercicio.grupo == _selectedGrupo;
-        final matchesEquipo =
-            _selectedEquipo == null || ejercicio.equipo == _selectedEquipo;
-        final matchesNivel =
-            _selectedNivel == null || ejercicio.nivel == _selectedNivel;
+  Future<void> _applyFilters() async {
+    // Use isolate for filtering if we have many ejercicios
+    if (_ejercicios.length > 20) {
+      final params = EjercicioFilterParams(
+        ejercicios: _ejercicios,
+        searchTerm: _searchController.text,
+        grupo: _selectedGrupo,
+        equipo: _selectedEquipo,
+        nivel: _selectedNivel,
+      );
 
-        return matchesSearch && matchesGrupo && matchesEquipo && matchesNivel;
-      }).toList();
-    });
+      final filtered = await filterEjerciciosInIsolate(params);
+
+      setState(() {
+        _filteredEjercicios = filtered;
+      });
+    } else {
+      // For small lists, filter on main thread (faster)
+      setState(() {
+        _filteredEjercicios = _ejercicios.where((ejercicio) {
+          final matchesSearch =
+              _searchController.text.isEmpty ||
+              ejercicio.nombre.toLowerCase().contains(
+                _searchController.text.toLowerCase(),
+              );
+          final matchesGrupo =
+              _selectedGrupo == null || ejercicio.grupo == _selectedGrupo;
+          final matchesEquipo =
+              _selectedEquipo == null || ejercicio.equipo == _selectedEquipo;
+          final matchesNivel =
+              _selectedNivel == null || ejercicio.nivel == _selectedNivel;
+
+          return matchesSearch && matchesGrupo && matchesEquipo && matchesNivel;
+        }).toList();
+      });
+    }
   }
 
   void _clearFilters() {
