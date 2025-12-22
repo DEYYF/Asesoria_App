@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:downloadsfolder/downloadsfolder.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -9,7 +9,20 @@ import 'package:intl/intl.dart';
 import '../models/dieta_model.dart';
 
 class DietPdfGenerator {
+  /// Generate PDF with isolate support for better performance
   static Future<void> generatePDF(Dieta dieta) async {
+    // Build PDF document in isolate to avoid blocking UI
+    final pdfBytes = await compute(
+      _buildPdfInIsolate,
+      _PdfBuildParams(dieta: dieta),
+    );
+
+    // Save and open (must be on main thread)
+    await _savePdf(pdfBytes);
+  }
+
+  /// Build PDF document in isolate
+  static Future<List<int>> _buildPdfInIsolate(_PdfBuildParams params) async {
     final doc = pw.Document();
 
     final fontRegular = await PdfGoogleFonts.openSansRegular();
@@ -17,8 +30,8 @@ class DietPdfGenerator {
 
     final theme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
 
-    final dateStr = dieta.createdAt != null
-        ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
+    final dateStr = params.dieta.createdAt != null
+        ? DateFormat('dd/MM/yyyy').format(params.dieta.createdAt!)
         : '-';
 
     doc.addPage(
@@ -28,25 +41,27 @@ class DietPdfGenerator {
           theme: theme,
           margin: const pw.EdgeInsets.all(28),
         ),
-        header: (context) => _buildHeader(dieta, dateStr, context),
+        header: (context) => _buildHeader(params.dieta, dateStr, context),
         build: (context) => [
-          _buildMacrosTable(dieta),
+          _buildMacrosTable(params.dieta),
           pw.SizedBox(height: 20),
-          ...dieta.comidas.map((c) => _buildMealSection(c)),
+          ...params.dieta.comidas.map((c) => _buildMealSection(c)),
         ],
       ),
     );
 
-    final tempDir = await getTemporaryDirectory();
+    return await doc.save();
+  }
 
-    final pdfBytes = await doc.save();
+  /// Save PDF to file (main thread only)
+  static Future<void> _savePdf(List<int> pdfBytes) async {
+    final tempDir = await getTemporaryDirectory();
     final name = 'dieta_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
     final file = File('${tempDir.path}/$name');
     await file.writeAsBytes(pdfBytes);
 
     await copyFileIntoDownloadFolder(file.path, name);
     await openDownloadFolder();
-
   }
 
   static pw.Widget _buildHeader(
@@ -61,7 +76,7 @@ class DietPdfGenerator {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Container(
-          color: PdfColors.orange200, // Light orange
+          color: PdfColors.orange200,
           height: 8,
           width: double.infinity,
         ),
@@ -161,9 +176,13 @@ class DietPdfGenerator {
           .map((i) => '${i.nombre ?? "Ingrediente"} (${i.gramos} gr)')
           .join(', ');
     }
-    // Note: Recetas might need separate handling if `recetaId` logic was complex, but backend populates ingredients?
-    // In Flutter model OpcionDieta, we handled `items` for combinations.
-    // If recipes reuse `items` logic or just show name, we rely on `items`.
     return '-';
   }
+}
+
+/// Parameters for PDF building in isolate
+class _PdfBuildParams {
+  final Dieta dieta;
+
+  _PdfBuildParams({required this.dieta});
 }

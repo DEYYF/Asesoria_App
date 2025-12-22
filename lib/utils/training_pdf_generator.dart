@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:downloadsfolder/downloadsfolder.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -9,7 +9,20 @@ import 'package:intl/intl.dart';
 import '../models/entrenamiento_model.dart';
 
 class TrainingPdfGenerator {
+  /// Generate PDF with isolate support for better performance
   static Future<void> generatePDF(Entrenamiento entrenamiento) async {
+    // Build PDF document in isolate to avoid blocking UI
+    final pdfBytes = await compute(
+      _buildPdfInIsolate,
+      _PdfBuildParams(entrenamiento: entrenamiento),
+    );
+
+    // Save and open (must be on main thread)
+    await _savePdf(pdfBytes, entrenamiento);
+  }
+
+  /// Build PDF document in isolate
+  static Future<List<int>> _buildPdfInIsolate(_PdfBuildParams params) async {
     final doc = pw.Document();
 
     final fontRegular = await PdfGoogleFonts.openSansRegular();
@@ -17,8 +30,8 @@ class TrainingPdfGenerator {
 
     final theme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
 
-    final dateStr = entrenamiento.updatedAt != null
-        ? DateFormat('dd/MM/yyyy').format(entrenamiento.updatedAt!)
+    final dateStr = params.entrenamiento.updatedAt != null
+        ? DateFormat('dd/MM/yyyy').format(params.entrenamiento.updatedAt!)
         : '-';
 
     doc.addPage(
@@ -28,16 +41,23 @@ class TrainingPdfGenerator {
           theme: theme,
           margin: const pw.EdgeInsets.all(28),
         ),
-        header: (context) => _buildHeader(entrenamiento, dateStr, context),
+        header: (context) =>
+            _buildHeader(params.entrenamiento, dateStr, context),
         build: (context) => [
-          ...entrenamiento.semanas.map((sem) => _buildWeekSection(sem)),
+          ...params.entrenamiento.semanas.map((sem) => _buildWeekSection(sem)),
         ],
       ),
     );
 
-    final tempDir = await getTemporaryDirectory();
+    return await doc.save();
+  }
 
-    final pdfBytes = await doc.save();
+  /// Save PDF to file (main thread only)
+  static Future<void> _savePdf(
+    List<int> pdfBytes,
+    Entrenamiento entrenamiento,
+  ) async {
+    final tempDir = await getTemporaryDirectory();
     final name =
         'entrenamiento_${entrenamiento.titulo.replaceAll(" ", "_")}_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf';
     final file = File('${tempDir.path}/$name');
@@ -146,9 +166,7 @@ class TrainingPdfGenerator {
               '${s.repsMin}-${s.repsMax}',
               s.rir?.toString() ?? '-',
               s.descanso?.toString() ?? '-',
-              videoUrl.isNotEmpty
-                  ? 'LINK'
-                  : '-', // PDF links support requires extra widget or text logic
+              videoUrl.isNotEmpty ? 'LINK' : '-',
             ];
           }).toList(),
           headerDecoration: const pw.BoxDecoration(color: PdfColors.blue50),
@@ -171,4 +189,11 @@ class TrainingPdfGenerator {
       ],
     );
   }
+}
+
+/// Parameters for PDF building in isolate
+class _PdfBuildParams {
+  final Entrenamiento entrenamiento;
+
+  _PdfBuildParams({required this.entrenamiento});
 }
