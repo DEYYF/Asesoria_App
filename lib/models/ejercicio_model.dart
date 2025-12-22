@@ -5,6 +5,7 @@ class Ejercicio {
   final String? equipo;
   final String? nivel; // 'principiante', 'intermedio', 'avanzado'
   final String? urlVideo;
+  final String? instrucciones;
 
   Ejercicio({
     required this.id,
@@ -13,6 +14,7 @@ class Ejercicio {
     this.equipo,
     this.nivel,
     this.urlVideo,
+    this.instrucciones,
   });
 
   factory Ejercicio.fromJson(Map<String, dynamic> json) {
@@ -22,8 +24,8 @@ class Ejercicio {
       grupo: json['grupo'],
       equipo: json['equipo'],
       nivel: json['nivel'],
-      urlVideo:
-          json['urlVideo'], // or 'video'? check backend if possible, usually camelCase
+      urlVideo: json['urlVideo'],
+      instrucciones: json['instrucciones'],
     );
   }
 
@@ -35,6 +37,7 @@ class Ejercicio {
       'equipo': equipo,
       'nivel': nivel,
       'urlVideo': urlVideo,
+      'instrucciones': instrucciones,
     };
   }
 }

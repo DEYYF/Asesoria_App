@@ -10,10 +10,12 @@ import 'screens/login_screen.dart';
 // import 'screens/home_screen.dart';
 import 'screens/client_dashboard_screen.dart';
 import 'screens/client_profile_screen.dart';
+import 'screens/client_home_screen.dart';
 import 'screens/diet/create_diet_screen.dart';
 import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
+import 'screens/ejercicios_screen.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -106,26 +108,43 @@ class MyApp extends StatelessWidget {
             return FirstLoginScreen(email: email);
           },
         ),
-        // GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/',
           builder: (context, state) => const ClientDashboardScreen(),
         ),
+        // Client profile route - redirects to shell for admins, shows profile for clients
         GoRoute(
           path: '/clientes/:id',
-          builder: (context, state) =>
-              ClientProfileScreen(clienteId: state.pathParameters['id']!),
+          builder: (context, state) {
+            final auth = Provider.of<AuthService>(context, listen: false);
+            final clienteId = state.pathParameters['id']!;
+
+            // For clients, show profile without bottom nav
+            if (auth.isClient) {
+              return ClientProfileScreen(clienteId: clienteId);
+            }
+
+            // For admins, use the shell route with bottom nav
+            return ClientHomeScreen(clienteId: clienteId);
+          },
+          routes: [
+            GoRoute(
+              path: 'crear-dieta',
+              builder: (context, state) =>
+                  CreateDietScreen(clienteId: state.pathParameters['id']!),
+            ),
+            GoRoute(
+              path: 'crear-entrenamiento',
+              builder: (context, state) =>
+                  CreateTrainingScreen(clienteId: state.pathParameters['id']!),
+            ),
+          ],
         ),
         GoRoute(
-          path: '/clientes/:id/crear-dieta',
-          builder: (context, state) =>
-              CreateDietScreen(clienteId: state.pathParameters['id']!),
+          path: '/ejercicios',
+          builder: (context, state) => const EjerciciosScreen(),
         ),
-        GoRoute(
-          path: '/clientes/:id/crear-entrenamiento',
-          builder: (context, state) =>
-              CreateTrainingScreen(clienteId: state.pathParameters['id']!),
-        ),
+        // Other routes
         GoRoute(
           path: '/entrenamientos/:id',
           builder: (context, state) => TrainingDetailScreen(
