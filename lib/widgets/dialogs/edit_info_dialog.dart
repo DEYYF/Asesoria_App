@@ -116,8 +116,13 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Editar información'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        'Editar información',
+        style: TextStyle(color: theme.textTheme.titleLarge?.color),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -126,41 +131,70 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
             children: [
               TextField(
                 controller: _emailController,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 decoration: InputDecoration(
                   labelText: 'Email',
+                  labelStyle: TextStyle(color: theme.hintColor),
                   errorText: _errors['email'],
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _phoneController,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 decoration: InputDecoration(
                   labelText: 'Teléfono',
+                  labelStyle: TextStyle(color: theme.hintColor),
                   errorText: _errors['telefono'],
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedSex,
-                items: const [
-                  DropdownMenuItem(value: 'Hombre', child: Text('Hombre')),
-                  DropdownMenuItem(value: 'Mujer', child: Text('Mujer')),
-                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-                ],
+                dropdownColor: theme.colorScheme.surface,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                items: ['Hombre', 'Mujer', 'Otro']
+                    .map(
+                      (val) => DropdownMenuItem(
+                        value: val,
+                        child: Text(
+                          val,
+                          style: TextStyle(
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _selectedSex = val),
                 decoration: InputDecoration(
                   labelText: 'Sexo',
+                  labelStyle: TextStyle(color: theme.hintColor),
                   errorText: _errors['sexo'],
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _heightController,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 decoration: InputDecoration(
                   labelText: 'Altura (cm)',
+                  labelStyle: TextStyle(color: theme.hintColor),
                   errorText: _errors['altura'],
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -175,6 +209,10 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           child: _isLoading
               ? const SizedBox(
                   width: 20,

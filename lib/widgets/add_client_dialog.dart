@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
-import '../../services/auth_service.dart'; // Added
+import '../../services/auth_service.dart';
 import '../../models/tarifa_model.dart';
 import '../../models/extra_model.dart';
 
@@ -200,8 +200,11 @@ class _AddClientDialogState extends State<AddClientDialog> {
   @override
   Widget build(BuildContext context) {
     if (_loadingData) return const Center(child: CircularProgressIndicator());
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
+      backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 500,
@@ -212,12 +215,17 @@ class _AddClientDialogState extends State<AddClientDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Nuevo Cliente',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: theme.textTheme.titleLarge?.color,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
+                  color: theme.iconTheme.color,
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -226,10 +234,14 @@ class _AddClientDialogState extends State<AddClientDialog> {
             if (_error != null)
               Container(
                 padding: const EdgeInsets.all(8),
-                color: Colors.red.shade100,
+                color: isDark
+                    ? Colors.red.withOpacity(0.2)
+                    : Colors.red.shade100,
                 child: Text(
                   _error!,
-                  style: TextStyle(color: Colors.red.shade900),
+                  style: TextStyle(
+                    color: isDark ? Colors.redAccent : Colors.red.shade900,
+                  ),
                 ),
               ),
 
@@ -239,11 +251,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
                 child: ListView(
                   children: [
                     // --- Basic Info ---
-                    const Text(
+                    Text(
                       'Datos Básicos',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: theme.textTheme.titleMedium?.color,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -252,9 +265,18 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         Expanded(
                           child: TextFormField(
                             controller: _nombreCtrl,
-                            decoration: const InputDecoration(
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Nombre',
-                              border: OutlineInputBorder(),
+                              labelStyle: TextStyle(color: theme.hintColor),
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
                             ),
                             validator: (v) => v!.isEmpty ? 'Requerido' : null,
                           ),
@@ -263,9 +285,18 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         Expanded(
                           child: TextFormField(
                             controller: _emailCtrl,
-                            decoration: const InputDecoration(
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Email',
-                              border: OutlineInputBorder(),
+                              labelStyle: TextStyle(color: theme.hintColor),
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
                             ),
                             validator: (v) =>
                                 !v!.contains('@') ? 'Inválido' : null,
@@ -276,9 +307,16 @@ class _AddClientDialogState extends State<AddClientDialog> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _telefonoCtrl,
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                      decoration: InputDecoration(
                         labelText: 'Teléfono',
-                        border: OutlineInputBorder(),
+                        labelStyle: TextStyle(color: theme.hintColor),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -287,9 +325,18 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         Expanded(
                           child: TextFormField(
                             controller: _edadCtrl,
-                            decoration: const InputDecoration(
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Edad',
-                              border: OutlineInputBorder(),
+                              labelStyle: TextStyle(color: theme.hintColor),
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -298,9 +345,19 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _sexo,
-                            decoration: const InputDecoration(
+                            dropdownColor: theme.colorScheme.surface,
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            decoration: InputDecoration(
                               labelText: 'Sexo',
-                              border: OutlineInputBorder(),
+                              labelStyle: TextStyle(color: theme.hintColor),
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
                             ),
                             items: ['Hombre', 'Mujer', 'Otro']
                                 .map(
@@ -319,11 +376,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
                     const SizedBox(height: 24),
 
                     // --- Objectives ---
-                    const Text(
+                    Text(
                       'Objetivos',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: theme.textTheme.titleMedium?.color,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -332,17 +390,26 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         Expanded(
                           child: TextField(
                             controller: _objCtrl,
-                            decoration: const InputDecoration(
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
+                            ),
+                            decoration: InputDecoration(
                               hintText: 'Escribe y pulsa +',
+                              hintStyle: TextStyle(color: theme.hintColor),
                               isDense: true,
-                              border: OutlineInputBorder(),
+                              border: const OutlineInputBorder(),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.add_circle,
-                            color: Colors.blue,
+                            color: theme.primaryColor,
                           ),
                           onPressed: _addObjetivo,
                         ),
@@ -354,7 +421,17 @@ class _AddClientDialogState extends State<AddClientDialog> {
                           .map(
                             (o) => Chip(
                               label: Text(o),
-                              deleteIcon: const Icon(Icons.close, size: 16),
+                              backgroundColor: isDark
+                                  ? theme.scaffoldBackgroundColor
+                                  : null,
+                              labelStyle: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                              deleteIcon: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: theme.iconTheme.color,
+                              ),
                               onDeleted: () =>
                                   setState(() => _objetivos.remove(o)),
                             ),
@@ -371,6 +448,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
                                 s,
                                 style: const TextStyle(fontSize: 10),
                               ),
+                              backgroundColor: isDark
+                                  ? theme.scaffoldBackgroundColor
+                                  : null,
+                              labelStyle: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
                               onPressed: () {
                                 if (!_objetivos.contains(s))
                                   setState(() => _objetivos.add(s));
@@ -383,19 +466,28 @@ class _AddClientDialogState extends State<AddClientDialog> {
                     const SizedBox(height: 24),
 
                     // --- Plan & Extras ---
-                    const Text(
+                    Text(
                       'Plan y Extras',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: theme.textTheme.titleMedium?.color,
                       ),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedTarifaId,
-                      decoration: const InputDecoration(
+                      dropdownColor: theme.colorScheme.surface,
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                      decoration: InputDecoration(
                         labelText: 'Tarifa',
-                        border: OutlineInputBorder(),
+                        labelStyle: TextStyle(color: theme.hintColor),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
                       ),
                       items: _tarifas
                           .map(
@@ -411,7 +503,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
                       validator: (v) => v == null ? 'Selecciona tarifa' : null,
                     ),
                     const SizedBox(height: 12),
-                    const Text('Extras Mensuales:'),
+                    Text(
+                      'Extras Mensuales:',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                    ),
                     Wrap(
                       spacing: 8,
                       children: _extras.map((e) {
@@ -419,6 +516,16 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         return FilterChip(
                           label: Text('${e.nombre} (+${e.precio}€)'),
                           selected: isSel,
+                          checkmarkColor: theme.colorScheme.surface,
+                          labelStyle: TextStyle(
+                            color: isSel
+                                ? Colors.white
+                                : theme.textTheme.bodyMedium?.color,
+                          ),
+                          selectedColor: theme.primaryColor,
+                          backgroundColor: isDark
+                              ? theme.scaffoldBackgroundColor
+                              : null,
                           onSelected: (sel) {
                             setState(() {
                               if (sel)
@@ -436,44 +543,74 @@ class _AddClientDialogState extends State<AddClientDialog> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: isDark
+                              ? theme.scaffoldBackgroundColor
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Resumen',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.textTheme.titleMedium?.color,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Tarifa Base:'),
-                                Text('${_totalBase.toStringAsFixed(2)} €'),
+                                Text(
+                                  'Tarifa Base:',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                  ),
+                                ),
+                                Text(
+                                  '${_totalBase.toStringAsFixed(2)} €',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                  ),
+                                ),
                               ],
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Extras ($_meses meses):'),
-                                Text('${_totalExtras.toStringAsFixed(2)} €'),
+                                Text(
+                                  'Extras ($_meses meses):',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                  ),
+                                ),
+                                Text(
+                                  '${_totalExtras.toStringAsFixed(2)} €',
+                                  style: TextStyle(
+                                    color: theme.textTheme.bodyMedium?.color,
+                                  ),
+                                ),
                               ],
                             ),
-                            const Divider(),
+                            Divider(color: theme.dividerColor),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Total:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.textTheme.titleMedium?.color,
+                                  ),
                                 ),
                                 Text(
                                   '${_totalFinal.toStringAsFixed(2)} €',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
+                                    color: theme.primaryColor,
                                   ),
                                 ),
                               ],
@@ -494,7 +631,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
+                  backgroundColor: theme.primaryColor,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

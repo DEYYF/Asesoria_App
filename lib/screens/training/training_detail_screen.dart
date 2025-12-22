@@ -161,21 +161,25 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   }
 
   Widget _buildInfoChip(IconData icon, String label) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade700),
+          Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+            style: TextStyle(
+              color: theme.textTheme.bodySmall?.color,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -191,28 +195,30 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         body: Center(child: Text('Entrenamiento no encontrado')),
       );
 
+    final theme = Theme.of(context);
+
     // Date formatting
     final updatedStr = _ent!.updatedAt != null
         ? '${_ent!.updatedAt!.day}/${_ent!.updatedAt!.month}/${_ent!.updatedAt!.year}'
         : '-';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: BackButton(
-          color: Colors.black,
+          color: theme.iconTheme.color,
           onPressed: () => context.pop(),
         ),
         title: Row(
           children: [
-            const Icon(Icons.fitness_center, color: Colors.black),
+            Icon(Icons.fitness_center, color: theme.iconTheme.color),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Rutina entrenamiento',
               style: TextStyle(
-                color: Colors.black,
+                color: theme.textTheme.titleLarge?.color,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -252,8 +258,8 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                             icon: const Icon(Icons.edit, size: 16),
                             label: const Text('Editar'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF007AFF),
-                              side: const BorderSide(color: Color(0xFF007AFF)),
+                              foregroundColor: theme.primaryColor,
+                              side: BorderSide(color: theme.primaryColor),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -262,8 +268,8 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                             icon: const Icon(Icons.copy, size: 16),
                             label: const Text('Duplicar'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF007AFF),
-                              side: const BorderSide(color: Color(0xFF007AFF)),
+                              foregroundColor: theme.primaryColor,
+                              side: BorderSide(color: theme.primaryColor),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -286,7 +292,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                     icon: const Icon(Icons.picture_as_pdf, size: 16),
                     label: const Text('Exportar PDF'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0056B3), // Dark Blue
+                      backgroundColor: Colors.blue.shade700, // Better blue
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -300,7 +306,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                     icon: const Icon(Icons.edit_calendar, size: 16),
                     label: const Text('Registrar Sesión'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF9C27B0), // Purple
+                      backgroundColor: Colors.purple.shade600, // Better purple
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -329,7 +335,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                 ),
               ],
             ),
-            const Divider(height: 32),
+            Divider(height: 32, color: theme.dividerColor),
 
             // Content
             ..._ent!.semanas.map((sem) {
@@ -341,14 +347,17 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                     children: [
                       Text(
                         'Semana ${sem.numero}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: theme.textTheme.bodyLarge?.color,
                         ),
                       ),
                       Text(
                         '${sem.dias.length} día(s)',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                        ),
                       ),
                     ],
                   ),
@@ -380,18 +389,22 @@ class _DaySectionState extends State<_DaySection> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
         ],
       ),
       child: Column(
@@ -411,9 +424,10 @@ class _DaySectionState extends State<_DaySection> {
                 children: [
                   Text(
                     widget.dia.nombre,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: theme.textTheme.titleLarge?.color,
                     ),
                   ),
                   Container(
@@ -422,16 +436,18 @@ class _DaySectionState extends State<_DaySection> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: theme.scaffoldBackgroundColor, // Slighly different
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(
+                        color: theme.dividerColor.withOpacity(0.5),
+                      ),
                     ),
                     child: Row(
                       children: [
                         Text(
                           '${widget.dia.items.length} ejercicio(s)',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: theme.textTheme.bodySmall?.color,
                             fontSize: 12,
                           ),
                         ),
@@ -440,7 +456,7 @@ class _DaySectionState extends State<_DaySection> {
                               ? Icons.keyboard_arrow_up
                               : Icons.keyboard_arrow_down,
                           size: 16,
-                          color: Colors.grey,
+                          color: theme.iconTheme.color?.withOpacity(0.5),
                         ),
                       ],
                     ),
@@ -451,7 +467,7 @@ class _DaySectionState extends State<_DaySection> {
           ),
 
           if (_isExpanded) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: theme.dividerColor),
             // Table Header
             _buildTableHeader(),
             // Table Body
@@ -489,28 +505,37 @@ class _DaySectionState extends State<_DaySection> {
   }
 
   Widget _buildTableHeader() {
+    final theme = Theme.of(context);
     return Container(
-      color: Colors.grey.shade50,
+      color: theme.scaffoldBackgroundColor.withOpacity(0.5),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             flex: 3,
             child: Text(
               'Ejercicio',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
             ),
           ),
           _buildHeaderCell('Series'),
           _buildHeaderCell('Reps'),
           _buildHeaderCell('RIR'),
           _buildHeaderCell('Desc (s)'),
-          const Expanded(
+          Expanded(
             flex: 1,
             child: Text(
               'Video',
               textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
             ),
           ),
         ],
@@ -524,7 +549,11 @@ class _DaySectionState extends State<_DaySection> {
       child: Text(
         label,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
       ),
     );
   }
@@ -534,10 +563,13 @@ class _DaySectionState extends State<_DaySection> {
     final thumb = _getYoutubeThumbnail(
       item.urlVideo ?? item.ejercicio?.urlVideo,
     );
+    final theme = Theme.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -550,9 +582,10 @@ class _DaySectionState extends State<_DaySection> {
               children: [
                 Text(
                   item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
+                    color: theme.textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -570,7 +603,7 @@ class _DaySectionState extends State<_DaySection> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'Grupo: ${item.grupoId}',
-                      style: const TextStyle(fontSize: 10, color: Colors.blue),
+                      style: TextStyle(fontSize: 10, color: theme.primaryColor),
                     ),
                   ),
               ],
@@ -608,7 +641,7 @@ class _DaySectionState extends State<_DaySection> {
                         ),
                       ],
                     )
-                  : const Icon(Icons.play_circle_outline, color: Colors.grey),
+                  : Icon(Icons.play_circle_outline, color: theme.disabledColor),
             ),
           ),
         ],
@@ -622,21 +655,26 @@ class _DaySectionState extends State<_DaySection> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13),
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).textTheme.bodyMedium?.color,
+        ),
       ),
     );
   }
 
   Widget _buildTag(String label) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: theme.scaffoldBackgroundColor, // Slightly different
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 10, color: Colors.black87),
+        style: TextStyle(fontSize: 10, color: theme.textTheme.bodySmall?.color),
       ),
     );
   }

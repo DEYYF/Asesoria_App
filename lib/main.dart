@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
+import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 // import 'screens/home_screen.dart';
@@ -16,6 +17,7 @@ import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
 import 'screens/ejercicios_screen.dart';
+import 'screens/settings_screen.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -34,6 +36,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authService),
         Provider(create: (_) => ApiService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
     ),
@@ -163,13 +166,21 @@ class MyApp extends StatelessWidget {
             clienteId: null, // Context will load via API
           ),
         ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
       ],
     );
+
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
       title: 'Asesoría App',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.getTheme(themeProvider.accentColor, isDark: false),
+      darkTheme: AppTheme.getTheme(themeProvider.accentColor, isDark: true),
+      themeMode: themeProvider.themeMode,
       routerConfig: router,
     );
   }

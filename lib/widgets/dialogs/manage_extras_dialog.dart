@@ -114,8 +114,13 @@ class _ManageExtrasDialogState extends State<ManageExtrasDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Gestionar Extras'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        'Gestionar Extras',
+        style: TextStyle(color: theme.textTheme.titleLarge?.color),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: _isLoading
@@ -137,12 +142,22 @@ class _ManageExtrasDialogState extends State<ManageExtrasDialog> {
                     Text(_error!, style: const TextStyle(color: Colors.red)),
 
                   if (_extrasDisponibles.isEmpty)
-                    const Text('No hay extras disponibles.'),
+                    Text(
+                      'No hay extras disponibles.',
+                      style: TextStyle(color: theme.hintColor),
+                    ),
 
                   ..._extrasDisponibles.map((extra) {
                     return CheckboxListTile(
-                      title: Text('${extra.nombre} (+${extra.precio}€/mes)'),
+                      title: Text(
+                        '${extra.nombre} (+${extra.precio}€/mes)',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
                       value: _extrasSeleccionados.contains(extra.id),
+                      activeColor: theme.primaryColor,
+                      checkColor: Colors.white,
                       onChanged: (val) => _handleToggle(extra.id),
                     );
                   }),
@@ -158,6 +173,10 @@ class _ManageExtrasDialogState extends State<ManageExtrasDialog> {
           onPressed: (_presupuestoActivo == null || _isSaving)
               ? null
               : _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           child: _isSaving
               ? const SizedBox(
                   width: 20,

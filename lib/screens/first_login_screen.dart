@@ -54,61 +54,118 @@ class _FirstLoginScreenState extends State<FirstLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurar Cuenta')),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Configurar Cuenta'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+      ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Icon(Icons.lock_open, size: 64, color: Colors.blue),
-              const SizedBox(height: 16),
-              Text(
-                'Hola, ${widget.email}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.lock_reset_rounded,
+                    size: 64,
+                    color: theme.primaryColor,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text('Establece tu contraseña por primera vez'),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _passCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Nueva Contraseña',
+                const SizedBox(height: 24),
+                Text(
+                  'Hola, ${widget.email}',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPassCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmar Contraseña',
+                const SizedBox(height: 12),
+                Text(
+                  'Por favor, establece tu contraseña para activar tu cuenta de cliente.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                  ),
                 ),
-                obscureText: true,
-              ),
-              if (_error) ...[
+                const SizedBox(height: 40),
+                TextField(
+                  controller: _passCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nueva Contraseña',
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                  obscureText: true,
+                ),
                 const SizedBox(height: 16),
-                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
-              ],
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: auth.isLoading ? null : () => _handleSetup(auth),
-                  child: auth.isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Activar Cuenta'),
+                TextField(
+                  controller: _confirmPassCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar Contraseña',
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                  obscureText: true,
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.go('/login'),
-                child: const Text('Cancelar'),
-              ),
-            ],
+                if (_error) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _errorMessage,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: auth.isLoading ? null : () => _handleSetup(auth),
+                    child: auth.isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Activar Cuenta'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.go('/login'),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(color: theme.hintColor),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

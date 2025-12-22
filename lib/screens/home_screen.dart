@@ -27,28 +27,34 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final res = await api.get('/clientes');
       if (res.statusCode == 200) {
-        setState(() {
-          _clientes = jsonDecode(res.body);
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _clientes = jsonDecode(res.body);
+            _loading = false;
+          });
+        }
       } else {
-        setState(() => _loading = false);
+        if (mounted) setState(() => _loading = false);
       }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final auth = Provider.of<AuthService>(context);
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Clientes'),
+        title: const Text('Panel de Clientes'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: () {
               auth.logout();
               context.go('/login');
@@ -58,18 +64,60 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: _clientes.length,
-              itemBuilder: (context, index) {
-                final c = _clientes[index];
-                return ListTile(
-                  title: Text(c['nombre'] ?? 'Sin nombre'),
-                  subtitle: Text(c['email'] ?? ''),
-                  onTap: () {
-                    context.go('/clientes/${c['_id']}');
-                  },
-                );
-              },
+          : RefreshIndicator(
+              onRefresh: _loadClientes,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _clientes.length,
+                itemBuilder: (context, index) {
+                  final c = _clientes[index];
+                  final nombre = c['nombre'] ?? 'Sin nombre';
+                  final email = c['email'] ?? '';
+                  final inicial = nombre.isNotEmpty
+                      ? nombre[0].toUpperCase()
+                      : '?';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.dividerColor.withOpacity(0.05),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: theme.primaryColor.withOpacity(0.1),
+                        child: Text(
+                          inicial,
+                          style: TextStyle(
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        nombre,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        email,
+                        style: TextStyle(color: theme.hintColor, fontSize: 13),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: theme.hintColor,
+                      ),
+                      onTap: () => context.go('/clientes/${c['_id']}'),
+                    ),
+                  );
+                },
+              ),
             ),
     );
   }

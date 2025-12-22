@@ -65,18 +65,11 @@ class _InfoTabState extends State<InfoTab> {
   }
 
   List<Extra> get _clienteExtras {
-    if (widget.cliente.extras == null || widget.cliente.extras!.isEmpty) {
+    if (widget.cliente.extras == null || widget.cliente.extras!.isEmpty)
       return [];
-    }
-    // Get IDs from widget.cliente.extras
-    final clienteExtraIds = widget.cliente.extras!.map((e) {
-      if (e is Map) {
-        return e['_id'] ?? e['id'] ?? e.toString();
-      }
-      return e.toString();
-    }).toList();
-
-    // Filter _extrasDisponibles to only those the client has
+    final clienteExtraIds = widget.cliente.extras!
+        .map((e) => (e is Map) ? (e['_id'] ?? e['id']) : e.toString())
+        .toList();
     return _extrasDisponibles
         .where((extra) => clienteExtraIds.contains(extra.id))
         .toList();
@@ -89,22 +82,15 @@ class _InfoTabState extends State<InfoTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _sectionTitle('INFORMACIÓN PERSONAL'),
-              IconButton(
-                icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                onPressed: widget.onEditInfo,
-                tooltip: 'Editar información',
-              ),
-            ],
-          ),
+          _buildPersonalHeader(theme),
           _buildGroup([
             _appleRow('Nombre', widget.cliente.nombre),
             _appleRow('Email', widget.cliente.email),
@@ -113,13 +99,13 @@ class _InfoTabState extends State<InfoTab> {
             _appleRow('Altura', '${widget.cliente.altura ?? '-'} cm'),
           ]),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _sectionTitle('TARIFA Y VIGENCIA'),
           _buildGroup([
             _appleRow(
               'Tarifa',
               '${widget.cliente.tipoServicio} (${widget.cliente.tiempoTarifa ?? '1 Mes'})',
-              valueColor: Colors.blue,
+              valueColor: theme.primaryColor,
             ),
             _appleRow(
               'Vigencia',
@@ -127,51 +113,69 @@ class _InfoTabState extends State<InfoTab> {
             ),
           ]),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _sectionTitle('OBJETIVOS'),
           SizedBox(
             width: double.infinity,
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: const [
-                _ObjectiveChip(label: 'Ganar masa muscular'),
-                _ObjectiveChip(label: 'Definición'),
-                _ObjectiveChip(label: 'Aumentar fuerza'),
+              children: [
+                _ObjectiveChip(label: 'Ganar masa muscular', theme: theme),
+                _ObjectiveChip(label: 'Definición', theme: theme),
+                _ObjectiveChip(label: 'Aumentar fuerza', theme: theme),
               ],
             ),
           ),
 
           if (!_isLoadingExtras && _clienteExtras.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _sectionTitle('EXTRAS'),
+            const SizedBox(height: 32),
+            _sectionTitle('EXTRAS ACTIVOS'),
             SizedBox(
               width: double.infinity,
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _clienteExtras.map((extra) {
-                  return Chip(
-                    label: Text(
-                      '${extra.nombre} (+${extra.precio}€/mes)',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFAF52DE).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFFAF52DE).withOpacity(0.2),
                       ),
                     ),
-                    backgroundColor: const Color(0xFF9C27B0), // Purple color
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: Color(0xFFAF52DE),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${extra.nombre} (+${extra.precio}€)',
+                          style: const TextStyle(
+                            color: Color(0xFFAF52DE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    side: BorderSide.none,
                   );
                 }).toList(),
               ),
             ),
           ],
 
-          const SizedBox(height: 24),
-          _buildSessionCounter(context),
+          const SizedBox(height: 32),
+          _buildSessionCounter(context, theme, isDark),
 
           Builder(
             builder: (context) {
@@ -180,13 +184,15 @@ class _InfoTabState extends State<InfoTab> {
 
               return Column(
                 children: [
-                  const SizedBox(height: 24),
-                  // Action Buttons Grid
+                  const SizedBox(height: 32),
+                  _sectionTitle('ACCIONES DE GESTIÓN'),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: _AppleButton(
-                          label: 'Añadir progreso',
+                          label: 'Progreso',
+                          icon: Icons.add_chart_rounded,
                           color: const Color(0xFF007AFF),
                           onPressed: widget.onAddProgress,
                         ),
@@ -195,6 +201,7 @@ class _InfoTabState extends State<InfoTab> {
                       Expanded(
                         child: _AppleButton(
                           label: 'Renovar',
+                          icon: Icons.sync_rounded,
                           color: const Color(0xFF34C759),
                           onPressed: _isTariffExpired()
                               ? widget.onRenovar
@@ -209,6 +216,7 @@ class _InfoTabState extends State<InfoTab> {
                       Expanded(
                         child: _AppleButton(
                           label: 'Cambiar Tarifa',
+                          icon: Icons.swap_horiz_rounded,
                           color: Colors.blueGrey,
                           onPressed: _isTariffExpired()
                               ? widget.onChangeTariff
@@ -218,7 +226,8 @@ class _InfoTabState extends State<InfoTab> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _AppleButton(
-                          label: 'Extras',
+                          label: 'Gestionar Extras',
+                          icon: Icons.star_outline_rounded,
                           color: const Color(0xFFFF9500),
                           onPressed: _isTariffExpired()
                               ? widget.onManageExtras
@@ -231,9 +240,25 @@ class _InfoTabState extends State<InfoTab> {
               );
             },
           ),
+          const SizedBox(height: 60),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 32),
-          // Charts moved to ProgressTab
+  Widget _buildPersonalHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _sectionTitle('INFORMACIÓN PERSONAL'),
+          IconButton.filledTonal(
+            icon: const Icon(Icons.edit_rounded, size: 18),
+            onPressed: widget.onEditInfo,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
         ],
       ),
     );
@@ -245,24 +270,28 @@ class _InfoTabState extends State<InfoTab> {
   }
 
   Widget _sectionTitle(String title) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF8E8E93), // iOS Section Title Gray
-          fontSize: 13,
-          fontWeight: FontWeight.w400,
+        style: TextStyle(
+          color: theme.hintColor,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
         ),
       ),
     );
   }
 
   Widget _buildGroup(List<Widget> children) {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Column(
         children: children.asMap().entries.map((entry) {
@@ -273,12 +302,17 @@ class _InfoTabState extends State<InfoTab> {
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: 14,
                 ),
                 child: child,
               ),
               if (index < children.length - 1)
-                const Divider(height: 1, indent: 16, thickness: 0.5),
+                Divider(
+                  height: 1,
+                  indent: 16,
+                  thickness: 0.5,
+                  color: theme.dividerColor.withOpacity(0.1),
+                ),
             ],
           );
         }).toList(),
@@ -287,91 +321,108 @@ class _InfoTabState extends State<InfoTab> {
   }
 
   Widget _appleRow(String label, String? value, {Color? valueColor}) {
+    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 17, color: Colors.black)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        ),
         Text(
           value ?? '-',
           style: TextStyle(
-            fontSize: 17,
-            color: valueColor ?? const Color(0xFF8E8E93),
+            fontSize: 15,
+            color: valueColor ?? theme.hintColor,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSessionCounter(BuildContext context) {
+  Widget _buildSessionCounter(
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Sesiones (Dic)',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Entrenamientos',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Sesiones realizadas este mes',
+                    style: TextStyle(fontSize: 12, color: theme.hintColor),
+                  ),
+                ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
+                  horizontal: 16,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(8),
+                  color: theme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${widget.cliente.sesionesCounter ?? 2}',
-                  style: const TextStyle(
-                    fontSize: 17,
+                  '${widget.cliente.sesionesCounter ?? 0}',
+                  style: TextStyle(
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: theme.primaryColor,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Builder(
-            builder: (context) {
-              final auth = Provider.of<AuthService>(context, listen: false);
-              if (auth.isClient) return const SizedBox.shrink();
-
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle,
-                      color: Color(0xFFFF3B30),
-                      size: 32,
-                    ),
-                    onPressed: () => widget.onSessionAction?.call('decrement'),
-                  ),
-                  const SizedBox(width: 32),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_circle,
-                      color: Color(0xFF34C759),
-                      size: 32,
-                    ),
-                    onPressed: () => widget.onSessionAction?.call('increment'),
-                  ),
-                ],
-              );
-            },
-          ),
-          const Text(
-            'Se reinicia cada mes',
-            style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
-          ),
+          if (!Provider.of<AuthService>(context, listen: false).isClient) ...[
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _circleIconButton(
+                  Icons.remove_rounded,
+                  const Color(0xFFFF3B30),
+                  () => widget.onSessionAction?.call('decrement'),
+                ),
+                const SizedBox(width: 40),
+                _circleIconButton(
+                  Icons.add_rounded,
+                  const Color(0xFF34C759),
+                  () => widget.onSessionAction?.call('increment'),
+                ),
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _circleIconButton(IconData icon, Color color, VoidCallback onPressed) {
+    return IconButton.filled(
+      icon: Icon(icon, size: 28),
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: color.withOpacity(0.1),
+        foregroundColor: color,
+        minimumSize: const Size(56, 56),
       ),
     );
   }
@@ -379,20 +430,21 @@ class _InfoTabState extends State<InfoTab> {
 
 class _ObjectiveChip extends StatelessWidget {
   final String label;
-  const _ObjectiveChip({required this.label});
+  final ThemeData theme;
+  const _ObjectiveChip({required this.label, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 14, color: Colors.black87),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -400,32 +452,46 @@ class _ObjectiveChip extends StatelessWidget {
 
 class _AppleButton extends StatelessWidget {
   final String label;
+  final IconData icon;
   final Color color;
   final VoidCallback? onPressed;
 
   const _AppleButton({
     required this.label,
+    required this.icon,
     required this.color,
     this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 50,
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+    return Opacity(
+      opacity: onPressed == null ? 0.5 : 1.0,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
           ),
-          elevation: 0,
-        ),
-        onPressed: onPressed,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/cliente_model.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class DialogCorreo extends StatefulWidget {
   final Cliente cliente;
@@ -65,13 +66,15 @@ class _DialogCorreoState extends State<DialogCorreo> {
     setState(() => _sending = true);
     final api = Provider.of<ApiService>(context, listen: false);
 
+    final auth = Provider.of<AuthService>(context, listen: false);
+
     try {
       await api.post('/correo/enviar', {
         'destinatario': _toCtrl.text,
         'asunto': _subjectCtrl.text,
         'mensaje': _msgCtrl.text,
         'clienteId': widget.cliente.id,
-        'asesorId': '65ba00000000000000000000', // Placeholder
+        'asesorId': auth.userId, // Use actual current user id
       });
 
       if (mounted) {

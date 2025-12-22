@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../models/cliente_model.dart';
+import '../../services/auth_service.dart';
 
 class BulkEmailDialog extends StatefulWidget {
   final List<Cliente> clientes;
@@ -52,12 +53,18 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
   }
 
   void _showConfirmDialog() {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar Envío'),
+        backgroundColor: theme.colorScheme.surface,
+        title: Text(
+          'Confirmar Envío',
+          style: TextStyle(color: theme.textTheme.titleLarge?.color),
+        ),
         content: Text(
           '¿Estás seguro de que deseas enviar este email a ${_clientsWithEmail.length} clientes?',
+          style: TextStyle(color: theme.textTheme.bodyMedium?.color),
         ),
         actions: [
           TextButton(
@@ -69,6 +76,10 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
               Navigator.of(context).pop();
               _handleConfirmSend();
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Confirmar y Enviar'),
           ),
         ],
@@ -85,12 +96,15 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
         .where((e) => e.isNotEmpty)
         .toList();
 
+    final auth = Provider.of<AuthService>(context, listen: false);
+
     try {
       // Send email with all recipients
       await api.post('/correo/enviar', {
         'to': emailAddresses.first,
         'bcc': emailAddresses.skip(1).toList(),
         'subject': _subjectController.text,
+        'asesorId': auth.userId, // Pass current user id for settings retrieval
         'html':
             '''
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -132,9 +146,14 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
   @override
   Widget build(BuildContext context) {
     final clientCount = _clientsWithEmail.length;
+    final theme = Theme.of(context);
 
     return AlertDialog(
-      title: const Text('Enviar Email a Todos los Clientes'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        'Enviar Email a Todos los Clientes',
+        style: TextStyle(color: theme.textTheme.titleLarge?.color),
+      ),
       content: SizedBox(
         width: MediaQuery.of(context).size.width * 0.8,
         child: SingleChildScrollView(
@@ -146,25 +165,36 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
                 'Se enviará un email individual a $clientCount clientes con email.',
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                ).textTheme.bodySmall?.copyWith(color: theme.hintColor),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _subjectController,
-                decoration: const InputDecoration(
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                decoration: InputDecoration(
                   labelText: 'Asunto',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: theme.hintColor),
+                  border: const OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                 ),
                 enabled: !_sending,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _messageController,
-                decoration: const InputDecoration(
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                decoration: InputDecoration(
                   labelText: 'Mensaje',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: theme.hintColor),
+                  border: const OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
                   helperText:
                       'Se enviará un único email a todos los clientes seleccionados',
+                  helperStyle: TextStyle(color: theme.hintColor),
                 ),
                 maxLines: 8,
                 enabled: !_sending,
@@ -185,6 +215,10 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
                   _messageController.text.trim().isEmpty
               ? null
               : _handleSendClick,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           child: Text(_sending ? 'Enviando...' : 'Enviar Emails'),
         ),
       ],

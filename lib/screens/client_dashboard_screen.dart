@@ -191,6 +191,8 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     // Calculate filtered list for current tab, and separately calculate counts.
 
@@ -205,16 +207,16 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     final totalBajas = _clientes.where((c) => c.estado == 'Baja').length;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Light background like screenshot
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             // Custom Header Section
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                border: Border(bottom: BorderSide(color: theme.dividerColor)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,12 +228,13 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Clientes',
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
                               height: 1.0,
+                              color: theme.textTheme.titleLarge?.color,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -241,14 +244,22 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                               const SizedBox(width: 8),
                               _SummaryChip(
                                 label: 'Activos: $totalActivos',
-                                color: Colors.green.shade50,
-                                textColor: Colors.green.shade700,
+                                color: isDark
+                                    ? Colors.green.withOpacity(0.2)
+                                    : Colors.green.shade50,
+                                textColor: isDark
+                                    ? Colors.greenAccent
+                                    : Colors.green.shade700,
                               ),
                               const SizedBox(width: 8),
                               _SummaryChip(
                                 label: 'Baja: $totalBajas',
-                                color: Colors.red.shade50,
-                                textColor: Colors.red.shade700,
+                                color: isDark
+                                    ? Colors.red.withOpacity(0.2)
+                                    : Colors.red.shade50,
+                                textColor: isDark
+                                    ? Colors.redAccent
+                                    : Colors.red.shade700,
                               ),
                             ],
                           ),
@@ -256,6 +267,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout),
+                        color: theme.iconTheme.color,
                         onPressed: () {
                           auth.logout();
                           context.go('/login');
@@ -276,26 +288,30 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                           width: 320,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.scaffoldBackgroundColor,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: theme.dividerColor),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Center(
                             child: TextField(
                               controller: _searchCtrl,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 hintText:
                                     'Buscar por nombre, email o teléfono...',
                                 border: InputBorder.none,
                                 icon: Icon(
                                   Icons.search,
                                   size: 20,
-                                  color: Colors.grey,
+                                  color: theme.hintColor,
                                 ),
                                 isDense: true,
+                                hintStyle: TextStyle(color: theme.hintColor),
                               ),
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
                               onChanged: (val) =>
                                   setState(() => _searchQuery = val),
                             ),
@@ -308,35 +324,51 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                           height: 48,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.scaffoldBackgroundColor,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: theme.dividerColor),
                           ),
-                          child: DropdownButton<String?>(
-                            value: _filterTarifa,
-                            underline: Container(),
-                            hint: const Text(
-                              'Tarifa',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            icon: const Icon(
-                              Icons.arrow_drop_down,
-                              color: Colors.grey,
-                            ),
-                            onChanged: (val) =>
-                                setState(() => _filterTarifa = val),
-                            items: [
-                              const DropdownMenuItem(
-                                value: null,
-                                child: Text('Todas'),
-                              ),
-                              ..._tarifas.map(
-                                (t) => DropdownMenuItem(
-                                  value: t.nombre,
-                                  child: Text(t.nombre),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String?>(
+                              value: _filterTarifa,
+                              hint: Text(
+                                'Tarifa',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: theme.hintColor,
                                 ),
                               ),
-                            ],
+                              icon: Icon(
+                                Icons.arrow_drop_down,
+                                color: theme.iconTheme.color,
+                              ),
+                              dropdownColor: theme.colorScheme.surface,
+                              onChanged: (val) =>
+                                  setState(() => _filterTarifa = val),
+                              items: [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text(
+                                    'Todas',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                                ),
+                                ..._tarifas.map(
+                                  (t) => DropdownMenuItem(
+                                    value: t.nombre,
+                                    child: Text(
+                                      t.nombre,
+                                      style: TextStyle(
+                                        color:
+                                            theme.textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -356,7 +388,9 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                           icon: const Icon(Icons.email_outlined, size: 18),
                           label: const Text('Enviar Email Masivo'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blue,
+                            foregroundColor: isDark
+                                ? Colors.white
+                                : theme.primaryColor,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 14,
@@ -364,7 +398,11 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            side: const BorderSide(color: Colors.blue),
+                            side: BorderSide(
+                              color: isDark
+                                  ? Colors.white54
+                                  : theme.primaryColor,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -374,7 +412,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Nuevo cliente'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
+                            backgroundColor: theme.primaryColor,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
@@ -395,17 +433,17 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                   // Tabs
                   Container(
                     width: double.infinity,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Color(0xFFEEEEEE)),
+                        bottom: BorderSide(color: theme.dividerColor),
                       ),
                     ),
                     child: TabBar(
                       controller: _tabController,
                       isScrollable: true,
-                      labelColor: Colors.blue.shade700,
-                      unselectedLabelColor: Colors.grey.shade600,
-                      indicatorColor: Colors.blue.shade700,
+                      labelColor: isDark ? Colors.white : theme.primaryColor,
+                      unselectedLabelColor: theme.hintColor,
+                      indicatorColor: theme.primaryColor,
                       labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                       unselectedLabelStyle: const TextStyle(
                         fontWeight: FontWeight.normal,
@@ -434,7 +472,12 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                       ),
                     )
                   : displayedList.isEmpty
-                  ? const Center(child: Text('No se encontraron clientes'))
+                  ? Center(
+                      child: Text(
+                        'No se encontraron clientes',
+                        style: TextStyle(color: theme.hintColor),
+                      ),
+                    )
                   : ListView.builder(
                       padding: const EdgeInsets.all(24),
                       itemCount: displayedList.length,
@@ -454,6 +497,11 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/settings'),
+        backgroundColor: theme.primaryColor,
+        child: const Icon(Icons.settings, color: Colors.white),
+      ),
     );
   }
 }
@@ -467,17 +515,25 @@ class _SummaryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Default colors based on theme
+    final defaultBg = isDark ? theme.colorScheme.surface : Colors.white;
+    final defaultText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final border = theme.dividerColor;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color ?? Colors.white,
+        color: color ?? defaultBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: border),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: textColor ?? Colors.grey.shade700,
+          color: textColor ?? defaultText,
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),

@@ -28,9 +28,6 @@ class _DietTabState extends State<DietTab> {
   Future<void> _loadDietas() async {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      // Assuming GET /dietas?clienteId=... works as per React code
-      // React params: { clienteId, isCurrent: "true" }
-      // Using query parameters in URL manually since ApiService doesn't support params map yet (oops, simple implementation)
       final res = await api.get(
         '/dietas?clienteId=${widget.clienteId}&isCurrent=true',
       );
@@ -57,28 +54,41 @@ class _DietTabState extends State<DietTab> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (_dietas.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Aún no hay dietas',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.hintColor,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text('Crea la primera dieta para este cliente'),
+            Text(
+              'Crea la primera dieta para este cliente',
+              style: TextStyle(color: theme.hintColor),
+            ),
             const SizedBox(height: 16),
             Builder(
               builder: (context) {
                 final auth = Provider.of<AuthService>(context, listen: false);
                 if (auth.isClient) return const SizedBox.shrink();
                 return ElevatedButton.icon(
-                  onPressed: () => context.push(
-                    '/clientes/${widget.clienteId}/crear-dieta',
-                  ), // Ensure route exists
+                  onPressed: () =>
+                      context.push('/clientes/${widget.clienteId}/crear-dieta'),
                   icon: const Icon(Icons.add),
                   label: const Text('Crear dieta'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
                 );
               },
             ),
@@ -95,9 +105,13 @@ class _DietTabState extends State<DietTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Dietas asignadas',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
               ),
               Builder(
                 builder: (context) {
@@ -109,6 +123,10 @@ class _DietTabState extends State<DietTab> {
                     ),
                     icon: const Icon(Icons.add),
                     label: const Text('Nueva dieta'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
                   );
                 },
               ),
@@ -142,12 +160,17 @@ class _DietTabState extends State<DietTab> {
   }
 
   Widget _buildDietaCard(Dieta dieta) {
-    // createdAt isn't in my Dieta model yet? React uses it.
-    // I defined Dieta model closely but might have missed createdAt if it wasn't in CreateDieta payload.
-    // It usually comes from backend. I'll ignore for now or use fallback.
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: theme.colorScheme.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.dividerColor),
+      ),
       child: InkWell(
         onTap: () {
           if (dieta.id != null) {
@@ -161,7 +184,7 @@ class _DietTabState extends State<DietTab> {
         },
         child: Column(
           children: [
-            Container(height: 6, color: Colors.amber.shade200),
+            Container(height: 6, color: Colors.orange.shade300),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -170,7 +193,7 @@ class _DietTabState extends State<DietTab> {
                   children: [
                     Text(
                       dieta.nombre,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 2,
@@ -184,8 +207,14 @@ class _DietTabState extends State<DietTab> {
                           Chip(
                             label: Text(
                               '${dieta.macros.kcal.toInt()} kcal',
-                              style: const TextStyle(fontSize: 11),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
+                            backgroundColor: isDark
+                                ? theme.scaffoldBackgroundColor
+                                : null,
                             avatar: const Icon(
                               Icons.local_fire_department,
                               size: 14,
@@ -193,6 +222,7 @@ class _DietTabState extends State<DietTab> {
                             ),
                             padding: EdgeInsets.zero,
                             visualDensity: VisualDensity.compact,
+                            side: BorderSide.none,
                           ),
                           const SizedBox(width: 4),
                           if (dieta.objetivo != null)
@@ -201,9 +231,17 @@ class _DietTabState extends State<DietTab> {
                                 dieta.objetivo!,
                                 style: const TextStyle(fontSize: 11),
                               ),
-                              avatar: const Icon(Icons.flag, size: 14),
+                              avatar: Icon(
+                                Icons.flag,
+                                size: 14,
+                                color: theme.iconTheme.color,
+                              ),
+                              backgroundColor: isDark
+                                  ? theme.scaffoldBackgroundColor
+                                  : null,
                               padding: EdgeInsets.zero,
                               visualDensity: VisualDensity.compact,
+                              side: BorderSide.none,
                             ),
                         ],
                       ),

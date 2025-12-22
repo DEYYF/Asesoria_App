@@ -167,12 +167,15 @@ class _ClienteCardState extends State<ClienteCard> {
   @override
   Widget build(BuildContext context) {
     final c = widget.cliente;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
+      color: theme.colorScheme.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
+        side: BorderSide(color: theme.dividerColor, width: 1),
       ),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -185,7 +188,7 @@ class _ClienteCardState extends State<ClienteCard> {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: Colors.blue.shade50,
+                  backgroundColor: theme.primaryColor.withOpacity(0.1),
                   backgroundImage: c.avatarUrl != null
                       ? NetworkImage(c.avatarUrl!)
                       : null,
@@ -197,7 +200,7 @@ class _ClienteCardState extends State<ClienteCard> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 24,
-                            color: Colors.blue.shade700,
+                            color: theme.primaryColor,
                           ),
                         )
                       : null,
@@ -211,7 +214,7 @@ class _ClienteCardState extends State<ClienteCard> {
                     decoration: BoxDecoration(
                       color: _statusColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: theme.colorScheme.surface, width: 2),
                     ),
                   ),
                 ),
@@ -231,10 +234,10 @@ class _ClienteCardState extends State<ClienteCard> {
                           c.nombre,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: theme.textTheme.bodyMedium?.color,
                           ),
                         ),
                       ),
@@ -257,7 +260,7 @@ class _ClienteCardState extends State<ClienteCard> {
                             softWrap: false,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade500,
+                              color: theme.hintColor,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -265,11 +268,7 @@ class _ClienteCardState extends State<ClienteCard> {
                       ),
                       if (c.telefono != null) ...[
                         const SizedBox(width: 12),
-                        Icon(
-                          Icons.phone,
-                          size: 14,
-                          color: Colors.grey.shade600,
-                        ),
+                        Icon(Icons.phone, size: 14, color: theme.hintColor),
                         const SizedBox(width: 4),
                         Flexible(
                           child: InkWell(
@@ -281,7 +280,7 @@ class _ClienteCardState extends State<ClienteCard> {
                               softWrap: false,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600,
+                                color: theme.hintColor,
                                 decoration: TextDecoration.underline,
                               ),
                             ),
@@ -304,7 +303,9 @@ class _ClienteCardState extends State<ClienteCard> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -314,7 +315,9 @@ class _ClienteCardState extends State<ClienteCard> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
+                                color: isDark
+                                    ? Colors.white70
+                                    : Colors.grey.shade700,
                               ),
                             ),
                           ),
@@ -326,7 +329,7 @@ class _ClienteCardState extends State<ClienteCard> {
                       'Sin objetivos',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade400,
+                        color: theme.disabledColor,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -373,7 +376,7 @@ class _ClienteCardState extends State<ClienteCard> {
                             Icon(
                               Icons.restaurant_menu,
                               size: 12,
-                              color: Colors.grey.shade500,
+                              color: theme.hintColor,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -386,7 +389,7 @@ class _ClienteCardState extends State<ClienteCard> {
                                 softWrap: false,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade500,
+                                  color: theme.hintColor,
                                 ),
                               ),
                             ),
@@ -400,7 +403,7 @@ class _ClienteCardState extends State<ClienteCard> {
                     '${_formatDate(c.fechaInicio)} - ${_formatDate(c.fechaFin)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 12, color: theme.hintColor),
                   ),
                   const SizedBox(height: 16),
 
@@ -423,7 +426,7 @@ class _ClienteCardState extends State<ClienteCard> {
                       ElevatedButton(
                         onPressed: widget.onTap,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: theme.primaryColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -437,7 +440,8 @@ class _ClienteCardState extends State<ClienteCard> {
                         child: const Text('Perfil'),
                       ),
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                        icon: Icon(Icons.more_vert, color: theme.hintColor),
+                        color: theme.colorScheme.surface,
                         onSelected: (val) {
                           if (val == 'delete') widget.onDelete();
                           if (val == 'toggle') widget.onToggleStatus();
@@ -452,21 +456,38 @@ class _ClienteCardState extends State<ClienteCard> {
                                       _computedStatus == 'Baja'
                                   ? 'Reactivar'
                                   : 'Dar baja',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
                             ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'email',
-                            child: Text('Enviar correo'),
+                            child: Text(
+                              'Enviar correo',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'cita',
-                            child: Text('Agendar cita'),
+                            child: Text(
+                              'Agendar cita',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'delete',
                             child: Text(
                               'Eliminar',
-                              style: TextStyle(color: Colors.red),
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.redAccent
+                                    : Colors.red.shade700,
+                              ),
                             ),
                           ),
                         ],
@@ -501,10 +522,12 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.blue.shade700,
+        foregroundColor: theme.primaryColor,
+        side: BorderSide(color: theme.dividerColor),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),

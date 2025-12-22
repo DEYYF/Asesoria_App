@@ -41,29 +41,20 @@ class _JournalTabState extends State<JournalTab> {
     final api = Provider.of<ApiService>(context, listen: false);
 
     try {
-      // Fetch all training session records for this client
-      debugPrint('🔍 Fetching sessions for client: ${widget.cliente.id}');
       final res = await api.get(
         '/entrenamientos/registros/cliente/${widget.cliente.id}/sesiones',
       );
 
-      debugPrint('📡 Response status: ${res.statusCode}');
-
       if (res.statusCode != 200) {
-        debugPrint(
-          '❌ Failed to load sessions: ${res.statusCode} - ${res.body}',
-        );
         throw Exception('Failed to load sessions');
       }
 
-      // Process session history in isolate for better performance
       final result = await processSessionHistoryInIsolate(res.body);
-      debugPrint('✅ Processed ${result.sessionsMap.length} unique dates');
 
       // Convert string-based maps to DateTime-based maps
       Map<DateTime, Map<String, dynamic>> sessionsMap = {};
       result.sessionsMap.forEach((key, value) {
-        sessionsMap[DateTime.parse(key)] = value as Map<String, dynamic>;
+        sessionsMap[DateTime.parse(key)] = value;
       });
 
       Map<DateTime, List<DateTime>> monthsMap = {};
@@ -76,15 +67,16 @@ class _JournalTabState extends State<JournalTab> {
           .map((s) => DateTime.parse(s))
           .toList();
 
-      setState(() {
-        _sessionsMap = sessionsMap;
-        _monthsMap = monthsMap;
-        _sortedMonths = sortedMonths;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sessionsMap = sessionsMap;
+          _monthsMap = monthsMap;
+          _sortedMonths = sortedMonths;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      debugPrint('💥 Error loading full history: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -105,14 +97,15 @@ class _JournalTabState extends State<JournalTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     if (_sortedMonths.isEmpty) {
-      return _buildEmptyJournal();
+      return _buildEmptyJournal(theme);
     }
 
     return Container(
-      color: const Color(0xFFE5E5EA),
+      color: theme.scaffoldBackgroundColor,
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _showMonthGrid ? _buildMonthGrid() : _buildPagesView(),
@@ -144,10 +137,16 @@ class _JournalTabState extends State<JournalTab> {
 
   Widget _buildNotebookCover(DateTime month) {
     final monthName = DateFormat('MMMM', 'es').format(month).toUpperCase();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final coverColor = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFF2C2C2E);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        color: coverColor,
         borderRadius: const BorderRadius.only(
           topRight: Radius.circular(16),
           bottomRight: Radius.circular(16),
@@ -155,6 +154,7 @@ class _JournalTabState extends State<JournalTab> {
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(2, 4)),
         ],
+        border: isDark ? Border.all(color: Colors.white10) : null,
       ),
       child: Stack(
         children: [
@@ -164,9 +164,9 @@ class _JournalTabState extends State<JournalTab> {
             bottom: 0,
             width: 20,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1C1C1E),
-                border: Border(right: BorderSide(color: Colors.white12)),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.black26 : const Color(0xFF1C1C1E),
+                border: const Border(right: BorderSide(color: Colors.white12)),
               ),
             ),
           ),
@@ -197,31 +197,27 @@ class _JournalTabState extends State<JournalTab> {
   }
 
   Widget _buildPagesView() {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFFE5E5EA),
+          color: theme.scaffoldBackgroundColor,
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  size: 18,
-                  color: Colors.blue,
-                ),
+                icon: const Icon(Icons.arrow_back_ios_rounded, size: 18),
+                color: theme.primaryColor,
                 onPressed: _backToGrid,
               ),
               Text(
                 _selectedMonth != null
                     ? DateFormat(
                         'MMMM yyyy',
+                        'es',
                       ).format(_selectedMonth!).toUpperCase()
                     : '',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black54,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -241,12 +237,33 @@ class _JournalTabState extends State<JournalTab> {
   }
 
   Widget _buildNotebookPage(DateTime date, int index) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final paperColor = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFFDFBF7);
+    final gradientColors = isDark
+        ? [
+            const Color(0xFF2C2C2E),
+            const Color(0xFF1C1C1E),
+            const Color(0xFF1C1C1E),
+          ]
+        : [
+            const Color(0xFFE0E0E0),
+            const Color(0xFFFDFBF7),
+            const Color(0xFFFDFBF7),
+          ];
+
+    final textColor = isDark ? Colors.white70 : const Color(0xFF2C2C2E);
+    final secondaryTextColor = isDark ? Colors.white38 : Colors.grey.shade400;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFBF7),
+          color: paperColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -255,16 +272,18 @@ class _JournalTabState extends State<JournalTab> {
               offset: const Offset(0, 4),
             ),
           ],
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE0E0E0), Color(0xFFFDFBF7), Color(0xFFFDFBF7)],
-            stops: [0.0, 0.05, 1.0],
+          gradient: LinearGradient(
+            colors: gradientColors,
+            stops: const [0.0, 0.05, 1.0],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
         ),
         child: Stack(
           children: [
-            Positioned.fill(child: CustomPaint(painter: NotebookPainter())),
+            Positioned.fill(
+              child: CustomPaint(painter: NotebookPainter(isDark: isDark)),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(40, 24, 24, 24),
               child: Column(
@@ -274,9 +293,9 @@ class _JournalTabState extends State<JournalTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        DateFormat('EEEE').format(date).toUpperCase(),
+                        DateFormat('EEEE', 'es').format(date).toUpperCase(),
                         style: TextStyle(
-                          color: Colors.grey.shade400,
+                          color: secondaryTextColor,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                           fontSize: 12,
@@ -284,26 +303,24 @@ class _JournalTabState extends State<JournalTab> {
                       ),
                       Text(
                         DateFormat('MMM d, y').format(date),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'Courier',
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Color(0xFF2C2C2E),
+                          color: textColor,
                         ),
                       ),
                     ],
                   ),
-                  const Divider(
+                  Divider(
                     height: 30,
                     thickness: 2,
-                    color: Colors.black12,
+                    color: theme.dividerColor.withOpacity(0.1),
                   ),
-
                   Expanded(child: _buildSessionContent(date)),
                 ],
               ),
             ),
-
             if (_getSessionNote(date) != null)
               Positioned(
                 bottom: 40,
@@ -320,6 +337,11 @@ class _JournalTabState extends State<JournalTab> {
     final sessionData = _sessionsMap[date];
     if (sessionData == null) return const SizedBox();
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final titleColor = isDark ? Colors.white70 : const Color(0xFF3A3A3C);
+    final bodyColor = isDark ? Colors.white60 : const Color(0xFF555555);
+
     final ejercicios = sessionData['ejercicios'] as List<dynamic>;
 
     return ListView.builder(
@@ -334,17 +356,15 @@ class _JournalTabState extends State<JournalTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Exercise Title
               Text(
                 nombre,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: Color(0xFF3A3A3C),
+                  color: titleColor,
                 ),
               ),
               const SizedBox(height: 6),
-              // Sets List
               if (series.isNotEmpty)
                 ...series.asMap().entries.map((entry) {
                   final setNum = entry.key + 1;
@@ -361,16 +381,18 @@ class _JournalTabState extends State<JournalTab> {
                           width: 20,
                           height: 20,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
+                            color: isDark
+                                ? Colors.white10
+                                : Colors.grey.shade200,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Text(
                               '$setNum',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF555555),
+                                color: bodyColor,
                               ),
                             ),
                           ),
@@ -378,10 +400,10 @@ class _JournalTabState extends State<JournalTab> {
                         const SizedBox(width: 8),
                         Text(
                           '$peso kg × $reps reps',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Courier',
                             fontSize: 13,
-                            color: Color(0xFF555555),
+                            color: bodyColor,
                           ),
                         ),
                         if (rir != null && rir > 0) ...[
@@ -390,7 +412,7 @@ class _JournalTabState extends State<JournalTab> {
                             'RIR: $rir',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey.shade500,
+                              color: theme.disabledColor,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -407,7 +429,7 @@ class _JournalTabState extends State<JournalTab> {
                     style: TextStyle(
                       fontFamily: 'Courier',
                       fontSize: 12,
-                      color: Colors.grey.shade400,
+                      color: theme.disabledColor,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -445,7 +467,7 @@ class _JournalTabState extends State<JournalTab> {
             Text(
               text,
               style: const TextStyle(
-                fontFamily: 'Kalam',
+                fontFamily: 'Courier',
                 fontSize: 12,
                 color: Color(0xFF4A4A4A),
                 height: 1.2,
@@ -460,23 +482,28 @@ class _JournalTabState extends State<JournalTab> {
   String? _getSessionNote(DateTime date) {
     final sessionData = _sessionsMap[date];
     if (sessionData == null) return null;
-
     final comentarios = sessionData['comentarios'] as String?;
-    if (comentarios != null && comentarios.isNotEmpty) {
-      return comentarios;
-    }
-
-    return null;
+    return (comentarios != null && comentarios.isNotEmpty) ? comentarios : null;
   }
 
-  Widget _buildEmptyJournal() {
+  Widget _buildEmptyJournal(ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.book, size: 64, color: Colors.grey.shade300),
+          Icon(
+            Icons.auto_stories_rounded,
+            size: 64,
+            color: theme.disabledColor.withOpacity(0.2),
+          ),
           const SizedBox(height: 16),
-          Text('Libreta vacía', style: TextStyle(color: Colors.grey.shade500)),
+          Text(
+            'Libreta vacía',
+            style: TextStyle(
+              color: theme.hintColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -484,10 +511,15 @@ class _JournalTabState extends State<JournalTab> {
 }
 
 class NotebookPainter extends CustomPainter {
+  final bool isDark;
+  NotebookPainter({this.isDark = false});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.blue.withOpacity(0.1)
+      ..color = isDark
+          ? Colors.white.withOpacity(0.05)
+          : Colors.blue.withOpacity(0.1)
       ..strokeWidth = 1.0;
 
     double y = 80;

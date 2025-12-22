@@ -70,6 +70,7 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
 
   Future<void> _handleSaveVersion() async {
     final noteController = TextEditingController();
+
     final note = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -167,8 +168,15 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle de la Dieta')),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('Detalle de la Dieta'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+      ),
       body: FutureBuilder<Dieta?>(
         future: _dietFuture,
         builder: (context, snapshot) {
@@ -253,59 +261,62 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final dateStr = dieta.createdAt != null
         ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
         : '-';
 
-    return Card(
-      color: Colors.blue.shade50.withOpacity(0.3),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.blue.shade100),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withOpacity(isDark ? 0.15 : 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.1)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Detalle de la Dieta',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Detalle de la Dieta',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: [
-                          _iconText(Icons.calendar_month, dateStr),
-                          _iconText(
-                            Icons.local_fire_department,
-                            '${dieta.macros.kcal.round()} kcal objetivo',
-                          ),
-                          _iconText(
-                            Icons.flag,
-                            dieta.objetivo?.toUpperCase() ?? '-',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        _iconText(Icons.calendar_month, dateStr, theme),
+                        _iconText(
+                          Icons.local_fire_department,
+                          '${dieta.macros.kcal.round()} kcal objetivo',
+                          theme,
+                        ),
+                        _iconText(
+                          Icons.flag,
+                          dieta.objetivo?.toUpperCase() ?? '-',
+                          theme,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.end,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
                 _ActionButton(
                   icon: Icons.picture_as_pdf,
@@ -313,6 +324,7 @@ class _HeaderCard extends StatelessWidget {
                   onTap: onExport,
                   isPrimary: true,
                 ),
+                const SizedBox(width: 8),
                 Builder(
                   builder: (context) {
                     final auth = Provider.of<AuthService>(
@@ -321,28 +333,30 @@ class _HeaderCard extends StatelessWidget {
                     );
                     if (auth.isClient) return const SizedBox.shrink();
 
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         _ActionButton(
                           icon: Icons.save_as,
-                          label: 'Guardar versión',
+                          label: 'Versión',
                           onTap: onSaveVersion,
                         ),
+                        const SizedBox(width: 8),
                         _ActionButton(
                           icon: Icons.history,
                           label: 'Historial',
                           onTap: onHistory,
                         ),
+                        const SizedBox(width: 8),
                         _ActionButton(
                           icon: Icons.edit,
                           label: 'Editar',
                           onTap: onEdit,
                         ),
+                        const SizedBox(width: 8),
                         _ActionButton(
                           icon: Icons.delete_outline,
-                          label: 'Eliminar',
+                          label: 'Borrar',
                           color: Colors.red,
                           onTap: onDelete,
                         ),
@@ -352,19 +366,19 @@ class _HeaderCard extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _iconText(IconData icon, String text) {
+  Widget _iconText(IconData icon, String text, ThemeData theme) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: Colors.grey),
-        const SizedBox(width: 4),
-        Text(text, style: const TextStyle(color: Colors.grey)),
+        Icon(icon, size: 16, color: theme.hintColor),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(color: theme.hintColor, fontSize: 13)),
       ],
     );
   }
@@ -376,43 +390,51 @@ class _InfoAndMacros extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final isWide = constraints.maxWidth > 720;
         final info = Expanded(
           flex: isWide ? 5 : 0,
-          child: Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Información general',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Información general',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const Divider(height: 24),
-                  _InfoRow(
-                    'Fecha de creación:',
-                    dieta.createdAt != null
-                        ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
-                        : '-',
-                  ),
-                  _InfoRow(
-                    'Calorías totales:',
-                    '${dieta.macros.kcal.round()} kcal',
-                  ),
-                  _InfoRow('Objetivo:', dieta.objetivo?.toUpperCase() ?? '-'),
-                  _InfoRow('Estado:', dieta.estado.toUpperCase()),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  'Fecha de creación:',
+                  dieta.createdAt != null
+                      ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
+                      : '-',
+                  theme,
+                ),
+                _InfoRow(
+                  'Calorías totales:',
+                  '${dieta.macros.kcal.round()} kcal',
+                  theme,
+                ),
+                _InfoRow(
+                  'Objetivo:',
+                  dieta.objetivo?.toUpperCase() ?? '-',
+                  theme,
+                ),
+                _InfoRow('Estado:', dieta.estado.toUpperCase(), theme),
+              ],
             ),
           ),
         );
@@ -429,16 +451,16 @@ class _InfoAndMacros extends StatelessWidget {
                   color: Colors.blue,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: _MacroCard(
-                  label: 'Carbohidratos',
+                  label: 'Carbos',
                   val: dieta.macros.carbohidratos,
                   icon: Icons.breakfast_dining,
                   color: Colors.orange,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: _MacroCard(
                   label: 'Grasas',
@@ -472,41 +494,40 @@ class _MealsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (dieta.comidas.isEmpty) {
-      return Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey.shade200),
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: const Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: Text('Sin comidas')),
-        ),
+        child: const Center(child: Text('Sin comidas registradas')),
       );
     }
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Comidas',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Comidas',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            const Divider(height: 24),
-            ...dieta.comidas.map((comida) => _MealItem(comida: comida)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
+          const SizedBox(height: 16),
+          ...dieta.comidas.map((comida) => _MealItem(comida: comida)),
+        ],
       ),
     );
   }
@@ -518,28 +539,37 @@ class _MealItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final k = comida.totales.kcal > 0 ? comida.totales.kcal : 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
+            color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 comida.titulo,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
               ),
               if (k > 0)
                 Text(
                   '${k.round()} kcal',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: theme.hintColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
             ],
           ),
@@ -549,12 +579,16 @@ class _MealItem extends StatelessWidget {
             padding: EdgeInsets.all(12),
             child: Text(
               'Sin alimentos',
-              style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+                fontSize: 13,
+              ),
             ),
           )
         else
           ...comida.opciones.map((op) => _OptionRow(op: op)),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -573,6 +607,7 @@ class _OptionRowState extends State<_OptionRow> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final op = widget.op;
     final hasIngredients = op.items != null && op.items!.isNotEmpty;
 
@@ -580,15 +615,34 @@ class _OptionRowState extends State<_OptionRow> {
       children: [
         ListTile(
           dense: true,
-          leading: _getIcon(op.tipo),
-          title: Text(op.nombre ?? op.tipo),
-          subtitle: Text(_getSubtitle(op)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _getIconColor(op.tipo).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getIconData(op.tipo),
+              size: 18,
+              color: _getIconColor(op.tipo),
+            ),
+          ),
+          title: Text(
+            op.nombre ?? op.tipo,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          subtitle: Text(
+            _getSubtitle(op),
+            style: TextStyle(color: theme.hintColor, fontSize: 12),
+          ),
           trailing: hasIngredients
               ? IconButton(
                   icon: Icon(
                     _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: theme.hintColor,
                   ),
                   onPressed: () => setState(() => _expanded = !_expanded),
                 )
@@ -596,23 +650,31 @@ class _OptionRowState extends State<_OptionRow> {
         ),
         if (_expanded)
           Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
+              color: theme.scaffoldBackgroundColor.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Column(
               children: op.items!
                   .map(
                     (it) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('- ${it.nombre ?? "Ingrediente"}'),
+                          Text(
+                            '- ${it.nombre ?? "Ingrediente"}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
                           Text(
                             '${it.gramos} g',
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                              color: theme.hintColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -625,22 +687,25 @@ class _OptionRowState extends State<_OptionRow> {
     );
   }
 
-  Icon _getIcon(String tipo) {
+  IconData _getIconData(String tipo) {
     switch (tipo) {
       case 'receta':
-        return const Icon(
-          Icons.restaurant_menu,
-          size: 20,
-          color: Colors.orange,
-        );
+        return Icons.restaurant_menu_rounded;
       case 'combinacion':
-        return const Icon(
-          Icons.emoji_food_beverage,
-          size: 20,
-          color: Colors.brown,
-        );
+        return Icons.auto_awesome_rounded;
       default:
-        return const Icon(Icons.local_dining, size: 20, color: Colors.green);
+        return Icons.local_dining_rounded;
+    }
+  }
+
+  Color _getIconColor(String tipo) {
+    switch (tipo) {
+      case 'receta':
+        return Colors.orange;
+      case 'combinacion':
+        return Colors.blue;
+      default:
+        return Colors.green;
     }
   }
 
@@ -671,43 +736,69 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? (isPrimary ? Colors.blue : Colors.grey.shade700);
-    return isPrimary
-        ? ElevatedButton.icon(
-            onPressed: onTap,
-            icon: Icon(icon, size: 18),
-            label: Text(label),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-          )
-        : OutlinedButton.icon(
-            onPressed: onTap,
-            icon: Icon(icon, size: 18, color: c),
-            label: Text(label, style: TextStyle(color: c)),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: c.withOpacity(0.5)),
-            ),
-          );
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (isPrimary) {
+      return ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 16),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          minimumSize: const Size(0, 36),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
+    final c = color ?? (isDark ? Colors.white70 : Colors.black54);
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16, color: c),
+      label: Text(label, style: TextStyle(color: c)),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(color: c.withOpacity(0.3)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        minimumSize: const Size(0, 36),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }
 
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  const _InfoRow(this.label, this.value);
+  final ThemeData theme;
+  const _InfoRow(this.label, this.value, this.theme);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value, style: const TextStyle(color: Colors.grey)),
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.hintColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -729,53 +820,35 @@ class _MacroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    overflow: .ellipsis,
-                  ),
-                ),
-              ),
-            ],
+          Icon(icon, size: 20, color: color),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.hintColor,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
-            '${val.round()} g',
+            '${val.round()}g',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _RetryButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _RetryButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.refresh, size: 16),
-      label: const Text('Reintentar'),
     );
   }
 }
@@ -788,27 +861,38 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 64,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             if (detail != null) ...[
               const SizedBox(height: 8),
               Text(
                 detail!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: theme.hintColor, fontSize: 13),
               ),
             ],
-            const SizedBox(height: 12),
-            _RetryButton(onTap: onRetry),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar'),
+            ),
           ],
         ),
       ),

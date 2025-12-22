@@ -79,8 +79,13 @@ class _ChangeTariffDialogState extends State<ChangeTariffDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Actualizar tarifa del cliente'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        'Actualizar tarifa del cliente',
+        style: TextStyle(color: theme.textTheme.titleLarge?.color),
+      ),
       content: _isLoading
           ? const SizedBox(
               height: 100,
@@ -90,17 +95,31 @@ class _ChangeTariffDialogState extends State<ChangeTariffDialog> {
               width: double.maxFinite,
               child: DropdownButtonFormField<String>(
                 value: _selectedTarifa,
+                dropdownColor: theme.colorScheme.surface,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 items: _tarifas.map<DropdownMenuItem<String>>((t) {
                   return DropdownMenuItem(
                     value: t['nombre'],
                     child: Text(
                       '${t['nombre']} - ${t['duracionDias']} días (\$${t['precio']})',
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
                     ),
                   );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedTarifa = val),
-                decoration: const InputDecoration(labelText: 'Tarifa'),
-                hint: const Text('Seleccionar tarifa'),
+                decoration: InputDecoration(
+                  labelText: 'Tarifa',
+                  labelStyle: TextStyle(color: theme.hintColor),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: theme.dividerColor),
+                  ),
+                ),
+                hint: Text(
+                  'Seleccionar tarifa',
+                  style: TextStyle(color: theme.hintColor),
+                ),
               ),
             ),
       actions: [
@@ -110,6 +129,10 @@ class _ChangeTariffDialogState extends State<ChangeTariffDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading || _selectedTarifa == null ? null : _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           child: const Text('Guardar cambios'),
         ),
       ],

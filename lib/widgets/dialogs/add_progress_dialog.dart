@@ -116,8 +116,15 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return AlertDialog(
-      title: const Text('Añadir Progreso'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        'Añadir Progreso',
+        style: TextStyle(color: theme.textTheme.titleLarge?.color),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -128,10 +135,14 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   margin: const EdgeInsets.only(bottom: 16),
-                  color: Colors.red.shade50,
+                  color: isDark
+                      ? Colors.red.withOpacity(0.2)
+                      : Colors.red.shade50,
                   child: Text(
                     _error!,
-                    style: TextStyle(color: Colors.red.shade700),
+                    style: TextStyle(
+                      color: isDark ? Colors.redAccent : Colors.red.shade700,
+                    ),
                   ),
                 ),
               Row(
@@ -139,7 +150,16 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
                   Expanded(
                     child: TextField(
                       controller: _pesoController,
-                      decoration: const InputDecoration(labelText: 'Peso (kg)'),
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Peso (kg)',
+                        labelStyle: TextStyle(color: theme.hintColor),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -147,7 +167,16 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
                   Expanded(
                     child: TextField(
                       controller: _grasaController,
-                      decoration: const InputDecoration(labelText: 'Grasa (%)'),
+                      style: TextStyle(
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Grasa (%)',
+                        labelStyle: TextStyle(color: theme.hintColor),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -174,9 +203,19 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
                     width: 120, // Approximate width
                     child: TextField(
                       controller: _muscleControllers[m],
-                      decoration: InputDecoration(labelText: m, isDense: true),
+                      decoration: InputDecoration(
+                        labelText: m,
+                        isDense: true,
+                        labelStyle: TextStyle(color: theme.hintColor),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: theme.dividerColor),
+                        ),
+                      ),
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(fontSize: 13),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.textTheme.bodyMedium?.color,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -192,6 +231,10 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.primaryColor,
+            foregroundColor: Colors.white,
+          ),
           child: _isLoading
               ? const SizedBox(
                   width: 20,

@@ -189,17 +189,23 @@ class _NotebookScreenState extends State<NotebookScreen> {
         body: Center(child: Text('Configuración inválida')),
       );
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA), // Light grey background
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Registrar Sesión',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: theme.textTheme.titleLarge?.color,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: BackButton(
-          color: Colors.black,
+          color: theme.iconTheme.color,
           onPressed: () => context.pop(),
         ),
       ),
@@ -209,8 +215,8 @@ class _NotebookScreenState extends State<NotebookScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              color: theme.cardColor,
+              border: Border(bottom: BorderSide(color: theme.dividerColor)),
             ),
             child: Row(
               children: [
@@ -218,22 +224,28 @@ class _NotebookScreenState extends State<NotebookScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedWeekIdx,
                         isExpanded: true,
-                        icon: const Icon(
+                        dropdownColor: theme.cardColor,
+                        icon: Icon(
                           Icons.arrow_drop_down,
-                          color: Colors.blue,
+                          color: theme.primaryColor,
                         ),
                         items: List.generate(
                           semanas.length,
                           (index) => DropdownMenuItem(
                             value: index,
-                            child: Text('Semana ${semanas[index].numero}'),
+                            child: Text(
+                              'Semana ${semanas[index].numero}',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
                         ),
                         onChanged: _handleWeekChange,
@@ -246,22 +258,28 @@ class _NotebookScreenState extends State<NotebookScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: theme.scaffoldBackgroundColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<int>(
                         value: _selectedDayIdx,
                         isExpanded: true,
-                        icon: const Icon(
+                        dropdownColor: theme.cardColor,
+                        icon: Icon(
                           Icons.arrow_drop_down,
-                          color: Colors.blue,
+                          color: theme.primaryColor,
                         ),
                         items: List.generate(
                           dias.length,
                           (index) => DropdownMenuItem(
                             value: index,
-                            child: Text(dias[index].nombre),
+                            child: Text(
+                              dias[index].nombre,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
                         ),
                         onChanged: _handleDayChange,
@@ -282,21 +300,23 @@ class _NotebookScreenState extends State<NotebookScreen> {
                 // Comment Card
                 if (index == currentDia.items.length) {
                   return Card(
+                    color: theme.cardColor,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.shade200),
+                      side: BorderSide(color: theme.dividerColor),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Comentarios finales',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
+                              color: theme.textTheme.titleLarge?.color,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -306,12 +326,22 @@ class _NotebookScreenState extends State<NotebookScreen> {
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                  color: Colors.grey.shade300,
+                                  color: theme.dividerColor,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: theme.dividerColor,
                                 ),
                               ),
                               contentPadding: const EdgeInsets.all(12),
                               filled: true,
-                              fillColor: Colors.grey.shade50,
+                              fillColor: theme.scaffoldBackgroundColor,
+                              hintStyle: TextStyle(color: theme.hintColor),
+                            ),
+                            style: TextStyle(
+                              color: theme.textTheme.bodyMedium?.color,
                             ),
                             maxLines: 3,
                             onChanged: (v) => _comentarios = v,
@@ -327,10 +357,11 @@ class _NotebookScreenState extends State<NotebookScreen> {
                 final seriesData = _formData[index] ?? [];
 
                 return Card(
+                  color: theme.cardColor,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
+                    side: BorderSide(color: theme.dividerColor),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -342,12 +373,12 @@ class _NotebookScreenState extends State<NotebookScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: theme.primaryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.fitness_center,
-                                color: Colors.blue,
+                                color: theme.primaryColor,
                                 size: 20,
                               ),
                             ),
@@ -360,16 +391,17 @@ class _NotebookScreenState extends State<NotebookScreen> {
                                     item.ejercicioNombre ??
                                         item.ejercicio?.nombre ??
                                         'Ejercicio',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
+                                      color: theme.textTheme.titleLarge?.color,
                                     ),
                                   ),
                                   if (item.ejercicio?.grupo != null)
                                     Text(
                                       item.ejercicio!.grupo!,
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: theme.hintColor,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -384,50 +416,50 @@ class _NotebookScreenState extends State<NotebookScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
-                            children: const [
+                            children: [
                               SizedBox(
                                 width: 32,
                                 child: Center(
                                   child: Text(
                                     '#',
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: theme.hintColor,
                                       fontSize: 12,
                                     ),
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 16),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
                                   'PESO (KG)',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.grey,
+                                    color: theme.hintColor,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'REPS',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.grey,
+                                    color: theme.hintColor,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'RIR',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.grey,
+                                    color: theme.hintColor,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -452,16 +484,16 @@ class _NotebookScreenState extends State<NotebookScreen> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
+                                      color: theme.scaffoldBackgroundColor,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Center(
                                       child: Text(
                                         '${sIdx + 1}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.grey,
+                                          color: theme.hintColor,
                                         ),
                                       ),
                                     ),
@@ -507,13 +539,14 @@ class _NotebookScreenState extends State<NotebookScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.cardColor,
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -4),
-                  blurRadius: 16,
-                ),
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, -4),
+                    blurRadius: 16,
+                  ),
               ],
             ),
             child: SizedBox(
@@ -522,7 +555,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _handleSave,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF007AFF), // iOS Blue
+                  backgroundColor: theme.primaryColor,
                   elevation: 0,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -561,17 +594,21 @@ class _TableInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: theme.scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: TextFormField(
         initialValue: value,
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: theme.textTheme.bodyMedium?.color,
+        ),
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 12),

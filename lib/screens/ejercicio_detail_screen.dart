@@ -41,8 +41,12 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.ejercicio.nombre), elevation: 0),
+      appBar: AppBar(title: Text(widget.ejercicio.nombre)),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,16 +56,8 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Theme.of(
-                      context,
-                    ).colorScheme.surfaceVariant.withOpacity(0.7),
-                    Theme.of(context).colorScheme.surface,
-                  ],
-                ),
+                color: theme.cardColor,
+                border: Border(bottom: BorderSide(color: theme.dividerColor)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,14 +66,19 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                     children: [
                       CircleAvatar(
                         radius: 24,
-                        child: const Icon(Icons.fitness_center),
+                        backgroundColor: theme.primaryColor.withOpacity(0.1),
+                        child: Icon(
+                          Icons.fitness_center,
+                          color: theme.primaryColor,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           widget.ejercicio.nombre,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -90,23 +91,32 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                       if (widget.ejercicio.grupo != null)
                         Chip(
                           label: Text(widget.ejercicio.grupo!),
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer,
+                          backgroundColor: theme.colorScheme.primaryContainer
+                              .withOpacity(0.5),
+                          labelStyle: TextStyle(
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                          side: BorderSide.none,
                         ),
                       if (widget.ejercicio.equipo != null)
                         Chip(
                           label: Text(widget.ejercicio.equipo!),
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.secondaryContainer,
+                          backgroundColor: theme.colorScheme.secondaryContainer
+                              .withOpacity(0.5),
+                          labelStyle: TextStyle(
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                          side: BorderSide.none,
                         ),
                       if (widget.ejercicio.nivel != null)
                         Chip(
                           label: Text(widget.ejercicio.nivel!),
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.tertiaryContainer,
+                          backgroundColor: theme.colorScheme.tertiaryContainer
+                              .withOpacity(0.5),
+                          labelStyle: TextStyle(
+                            color: theme.colorScheme.onTertiaryContainer,
+                          ),
+                          side: BorderSide.none,
                         ),
                     ],
                   ),
@@ -123,9 +133,7 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                   child: YoutubePlayer(
                     controller: _youtubeController!,
                     showVideoProgressIndicator: true,
-                    progressIndicatorColor: Theme.of(
-                      context,
-                    ).colorScheme.primary,
+                    progressIndicatorColor: theme.primaryColor,
                   ),
                 ),
               ),
@@ -138,9 +146,9 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                 children: [
                   Text(
                     'Instrucciones',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.secondary,
+                      color: theme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -148,14 +156,13 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                      color: theme.cardColor,
+                      border: Border.all(color: theme.dividerColor),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       widget.ejercicio.instrucciones ?? '—',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ),
                 ],
@@ -170,21 +177,42 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                 children: [
                   Text(
                     'Detalles',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.secondary,
+                      color: theme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _buildDetailRow(
-                    'Grupo muscular',
-                    widget.ejercicio.grupo ?? '—',
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildDetailRow(
+                          context,
+                          'Grupo muscular',
+                          widget.ejercicio.grupo ?? '—',
+                        ),
+                        Divider(height: 24, color: theme.dividerColor),
+                        _buildDetailRow(
+                          context,
+                          'Equipo necesario',
+                          widget.ejercicio.equipo ?? '—',
+                        ),
+                        Divider(height: 24, color: theme.dividerColor),
+                        _buildDetailRow(
+                          context,
+                          'Nivel',
+                          widget.ejercicio.nivel ?? '—',
+                        ),
+                      ],
+                    ),
                   ),
-                  _buildDetailRow(
-                    'Equipo necesario',
-                    widget.ejercicio.equipo ?? '—',
-                  ),
-                  _buildDetailRow('Nivel', widget.ejercicio.nivel ?? '—'),
                 ],
               ),
             ),
@@ -194,27 +222,23 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 140,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: theme.hintColor,
             ),
           ),
-          Expanded(
-            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-        ],
-      ),
+        ),
+        Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
+      ],
     );
   }
 }

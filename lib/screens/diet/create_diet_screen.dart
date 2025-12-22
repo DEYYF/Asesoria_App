@@ -9,10 +9,6 @@ import '../../models/ingrediente_model.dart';
 import '../../models/macros_model.dart';
 import 'diet_detail_screen.dart';
 
-// ...
-
-// Logic Helpers
-
 class CreateDietScreen extends StatefulWidget {
   final String clienteId;
   final String? dietaId;
@@ -23,118 +19,27 @@ class CreateDietScreen extends StatefulWidget {
 }
 
 class _CreateDietScreenState extends State<CreateDietScreen> {
+  // State
+  final TextEditingController _nameCtrl = TextEditingController(
+    text: 'Nueva Dieta',
+  );
+  final TextEditingController _goalCtrl = TextEditingController();
+  final TextEditingController _comboNameCtrl = TextEditingController();
+
   int _mealCount = 3;
   List<Comida> _comidas = [];
   int _activeComidaIndex = 0;
+  String _selectedObjetivo = 'salud';
+  List<String> _tags = [];
 
-  // Data
+  // Data for selectors
   List<Receta> _recetas = [];
   List<Ingrediente> _ingredientes = [];
-  bool _isLoading = false; // Match React: render immediately
+  bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData(); // Load catalogs
-    if (widget.dietaId != null) {
-      _loadDietToEdit();
-    } else {
-      _initComidas(3);
-    }
-  }
+  // Temporary combo items
+  List<CombinacionItem> _currentComboItems = [];
 
-  Future<void> _loadDietToEdit() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-    try {
-      final res = await api.get('/dietas/${widget.dietaId}');
-      if (res.statusCode == 200) {
-        final d = Dieta.fromJson(jsonDecode(res.body));
-        if (mounted) {
-          setState(() {
-            _selectedObjetivo = d.objetivo ?? 'salud';
-            _goals = d.notas?.split(', ') ?? [];
-            _comidas = d.comidas; // Direct model reuse
-            _mealCount = d.comidas.length;
-            if (_activeComidaIndex >= _mealCount) _activeComidaIndex = 0;
-            if (_mealCount == 0) _initComidas(3); // Fallback
-          });
-        }
-      } else {
-        throw Exception('Failed to load diet');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error cargando dieta: $e')));
-      }
-    }
-  }
-
-  Future<void> _loadData() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-    // Parallel fetch like React's independent promises
-    try {
-      final results = await Future.wait([
-        api.get('/comidas/recetas'),
-        api.get('/comidas/ingredientes'),
-      ]);
-
-      final resRecetas = results[0];
-      final resIngredientes = results[1];
-
-      if (mounted) {
-        setState(() {
-          if (resRecetas.statusCode == 200) {
-            final List list = jsonDecode(resRecetas.body);
-            _recetas = list.map((e) => Receta.fromJson(e)).toList();
-          }
-          if (resIngredientes.statusCode == 200) {
-            final List list = jsonDecode(resIngredientes.body);
-            _ingredientes = list.map((e) => Ingrediente.fromJson(e)).toList();
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al cargar datos: $e')));
-      }
-      print('Error loading food data: $e');
-    }
-  }
-
-  void _initComidas(int n) {
-    List<String> names = [];
-    switch (n) {
-      case 2:
-        names = ["Comida", "Cena"];
-        break;
-      case 3:
-        names = ["Desayuno", "Comida", "Cena"];
-        break;
-      case 4:
-        names = ["Desayuno", "Comida", "Merienda", "Cena"];
-        break;
-      case 5:
-        names = ["Desayuno", "Almuerzo", "Comida", "Merienda", "Cena"];
-        break;
-      default:
-        names = List.generate(n, (i) => "Comida ${i + 1}");
-    }
-
-    setState(() {
-      _comidas = names
-          .map((name) => Comida(titulo: name, opciones: [], totales: Macros()))
-          .toList();
-      _activeComidaIndex = 0;
-      _mealCount = n;
-    });
-  }
-
-  // State
-  String _selectedObjetivo = 'salud';
   final List<String> _validObjetivos = [
     'ganancia',
     'perdida',
@@ -142,17 +47,111 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     'salud',
     'rendimiento',
   ];
-  List<String> _goals = [];
-  final _goalCtrl = TextEditingController();
 
-  // Combination Tab State
-  List<CombinacionItem> _currentComboItems = [];
-  final _comboNameCtrl = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    if (widget.dietaId != null) {
+      _loadDietToEdit();
+    } else {
+      _initComidas(3);
+    }
+  }
 
-  // Logic Helpers
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _goalCtrl.dispose();
+    _comboNameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadDietToEdit() async {
+    setState(() => _isLoading = true);
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get('/dietas/${widget.dietaId}');
+      if (res.statusCode == 200) {
+        final d = Dieta.fromJson(jsonDecode(res.body));
+        if (mounted) {
+          setState(() {
+            _nameCtrl.text = d.nombre;
+            _selectedObjetivo = d.objetivo ?? 'salud';
+            _tags =
+                d.notas?.split(', ').where((s) => s.isNotEmpty).toList() ?? [];
+            _comidas = d.comidas;
+            _mealCount = d.comidas.length;
+            if (_activeComidaIndex >= _mealCount) _activeComidaIndex = 0;
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading diet: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadData() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final results = await Future.wait([
+        api.get('/comidas/recetas'),
+        api.get('/comidas/ingredientes'),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          if (results[0].statusCode == 200) {
+            final List list = jsonDecode(results[0].body);
+            _recetas = list.map((e) => Receta.fromJson(e)).toList();
+          }
+          if (results[1].statusCode == 200) {
+            final List list = jsonDecode(results[1].body);
+            _ingredientes = list.map((e) => Ingrediente.fromJson(e)).toList();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading food data: $e');
+    }
+  }
+
+  void _initComidas(int n) {
+    // Non-destructive update
+    List<String> defaultNames = [
+      "Desayuno",
+      "Almuerzo",
+      "Comida",
+      "Merienda",
+      "Cena",
+    ];
+
+    setState(() {
+      if (_comidas.length < n) {
+        // Add meals
+        for (int i = _comidas.length; i < n; i++) {
+          String title = i < defaultNames.length
+              ? defaultNames[i]
+              : "Comida ${i + 1}";
+          _comidas.add(Comida(titulo: title, opciones: [], totales: Macros()));
+        }
+      } else if (_comidas.length > n) {
+        // Remove meals (only if empty, or just pop)
+        _comidas = _comidas.sublist(0, n);
+      }
+      _mealCount = n;
+      if (_activeComidaIndex >= n) _activeComidaIndex = n - 1;
+    });
+  }
+
+  // --- Calculations ---
+
   Map<String, double> _calculateItemMacros(OpcionDieta op) {
     double k = 0, p = 0, c = 0, g = 0;
-
     if (op.tipo == 'receta' && op.recetaId != null) {
       final r = _recetas.firstWhere(
         (e) => e.id == op.recetaId,
@@ -185,14 +184,11 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
         g += i.grasas * factor;
       }
     }
-
     return {'k': k, 'p': p, 'c': c, 'g': g};
   }
 
-  Map<String, double> _calculateMealMacros(Comida m) {
+  Macros _calculateMealMacros(Comida m) {
     double k = 0, p = 0, c = 0, g = 0;
-    if (m.opciones.isEmpty) return {'k': 0, 'p': 0, 'c': 0, 'g': 0};
-
     for (final op in m.opciones) {
       final mac = _calculateItemMacros(op);
       k += mac['k']!;
@@ -200,33 +196,22 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
       c += mac['c']!;
       g += mac['g']!;
     }
-
-    // React parity: Meal macros are the AVERAGE of the options (Mean)
-    // because the user usually selects one of the options to eat.
-    final count = m.opciones.length;
-    return {'k': k / count, 'p': p / count, 'c': c / count, 'g': g / count};
+    return Macros(kcal: k, proteinas: p, carbohidratos: c, grasas: g);
   }
 
-  Map<String, double> _calculateTotalMacros() {
+  Macros _calculateTotalMacros() {
     double k = 0, p = 0, c = 0, g = 0;
     for (final m in _comidas) {
       final mac = _calculateMealMacros(m);
-      k += mac['k']!;
-      p += mac['p']!;
-      c += mac['c']!;
-      g += mac['g']!;
+      k += mac.kcal;
+      p += mac.proteinas;
+      c += mac.carbohidratos;
+      g += mac.grasas;
     }
-    return {'k': k, 'p': p, 'c': c, 'g': g};
+    return Macros(kcal: k, proteinas: p, carbohidratos: c, grasas: g);
   }
 
-  @override
-  void dispose() {
-    _goalCtrl.dispose();
-    _comboNameCtrl.dispose();
-    super.dispose();
-  }
-
-  // --- Actions ---
+  // --- Handlers ---
 
   Future<void> _handleSave() async {
     final auth = Provider.of<AuthService>(context, listen: false);
@@ -240,92 +225,57 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
       return;
     }
 
-    // Calculate Macros
-    final macs = _calculateTotalMacros();
+    final totalMacros = _calculateTotalMacros();
 
-    // Construct Body
-    final dieta = {
+    final payload = {
       'clienteId': widget.clienteId,
       'asesorId': user['_id'],
-      'nombre': 'Dieta',
-      'objetivo': _selectedObjetivo, // Use valid enum
+      'nombre': _nameCtrl.text.isEmpty ? 'Dieta sin nombre' : _nameCtrl.text,
+      'objetivo': _selectedObjetivo,
       'estado': 'borrador',
-      'notas': _goals.join(
-        ', ',
-      ), // Put chips in notes or ignore? React ignores them in "objetivo" field.
-      'macros': {
-        'kcal': macs['k'],
-        'p': macs['p'],
-        'c': macs['c'],
-        'g': macs['g'],
-      },
+      'notas': _tags.join(', '),
+      'macros': totalMacros.toJson(),
       'comidas': _comidas.map((c) {
+        final mMacros = _calculateMealMacros(c);
         return {
           'titulo': c.titulo,
-          'hora':
-              c.hora ??
-              "", // Send empty string if null, or omit? Backend said "expected string, received null", so string is safe.
+          'hora': c.hora ?? "",
           'notas': c.notas ?? '',
+          'totales': mMacros.toJson(),
           'opciones': c.opciones.map((op) {
-            Map<String, dynamic> payload = {};
-
+            Map<String, dynamic> opData = {
+              'tipo': op.tipo,
+              'nombre': op.nombre,
+              'totales': _calculateItemMacros(op), // Optional but helpful
+            };
             if (op.tipo == 'receta') {
-              payload = {'tipo': 'receta', 'nombre': op.nombre};
-              if (op.recetaId != null && op.recetaId!.isNotEmpty) {
-                payload['recetaId'] = op.recetaId;
-              }
+              opData['recetaId'] = op.recetaId;
             } else if (op.tipo == 'ingrediente') {
-              payload = {
-                'tipo': 'ingrediente',
-                'nombre': op.nombre,
-                'gramos': op.gramos ?? 0,
-                'unidades': op.unidades,
-              };
-              if (op.ingredienteId != null && op.ingredienteId!.isNotEmpty) {
-                payload['ingredienteId'] = op.ingredienteId;
-              }
+              opData['gramos'] = op.gramos ?? 0;
+              opData['ingredienteId'] = op.ingredienteId;
             } else if (op.tipo == 'combinacion') {
-              payload = {
-                'tipo': 'combinacion',
-                'nombre': op.nombre,
-                'items': op.items
-                    ?.where((it) => it.ingredienteId.isNotEmpty)
-                    .map(
-                      (it) => {
-                        'ingredienteId': it.ingredienteId,
-                        'nombre': it.nombre,
-                        'gramos': it.gramos,
-                      },
-                    )
-                    .toList(),
-                'notas': '',
-              };
+              opData['items'] = op.items?.map((it) => it.toJson()).toList();
             }
-
-            // Cleanup nulls
-            payload.removeWhere((key, value) => value == null);
-            return payload;
+            return opData;
           }).toList(),
         };
       }).toList(),
     };
 
+    setState(() => _isLoading = true);
     try {
-      final isEdit = widget.dietaId != null;
-      final res = isEdit
-          ? await api.put('/dietas/${widget.dietaId}', dieta)
-          : await api.post('/dietas', dieta);
+      final res = widget.dietaId != null
+          ? await api.put('/dietas/${widget.dietaId}', payload)
+          : await api.post('/dietas', payload);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         if (mounted) {
           final body = jsonDecode(res.body);
           final newId = body is Map ? body['_id'] : null;
-
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Dieta guardada con éxito')),
           );
-
-          if (newId != null && newId is String) {
+          if (newId != null) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -333,11 +283,11 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
               ),
             );
           } else {
-            Navigator.pop(context); // Fallback
+            Navigator.pop(context);
           }
         }
       } else {
-        throw Exception(res.body);
+        throw Exception('Error del servidor: ${res.body}');
       }
     } catch (e) {
       if (mounted) {
@@ -345,255 +295,344 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _addOption(OpcionDieta op) {
-    setState(() {
-      _comidas[_activeComidaIndex].opciones.add(op);
-    });
+    setState(() => _comidas[_activeComidaIndex].opciones.add(op));
   }
 
   void _removeOption(int index) {
-    setState(() {
-      _comidas[_activeComidaIndex].opciones.removeAt(index);
-    });
+    setState(() => _comidas[_activeComidaIndex].opciones.removeAt(index));
   }
+
+  // --- UI Components ---
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(widget.dietaId != null ? 'Editar Dieta' : 'Crear Dieta'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              if (_comidas.every((c) => c.opciones.isEmpty)) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('La dieta está vacía')),
-                );
-                return;
-              }
-              _handleSave();
-            },
-          ),
+          _isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.green,
+                  ),
+                  onPressed: _handleSave,
+                ),
         ],
       ),
-      body: _isLoading
+      body: _isLoading && _comidas.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          if (_comidas.every((c) => c.opciones.isEmpty)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('La dieta está vacía'),
-                              ),
-                            );
-                            return;
-                          }
-                          _handleSave();
-                        },
-                        icon: const Icon(Icons.save),
-                        label: const Text('Guardar Dieta'),
-                      ),
-                    ],
-                  ),
+                  _buildMainInfo(theme, isDark),
                   const SizedBox(height: 16),
-                  _buildMealCountSelector(),
-                  const SizedBox(height: 16),
-                  _buildObjectives(),
-                  const SizedBox(height: 16),
-                  if (_comidas.isNotEmpty) ...[
-                    _buildSummary(),
-                    const Divider(height: 32),
-                    _buildMealSelector(),
-                    const SizedBox(height: 16),
-                    _buildFoodEditor(),
-                    const SizedBox(height: 16),
-                    _buildAddedList(),
-                  ],
+                  _buildMacroSummary(theme, isDark),
+                  const SizedBox(height: 24),
+                  _buildMealCountSelector(theme),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  _buildMealSelector(theme),
+                  const SizedBox(height: 20),
+                  _buildFoodEditor(theme, isDark),
+                  const SizedBox(height: 24),
+                  _buildAddedList(theme, isDark),
+                  const SizedBox(height: 60),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildObjectives() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildMainInfo(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+      ),
+      child: Column(
+        children: [
+          TextField(
+            controller: _nameCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Nombre de la Dieta',
+              hintText: 'Ej. Dieta Volumen Invernal',
+              prefixIcon: Icon(Icons.edit_note_rounded),
+            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 16),
+          _buildObjectivesDropdown(theme),
+          const SizedBox(height: 16),
+          _buildTagInput(theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildObjectivesDropdown(ThemeData theme) {
+    return DropdownButtonFormField<String>(
+      value: _selectedObjetivo,
+      decoration: const InputDecoration(
+        labelText: 'Objetivo',
+        prefixIcon: Icon(Icons.flag_rounded),
+      ),
+      items: _validObjetivos
+          .map((o) => DropdownMenuItem(value: o, child: Text(o.toUpperCase())))
+          .toList(),
+      onChanged: (v) {
+        if (v != null) setState(() => _selectedObjetivo = v);
+      },
+    );
+  }
+
+  Widget _buildTagInput(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            const Text(
-              'Objetivo Principal',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Expanded(
+              child: TextField(
+                controller: _goalCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Etiquetas / Notas rápidas',
+                  hintText: 'Ej. Vegana, Ayuno...',
+                ),
+                onSubmitted: (val) {
+                  if (val.trim().isNotEmpty) {
+                    setState(() {
+                      _tags.add(val.trim());
+                      _goalCtrl.clear();
+                    });
+                  }
+                },
+              ),
             ),
-            DropdownButtonFormField<String>(
-              value: _selectedObjetivo,
-              items: _validObjetivos
-                  .map(
-                    (o) => DropdownMenuItem(
-                      value: o,
-                      child: Text(o.toUpperCase()),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) setState(() => _selectedObjetivo = v);
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                if (_goalCtrl.text.trim().isNotEmpty) {
+                  setState(() {
+                    _tags.add(_goalCtrl.text.trim());
+                    _goalCtrl.clear();
+                  });
+                }
               },
-              decoration: const InputDecoration(isDense: true),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Etiquetas / Notas',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _goalCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Ej. Ganar masa muscular',
-                      isDense: true,
-                    ),
-                    onSubmitted: (val) {
-                      if (val.trim().isNotEmpty) {
-                        setState(() {
-                          _goals.add(val.trim());
-                          _goalCtrl.clear();
-                        });
-                      }
-                    },
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: _tags
+              .map(
+                (t) => Chip(
+                  label: Text(t, style: const TextStyle(fontSize: 12)),
+                  onDeleted: () => setState(() => _tags.remove(t)),
+                  backgroundColor: theme.primaryColor.withOpacity(0.1),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () {
-                    if (_goalCtrl.text.trim().isNotEmpty) {
-                      setState(() {
-                        _goals.add(_goalCtrl.text.trim());
-                        _goalCtrl.clear();
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: 8,
-              children: _goals
-                  .map(
-                    (g) => Chip(
-                      label: Text(g),
-                      onDeleted: () => setState(() => _goals.remove(g)),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+              )
+              .toList(),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildSummary() {
+  Widget _buildMacroSummary(ThemeData theme, bool isDark) {
     final macs = _calculateTotalMacros();
-    return Card(
-      color: Colors.blue.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _macroItem('Kcal', macs['k']!.round()),
-            _macroItem('Prot', macs['p']!.toStringAsFixed(1)),
-            _macroItem('Carb', macs['c']!.toStringAsFixed(1)),
-            _macroItem('Gras', macs['g']!.toStringAsFixed(1)),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withOpacity(isDark ? 0.2 : 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.bolt, color: theme.primaryColor, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'TOTAL DIARIO ESTIMADO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryColor,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _macroItem('Kcal', macs.kcal.round(), theme),
+              _macroItem('Prot', '${macs.proteinas.round()}g', theme),
+              _macroItem('Carb', '${macs.carbohidratos.round()}g', theme),
+              _macroItem('Gras', '${macs.grasas.round()}g', theme),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _macroItem(String label, dynamic val) {
+  Widget _macroItem(String label, dynamic val, ThemeData theme) {
     return Column(
       children: [
         Text(
           val.toString(),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: theme.hintColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildMealCountSelector() {
+  Widget _buildMealCountSelector(ThemeData theme) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Número de comidas',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
+          child: Text(
+            'DISTRIBUCIÓN DE COMIDAS',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: theme.hintColor,
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 2, label: Text('2')),
-            ButtonSegment(value: 3, label: Text('3')),
-            ButtonSegment(value: 4, label: Text('4')),
-            ButtonSegment(value: 5, label: Text('5')),
-          ],
-          selected: {_mealCount},
-          onSelectionChanged: (Set<int> newSelection) {
-            _initComidas(newSelection.first);
-          },
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 2, label: Text('2')),
+              ButtonSegment(value: 3, label: Text('3')),
+              ButtonSegment(value: 4, label: Text('4')),
+              ButtonSegment(value: 5, label: Text('5')),
+              ButtonSegment(value: 6, label: Text('6')),
+            ],
+            selected: {_mealCount},
+            onSelectionChanged: (Set<int> newSelection) {
+              _initComidas(newSelection.first);
+            },
+            style: SegmentedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              selectedBackgroundColor: theme.primaryColor,
+              selectedForegroundColor: Colors.white,
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMealSelector() {
-    return DropdownButtonFormField<int>(
-      initialValue: _activeComidaIndex,
-      items: _comidas.asMap().entries.map((e) {
-        return DropdownMenuItem(value: e.key, child: Text(e.value.titulo));
-      }).toList(),
-      onChanged: (idx) {
-        if (idx != null) setState(() => _activeComidaIndex = idx);
-      },
-      decoration: const InputDecoration(
-        labelText: 'Comida Activa',
-        border: OutlineInputBorder(),
-      ),
+  Widget _buildMealSelector(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'GESTIONAR ALIMENTOS',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: theme.hintColor,
+            ),
+          ),
+        ),
+        DropdownButtonFormField<int>(
+          value: _activeComidaIndex,
+          items: _comidas
+              .asMap()
+              .entries
+              .map(
+                (e) =>
+                    DropdownMenuItem(value: e.key, child: Text(e.value.titulo)),
+              )
+              .toList(),
+          onChanged: (idx) {
+            if (idx != null) setState(() => _activeComidaIndex = idx);
+          },
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildFoodEditor() {
-    return Card(
+  Widget _buildFoodEditor(ThemeData theme, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+      ),
       child: DefaultTabController(
         length: 3,
         child: Column(
           children: [
-            const TabBar(
-              tabs: [
+            TabBar(
+              labelColor: theme.primaryColor,
+              unselectedLabelColor: theme.hintColor,
+              indicatorColor: theme.primaryColor,
+              dividerColor: Colors.transparent,
+              tabs: const [
                 Tab(text: 'Alimento'),
                 Tab(text: 'Receta'),
-                Tab(text: 'Combinación'),
+                Tab(text: 'Combo'),
               ],
             ),
             SizedBox(
-              height: 300,
+              height: 380, // Increased height for better visibility
               child: TabBarView(
                 children: [
                   _IngredientSelector(
@@ -640,7 +679,6 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
                       final name = _comboNameCtrl.text.isNotEmpty
                           ? _comboNameCtrl.text
                           : _currentComboItems.map((e) => e.nombre).join(' + ');
-
                       _addOption(
                         OpcionDieta(
                           tipo: 'combinacion',
@@ -648,7 +686,6 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
                           items: List.from(_currentComboItems),
                         ),
                       );
-
                       setState(() {
                         _currentComboItems.clear();
                         _comboNameCtrl.clear();
@@ -664,9 +701,12 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     );
   }
 
-  Widget _buildAddedList() {
+  Widget _buildAddedList(ThemeData theme, bool isDark) {
+    if (_comidas.isEmpty || _activeComidaIndex >= _comidas.length)
+      return const SizedBox.shrink();
+
     final active = _comidas[_activeComidaIndex];
-    final macs = _calculateMealMacros(active);
+    final mealMacros = _calculateMealMacros(active);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,41 +715,96 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Opciones en ${active.titulo}:',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            Text(
-              '${macs['k']!.round()} kcal (P:${macs['p']!.round()} C:${macs['c']!.round()} G:${macs['g']!.round()})',
-              style: const TextStyle(
-                fontSize: 12,
+              'Opciones en ${active.titulo}',
+              style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.blueGrey,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${mealMacros.kcal.round()} kcal',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: theme.primaryColor,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (active.opciones.isEmpty)
-          const Text(
-            'No hay alimentos añadidos',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ...active.opciones.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final op = entry.value;
-          return ListTile(
-            title: Text(op.nombre ?? op.tipo),
-            subtitle: op.gramos != null ? Text('${op.gramos} g') : null,
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _removeOption(idx),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withOpacity(0.02)
+                  : Colors.black.withOpacity(0.02),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
             ),
-          );
-        }),
+            child: Center(
+              child: Text(
+                'Vacío. Añade alimentos arriba.',
+                style: TextStyle(
+                  color: theme.hintColor,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: active.opciones.length,
+            itemBuilder: (context, idx) {
+              final op = active.opciones[idx];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.dividerColor.withOpacity(0.05),
+                  ),
+                ),
+                child: ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.restaurant_rounded, size: 20),
+                  title: Text(
+                    op.nombre ?? op.tipo,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    op.gramos != null
+                        ? '${op.gramos!.round()} g'
+                        : (op.tipo == 'receta' ? 'Receta completa' : 'Combo'),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
+                    onPressed: () => _removeOption(idx),
+                  ),
+                ),
+              );
+            },
+          ),
       ],
     );
   }
 }
+
+// --- Sub-Widgets ---
 
 class _IngredientSelector extends StatefulWidget {
   final List<Ingrediente> ingredientes;
@@ -732,48 +827,91 @@ class _IngredientSelectorState extends State<_IngredientSelector> {
         children: [
           Autocomplete<Ingrediente>(
             optionsBuilder: (text) {
-              if (text.text.isEmpty) return widget.ingredientes;
-              return widget.ingredientes.where(
-                (x) => x.nombre.toLowerCase().contains(text.text.toLowerCase()),
-              );
+              if (text.text.isEmpty) return widget.ingredientes.take(10);
+              final q = text.text.toLowerCase();
+              return widget.ingredientes
+                  .where((x) => x.nombre.toLowerCase().contains(q))
+                  .take(20);
             },
             displayStringForOption: (x) => x.nombre,
             onSelected: (x) => setState(() => _selected = x),
+            fieldViewBuilder: (ctx, ctrl, focus, onFieldSubmitted) {
+              return TextField(
+                controller: ctrl,
+                focusNode: focus,
+                decoration: const InputDecoration(
+                  labelText: 'Buscar Alimento',
+                  prefixIcon: Icon(Icons.search_rounded),
+                  hintText: 'Ej. Pechuga de Pollo',
+                ),
+                onChanged: (_) => setState(() => _selected = null),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 8,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 64,
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option.nombre),
+                          subtitle: Text('${option.kcal.round()} kcal/100g'),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _gramsCtrl,
-            decoration: const InputDecoration(labelText: 'Gramos'),
-            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Cantidad (gramos)',
+              prefixIcon: Icon(Icons.scale_rounded),
+              suffixText: 'g',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              if (_selected == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Por favor, selecciona un alimento de la lista',
-                    ),
-                  ),
-                );
-                return;
-              }
-              if (_gramsCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Por favor, introduce los gramos'),
-                  ),
-                );
-                return;
-              }
-              widget.onAdd(_selected!, double.tryParse(_gramsCtrl.text) ?? 0);
-              setState(() {
-                _selected = null;
-                _gramsCtrl.clear();
-              });
-            },
-            child: const Text('Añadir Alimento'),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                if (_selected == null) return;
+                final g = double.tryParse(_gramsCtrl.text) ?? 0;
+                if (g <= 0) return;
+                widget.onAdd(_selected!, g);
+                setState(() {
+                  _selected = null;
+                  _gramsCtrl.clear();
+                });
+                FocusScope.of(context).unfocus();
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Añadir a la comida'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -781,10 +919,17 @@ class _IngredientSelectorState extends State<_IngredientSelector> {
   }
 }
 
-class _RecipeSelector extends StatelessWidget {
+class _RecipeSelector extends StatefulWidget {
   final List<Receta> recetas;
   final Function(Receta) onAdd;
   const _RecipeSelector({required this.recetas, required this.onAdd});
+
+  @override
+  State<_RecipeSelector> createState() => _RecipeSelectorState();
+}
+
+class _RecipeSelectorState extends State<_RecipeSelector> {
+  Receta? _selected;
 
   @override
   Widget build(BuildContext context) {
@@ -794,13 +939,77 @@ class _RecipeSelector extends StatelessWidget {
         children: [
           Autocomplete<Receta>(
             optionsBuilder: (text) {
-              if (text.text.isEmpty) return recetas;
-              return recetas.where(
-                (x) => x.nombre.toLowerCase().contains(text.text.toLowerCase()),
-              );
+              if (text.text.isEmpty) return widget.recetas.take(10);
+              final q = text.text.toLowerCase();
+              return widget.recetas
+                  .where((x) => x.nombre.toLowerCase().contains(q))
+                  .take(20);
             },
             displayStringForOption: (x) => x.nombre,
-            onSelected: (rec) => onAdd(rec),
+            onSelected: (x) => setState(() => _selected = x),
+            fieldViewBuilder: (ctx, ctrl, focus, onFieldSubmitted) {
+              return TextField(
+                controller: ctrl,
+                focusNode: focus,
+                decoration: const InputDecoration(
+                  labelText: 'Buscar Receta',
+                  prefixIcon: Icon(Icons.restaurant_rounded),
+                ),
+                onChanged: (_) => setState(() => _selected = null),
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 8,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 64,
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option.nombre),
+                          subtitle: Text(
+                            '${option.caloriasTotales.round()} kcal',
+                          ),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                if (_selected == null) return;
+                widget.onAdd(_selected!);
+                setState(() => _selected = null);
+                FocusScope.of(context).unfocus();
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Añadir Receta'),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -835,116 +1044,144 @@ class _CombinationSelectorState extends State<_CombinationSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          // Inputs
+          TextField(
+            controller: widget.comboNameCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Nombre del Combo',
+              hintText: 'Ej. Ensalada Completa',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                flex: 2,
                 child: Autocomplete<Ingrediente>(
                   optionsBuilder: (text) {
-                    if (text.text.isEmpty) return widget.ingredientes;
-                    return widget.ingredientes.where(
-                      (x) => x.nombre.toLowerCase().contains(
-                        text.text.toLowerCase(),
-                      ),
-                    );
+                    if (text.text.isEmpty) return widget.ingredientes.take(5);
+                    final q = text.text.toLowerCase();
+                    return widget.ingredientes
+                        .where((x) => x.nombre.toLowerCase().contains(q))
+                        .take(10);
                   },
                   displayStringForOption: (x) => x.nombre,
                   onSelected: (x) => setState(() => _selected = x),
+                  fieldViewBuilder: (ctx, ctrl, focus, onFieldSubmitted) {
+                    return TextField(
+                      controller: ctrl,
+                      focusNode: focus,
+                      decoration: const InputDecoration(
+                        labelText: 'Ingrediente',
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setState(() => _selected = null),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                flex: 1,
+              SizedBox(
+                width: 70,
                 child: TextField(
                   controller: _gramsCtrl,
-                  decoration: const InputDecoration(labelText: 'g'),
+                  decoration: const InputDecoration(
+                    labelText: 'g',
+                    isDense: true,
+                  ),
                   keyboardType: TextInputType.number,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.blue),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                icon: const Icon(Icons.add_rounded, size: 20),
                 onPressed: () {
-                  if (_selected == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Selecciona un ingrediente'),
-                      ),
-                    );
-                    return;
-                  }
-                  if (_gramsCtrl.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Introduce gramos')),
-                    );
-                    return;
-                  }
+                  if (_selected == null) return;
                   final g = double.tryParse(_gramsCtrl.text) ?? 0;
-                  if (g > 0) {
-                    widget.onAddItem(
-                      CombinacionItem(
-                        ingredienteId: _selected!.id,
-                        nombre: _selected!.nombre,
-                        gramos: g,
-                      ),
-                    );
-                    setState(() {
-                      _selected = null;
-                      _gramsCtrl.clear();
-                    });
-                  }
+                  if (g <= 0) return;
+                  widget.onAddItem(
+                    CombinacionItem(
+                      ingredienteId: _selected!.id,
+                      nombre: _selected!.nombre,
+                      gramos: g,
+                    ),
+                  );
+                  setState(() {
+                    _selected = null;
+                    _gramsCtrl.clear();
+                  });
                 },
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // List
+          const SizedBox(height: 12),
           Expanded(
-            child: ListView.builder(
-              itemCount: widget.currentItems.length,
-              itemBuilder: (ctx, i) {
-                final item = widget.currentItems[i];
-                return ListTile(
-                  dense: true,
-                  title: Text(item.nombre ?? '?'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${item.gramos} g'),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => widget.onRemoveItem(i),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+              ),
+              child: widget.currentItems.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Añade ingredientes al combo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              },
+                    )
+                  : ListView.builder(
+                      itemCount: widget.currentItems.length,
+                      itemBuilder: (ctx, i) => ListTile(
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        title: Text(
+                          widget.currentItems[i].nombre ?? '?',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${widget.currentItems[i].gramos.round()}g',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => widget.onRemoveItem(i),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
           ),
-          // Save
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: widget.comboNameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre Combinación (Opcional)',
-                    isDense: true,
-                  ),
-                ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: widget.onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
               ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: widget.currentItems.isNotEmpty
-                    ? widget.onSave
-                    : null,
-                child: const Text('Guardar Comb.'),
-              ),
-            ],
+              child: const Text('Confirmar Combo'),
+            ),
           ),
         ],
       ),

@@ -148,8 +148,12 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Ejercicios'), elevation: 0),
+      appBar: AppBar(title: const Text('Ejercicios')),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -157,15 +161,15 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                 // Header with count and clear filters
                 Container(
                   padding: const EdgeInsets.all(16),
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surfaceVariant.withOpacity(0.3),
+                  color: isDark
+                      ? theme.cardColor
+                      : theme.colorScheme.surfaceVariant.withOpacity(0.3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Total: ${_filteredEjercicios.length}',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: theme.textTheme.titleMedium,
                       ),
                       TextButton.icon(
                         onPressed: _clearFilters,
@@ -184,13 +188,26 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                       // Search bar
                       TextField(
                         controller: _searchController,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
                         decoration: InputDecoration(
                           labelText: 'Buscar',
-                          prefixIcon: const Icon(Icons.search),
+                          labelStyle: TextStyle(color: theme.hintColor),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: theme.iconTheme.color,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: theme.dividerColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: theme.dividerColor),
                           ),
                           filled: true,
+                          fillColor: theme.inputDecorationTheme.fillColor,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -201,22 +218,48 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedGrupo,
+                              dropdownColor: theme.cardColor,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
                               decoration: InputDecoration(
                                 labelText: 'Grupo',
+                                labelStyle: TextStyle(color: theme.hintColor),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor,
+                                  ),
                                 ),
                                 filled: true,
+                                fillColor: theme.inputDecorationTheme.fillColor,
                               ),
                               items: [
-                                const DropdownMenuItem(
+                                DropdownMenuItem(
                                   value: null,
-                                  child: Text('Todos'),
+                                  child: Text(
+                                    'Todos',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
                                 ),
                                 ..._grupos.map(
                                   (g) => DropdownMenuItem(
                                     value: g,
-                                    child: Text(g),
+                                    child: Text(
+                                      g,
+                                      style: TextStyle(
+                                        color:
+                                            theme.textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -230,22 +273,48 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               value: _selectedEquipo,
+                              dropdownColor: theme.cardColor,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
                               decoration: InputDecoration(
                                 labelText: 'Equipo',
+                                labelStyle: TextStyle(color: theme.hintColor),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor,
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor,
+                                  ),
                                 ),
                                 filled: true,
+                                fillColor: theme.inputDecorationTheme.fillColor,
                               ),
                               items: [
-                                const DropdownMenuItem(
+                                DropdownMenuItem(
                                   value: null,
-                                  child: Text('Todos'),
+                                  child: Text(
+                                    'Todos',
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
                                 ),
                                 ..._equipos.map(
                                   (e) => DropdownMenuItem(
                                     value: e,
-                                    child: Text(e),
+                                    child: Text(
+                                      e,
+                                      style: TextStyle(
+                                        color:
+                                            theme.textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -260,20 +329,44 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         value: _selectedNivel,
+                        dropdownColor: theme.cardColor,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
                         decoration: InputDecoration(
                           labelText: 'Nivel',
+                          labelStyle: TextStyle(color: theme.hintColor),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: theme.dividerColor),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: theme.dividerColor),
                           ),
                           filled: true,
+                          fillColor: theme.inputDecorationTheme.fillColor,
                         ),
                         items: [
-                          const DropdownMenuItem(
+                          DropdownMenuItem(
                             value: null,
-                            child: Text('Todos'),
+                            child: Text(
+                              'Todos',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
                           ..._niveles.map(
-                            (n) => DropdownMenuItem(value: n, child: Text(n)),
+                            (n) => DropdownMenuItem(
+                              value: n,
+                              child: Text(
+                                n,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                         onChanged: (value) {
@@ -288,8 +381,11 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                 // Exercise list
                 Expanded(
                   child: _filteredEjercicios.isEmpty
-                      ? const Center(
-                          child: Text('No se encontraron ejercicios'),
+                      ? Center(
+                          child: Text(
+                            'No se encontraron ejercicios',
+                            style: TextStyle(color: theme.hintColor),
+                          ),
                         )
                       : ListView.builder(
                           itemCount: _filteredEjercicios.length,
@@ -300,29 +396,59 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                                 horizontal: 16,
                                 vertical: 4,
                               ),
+                              color: theme.cardColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: theme.dividerColor),
+                              ),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  child: const Icon(Icons.fitness_center),
+                                  backgroundColor: theme.primaryColor
+                                      .withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.fitness_center,
+                                    color: theme.primaryColor,
+                                  ),
                                 ),
                                 title: Text(
                                   ejercicio.nombre,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    color: theme.textTheme.titleMedium?.color,
                                   ),
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (ejercicio.grupo != null)
-                                      Text('Grupo: ${ejercicio.grupo}'),
+                                      Text(
+                                        'Grupo: ${ejercicio.grupo}',
+                                        style: TextStyle(
+                                          color: theme.hintColor,
+                                        ),
+                                      ),
                                     if (ejercicio.equipo != null)
-                                      Text('Equipo: ${ejercicio.equipo}'),
+                                      Text(
+                                        'Equipo: ${ejercicio.equipo}',
+                                        style: TextStyle(
+                                          color: theme.hintColor,
+                                        ),
+                                      ),
                                     if (ejercicio.nivel != null)
-                                      Text('Nivel: ${ejercicio.nivel}'),
+                                      Text(
+                                        'Nivel: ${ejercicio.nivel}',
+                                        style: TextStyle(
+                                          color: theme.hintColor,
+                                        ),
+                                      ),
                                   ],
                                 ),
                                 trailing: ejercicio.urlVideo != null
-                                    ? const Icon(Icons.play_circle_outline)
+                                    ? Icon(
+                                        Icons.play_circle_outline,
+                                        color: theme.primaryColor,
+                                      )
                                     : null,
                                 onTap: () {
                                   Navigator.push(

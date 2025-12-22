@@ -235,11 +235,14 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (_isLoading)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           widget.entrenamientoId != null
@@ -247,9 +250,9 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
               : 'Crear Entrenamiento',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: theme.textTheme.titleLarge?.color,
         actions: [
           TextButton.icon(
             onPressed: _isSaving ? null : _handleSave,
@@ -337,6 +340,9 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   }
 
   Widget _buildSemanaCard(int weekIdx, SemanaEntrenamiento semana) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
@@ -416,8 +422,8 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                   label: const Text('Añadir Día'),
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
-                    backgroundColor: Colors.blue.shade50,
-                    foregroundColor: Colors.blue,
+                    backgroundColor: theme.primaryColor.withOpacity(0.1),
+                    foregroundColor: theme.primaryColor,
                   ),
                 ),
               ],
@@ -429,12 +435,15 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   }
 
   Widget _buildDiaCard(int weekIdx, int dayIdx, DiaEntrenamiento dia) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -444,16 +453,20 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                Icon(Icons.calendar_today, size: 16, color: theme.hintColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     initialValue: dia.nombre,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    decoration: const InputDecoration(
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.titleSmall?.color,
+                    ),
+                    decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
                       hintText: 'Nombre del día (ej. Pecho/Tríceps)',
+                      hintStyle: TextStyle(color: theme.hintColor),
                     ),
                     onChanged: (v) {
                       setState(() {
@@ -495,18 +508,23 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
           // Reorderable List of Exercises
           // Using ReorderableListView inside a column needs physics limit and shrinkwrap
           if (dia.items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
                 'Sin ejercicios',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: theme.hintColor),
               ),
             )
           else
             ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              proxyDecorator: (child, _, __) => Material(
+                elevation: 4,
+                color: Colors.transparent,
+                child: child,
+              ),
               itemCount: dia.items.length,
               onReorder: (oldIndex, newIndex) {
                 setState(() {
@@ -545,11 +563,14 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
           // Add Exercise Button
           Container(
             padding: const EdgeInsets.all(8),
-            color: Colors.grey.shade50,
+            color: isDark
+                ? Colors.white.withOpacity(0.02)
+                : Colors.grey.shade50,
             child: TextButton.icon(
               onPressed: () => _showExercisePicker(context, weekIdx, dayIdx),
               icon: const Icon(Icons.add),
               label: const Text('Añadir Ejercicio'),
+              style: TextButton.styleFrom(foregroundColor: theme.primaryColor),
             ),
           ),
         ],
@@ -563,20 +584,29 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     int iIdx,
     ItemEntrenamiento item,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      color: Colors.white, // Required for dragging visuals
+      color: theme.cardColor, // Required for dragging visuals
       child: Column(
         children: [
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: const Icon(Icons.drag_indicator, color: Colors.grey),
+            leading: Icon(Icons.drag_indicator, color: theme.hintColor),
             title: Text(
               item.ejercicioNombre ?? 'Ejercicio',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
             ),
-            subtitle: Text(item.ejercicio?.grupo ?? 'General'),
+            subtitle: Text(
+              item.ejercicio?.grupo ?? 'General',
+              style: TextStyle(color: theme.hintColor),
+            ),
             trailing: IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+              icon: Icon(Icons.close, size: 18, color: theme.hintColor),
               onPressed: () {
                 setState(() {
                   _semanas[wIdx].dias[dIdx].items.removeAt(iIdx);
@@ -634,17 +664,22 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     Function(String) onChange, {
     int flex = 1,
   }) {
+    final theme = Theme.of(context);
     return Expanded(
       flex: flex,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(label, style: TextStyle(fontSize: 10, color: theme.hintColor)),
           SizedBox(
             height: 32,
             child: TextFormField(
               initialValue: val?.toString() ?? '',
               keyboardType: TextInputType.number,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
               decoration: InputDecoration(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 8,
@@ -652,6 +687,11 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: theme.dividerColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: theme.dividerColor),
                 ),
               ),
               onChanged: onChange,

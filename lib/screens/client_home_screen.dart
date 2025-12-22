@@ -15,6 +15,7 @@ class ClientHomeScreen extends StatefulWidget {
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
   final _pageController = PageController(initialPage: 0);
+  int _currentIndex = 0;
 
   @override
   void dispose() {
@@ -25,6 +26,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+    final theme = Theme.of(context);
 
     // Only show bottom nav for ADMINS (usuarios), not for clients
     if (auth.isClient) {
@@ -40,11 +42,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
         children: screens,
       ),
-      extendBody: true,
+      extendBody: false, // Changed to false to avoid covering content
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _pageController.page?.toInt() ?? 0,
+        currentIndex: _currentIndex,
+        backgroundColor: theme.canvasColor, // Use canvas or card color
+        selectedItemColor: theme.primaryColor,
+        unselectedItemColor: theme.hintColor,
         onTap: (index) {
           _pageController.animateToPage(
             index,

@@ -300,6 +300,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       return const Scaffold(body: Center(child: Text('Cliente no encontrado')));
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     // Build Tabs
     final tabs = <Widget>[const Tab(text: 'Información y Registro')];
     final tabViews = <Widget>[
@@ -389,6 +392,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: DefaultTabController(
           length: tabs.length,
@@ -436,12 +440,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             Expanded(
                               child: Text(
                                 'Perfil de\n${_cliente!.nombre}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 34,
                                   fontWeight: FontWeight.bold,
                                   height: 1.1,
                                   letterSpacing: -0.5,
-                                  color: Colors.black,
+                                  color: theme.textTheme.titleLarge?.color,
                                 ),
                               ),
                             ),
@@ -464,12 +468,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                         },
                                         icon: Icons.logout_rounded,
                                         label: 'Cerrar Sesión',
-                                        backgroundColor: const Color(
-                                          0xFFFFE5E5,
-                                        ),
-                                        foregroundColor: const Color(
-                                          0xFFFF3B30,
-                                        ),
+                                        backgroundColor: isDark
+                                            ? Colors.red.withOpacity(0.2)
+                                            : const Color(0xFFFFE5E5),
+                                        foregroundColor: isDark
+                                            ? Colors.redAccent
+                                            : const Color(0xFFFF3B30),
                                       );
                                     } else {
                                       return _AestheticHeaderButton(
@@ -482,12 +486,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                         },
                                         icon: Icons.arrow_back_rounded,
                                         label: 'Volver',
-                                        backgroundColor: const Color(
-                                          0xFFF2F2F7,
-                                        ),
-                                        foregroundColor: const Color(
-                                          0xFF8E8E93,
-                                        ),
+                                        backgroundColor: isDark
+                                            ? theme.colorScheme.surface
+                                            : const Color(0xFFF2F2F7),
+                                        foregroundColor: theme.iconTheme.color!,
                                       );
                                     }
                                   },
@@ -498,8 +500,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                     onPressed: _navigateToRegisterTraining,
                                     icon: Icons.fitness_center_rounded,
                                     label: 'Registrar',
-                                    backgroundColor: const Color(0xFFE5F1FF),
-                                    foregroundColor: const Color(0xFF007AFF),
+                                    backgroundColor: isDark
+                                        ? theme.primaryColor.withOpacity(0.2)
+                                        : const Color(0xFFE5F1FF),
+                                    foregroundColor: theme.primaryColor,
                                     isPrimary: true,
                                   ),
                                 ],
@@ -537,9 +541,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   delegate: _SliverAppBarDelegate(
                     TabBar(
                       tabs: tabs,
-                      labelColor: const Color(0xFF007AFF),
-                      unselectedLabelColor: const Color(0xFF8E8E93),
-                      indicatorColor: const Color(0xFF007AFF),
+                      labelColor: isDark ? Colors.white : theme.primaryColor,
+                      unselectedLabelColor: theme.hintColor,
+                      indicatorColor: theme.primaryColor,
                       indicatorWeight: 2,
                       labelStyle: const TextStyle(
                         fontWeight: FontWeight.w600,
@@ -547,8 +551,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                       ),
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
-                      dividerColor: const Color(0xFFC6C6C8),
+                      dividerColor: theme.dividerColor,
                     ),
+                    theme.colorScheme.surface,
+                    theme.dividerColor,
                   ),
                   pinned: true,
                 ),
@@ -603,19 +609,22 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: theme.brightness == Brightness.dark
+            ? theme.colorScheme.surface
+            : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Colors.grey.shade800,
+          color: theme.textTheme.bodyMedium?.color,
         ),
       ),
     );
@@ -624,7 +633,11 @@ class _StatusChip extends StatelessWidget {
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar _tabBar;
-  _SliverAppBarDelegate(this._tabBar);
+  final Color backgroundColor;
+  final Color dividerColor;
+
+  _SliverAppBarDelegate(this._tabBar, this.backgroundColor, this.dividerColor);
+
   @override
   double get minExtent => _tabBar.preferredSize.height + 1;
   @override
@@ -636,18 +649,19 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return Container(
-      color: Colors.white,
+      color: backgroundColor,
       child: Column(
         children: [
           _tabBar,
-          const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+          Divider(height: 1, thickness: 1, color: dividerColor),
         ],
       ),
     );
   }
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor;
 }
 
 class _AestheticHeaderButton extends StatelessWidget {

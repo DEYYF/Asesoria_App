@@ -21,12 +21,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    print('LoginScreen: initState');
   }
 
   @override
   void dispose() {
-    print('LoginScreen: dispose');
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
@@ -42,18 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isClientLogin) {
-        print('Starting client login for: ${_emailCtrl.text}');
         final result = await auth.clientLogin(_emailCtrl.text, _passCtrl.text);
 
-        print('After clientLogin: result=$result, mounted=$mounted');
-
-        if (!mounted) {
-          print('ABORTING: LoginScreen is no longer mounted!');
-          return;
-        }
+        if (!mounted) return;
 
         if (result == 'requiresPasswordSetup') {
-          print('Redirecting to FirstLoginScreen...');
           final email = Uri.encodeComponent(_emailCtrl.text);
           context.go('/first-login?email=$email');
           return;
@@ -94,113 +85,167 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use listen: false to avoid rebuilding the whole screen when auth notifies
-    // (We use _localLoading for the spinner)
     final auth = Provider.of<AuthService>(context, listen: false);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Asesoría App',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 32),
-
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isClientLogin = false),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: !_isClientLogin
-                                ? const Color(0xFF007AFF)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Text(
-                            'Admin',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: !_isClientLogin
-                                  ? Colors.white
-                                  : Colors.black54,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isClientLogin = true),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _isClientLogin
-                                ? const Color(0xFF007AFF)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Text(
-                            'Cliente',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: _isClientLogin
-                                  ? Colors.white
-                                  : Colors.black54,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              TextField(
-                controller: _emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passCtrl,
-                decoration: const InputDecoration(labelText: 'Contraseña'),
-                obscureText: true,
-              ),
-
-              if (_error)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    _errorMessage,
-                    style: const TextStyle(color: Colors.red),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App Logo Placeholder / Icon
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.fitness_center_rounded,
+                    size: 64,
+                    color: theme.primaryColor,
                   ),
                 ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _localLoading ? null : () => _handleLogin(auth),
-                  child: _localLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Iniciar Sesión'),
+                const SizedBox(height: 24),
+                Text(
+                  'Asesoría App',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Entrena . Aprende . Evoluciona',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 40),
+
+                // Selector Admin/Cliente
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildSelectorOption('Admin', !_isClientLogin),
+                      _buildSelectorOption('Cliente', _isClientLogin),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Form Fields
+                TextField(
+                  controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Contraseña',
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                  obscureText: true,
+                ),
+
+                if (_error)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _errorMessage,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 40),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _localLoading ? null : () => _handleLogin(auth),
+                    child: _localLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Iniciar Sesión'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectorOption(String label, bool isSelected) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _isClientLogin = (label == 'Cliente')),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: theme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.grey[400] : Colors.black54),
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),

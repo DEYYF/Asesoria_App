@@ -150,6 +150,9 @@ class _ProgressTabState extends State<ProgressTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       child: Column(
@@ -161,7 +164,7 @@ class _ProgressTabState extends State<ProgressTab> {
             children: [
               Text(
                 'Progreso',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.5,
                 ),
@@ -177,12 +180,12 @@ class _ProgressTabState extends State<ProgressTab> {
                     icon: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF007AFF).withOpacity(0.1),
+                        color: theme.primaryColor.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.add_circle,
-                        color: Color(0xFF007AFF),
+                        color: theme.primaryColor,
                         size: 24,
                       ),
                     ),
@@ -203,7 +206,7 @@ class _ProgressTabState extends State<ProgressTab> {
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F7),
+              color: theme.dividerColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -225,7 +228,10 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildToggleOption(String label, String value) {
+    final theme = Theme.of(context);
     final isSelected = _viewMode == value;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _viewMode = value),
@@ -233,7 +239,7 @@ class _ProgressTabState extends State<ProgressTab> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? theme.cardColor : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isSelected
                 ? [
@@ -252,8 +258,8 @@ class _ProgressTabState extends State<ProgressTab> {
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: isSelected
-                  ? const Color(0xFF1C1C1E)
-                  : const Color(0xFF8E8E93),
+                  ? (isDark ? Colors.white : theme.textTheme.bodyLarge?.color)
+                  : theme.textTheme.bodySmall?.color,
               letterSpacing: 0.5,
             ),
           ),
@@ -290,6 +296,19 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).hintColor,
+        ),
+      ),
+    );
+  }
+
   Widget _buildRendimientoView() {
     if (_isLoadingExercises)
       return const Center(child: CircularProgressIndicator());
@@ -299,9 +318,10 @@ class _ProgressTabState extends State<ProgressTab> {
     }
 
     final data = _filteredData;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     // Calculate Records (Always from full history, or filtered? Usually records are all-time)
-    // Let's use ALL-TIME records for cards, but chart uses filtered.
     double max1RM = 0;
     double maxWeight = 0;
     double maxVolume = 0;
@@ -325,7 +345,7 @@ class _ProgressTabState extends State<ProgressTab> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.cardColor,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
@@ -340,12 +360,16 @@ class _ProgressTabState extends State<ProgressTab> {
               isExpanded: true,
               value: _selectedEjercicio,
               hint: const Text('Seleccionar Ejercicio'),
-              icon: const Icon(Icons.keyboard_arrow_down_rounded),
-              style: const TextStyle(
-                color: Colors.black87,
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: theme.iconTheme.color,
+              ),
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
               ),
+              dropdownColor: theme.cardColor,
               items: _ejercicios
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
@@ -378,7 +402,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   'PESO MÁX',
                   '${maxWeight.toStringAsFixed(1)} kg',
                   Icons.fitness_center_rounded,
-                  const Color(0xFF007AFF),
+                  theme.primaryColor,
                 ),
               ),
             ],
@@ -393,7 +417,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   'VOLUMEN RÉCORD',
                   '${(maxVolume / 1000).toStringAsFixed(1)} tons',
                   Icons.bar_chart_rounded,
-                  const Color(0xFFAF52DE),
+                  isDark ? Colors.purpleAccent : const Color(0xFFAF52DE),
                 ),
               ),
             ],
@@ -412,7 +436,7 @@ class _ProgressTabState extends State<ProgressTab> {
                 // Metric Toggles
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7),
+                    color: theme.dividerColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.all(2),
@@ -428,7 +452,7 @@ class _ProgressTabState extends State<ProgressTab> {
                 // Time Filter
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7),
+                    color: theme.dividerColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.all(2),
@@ -451,7 +475,7 @@ class _ProgressTabState extends State<ProgressTab> {
             child: Container(
               padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -478,8 +502,34 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
+  Widget _buildEmptyState(String msg) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.bar_chart_rounded,
+              size: 48,
+              color: Theme.of(context).disabledColor,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).hintColor),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMetricBtn(String label, String val) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isSelected = _metric == val;
+
     return GestureDetector(
       onTap: () => setState(() => _metric = val),
       child: Container(
@@ -488,7 +538,7 @@ class _ProgressTabState extends State<ProgressTab> {
           vertical: 6,
         ), // Compact padding
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? theme.cardColor : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected
               ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
@@ -499,7 +549,9 @@ class _ProgressTabState extends State<ProgressTab> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.black : Colors.grey,
+            color: isSelected
+                ? (isDark ? Colors.white : theme.textTheme.bodyLarge?.color)
+                : theme.hintColor,
           ),
         ),
       ),
@@ -507,7 +559,10 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildTimeBtn(String label, String val) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isSelected = _timeFilter == val;
+
     return GestureDetector(
       onTap: () => setState(() => _timeFilter = val),
       child: Container(
@@ -516,7 +571,7 @@ class _ProgressTabState extends State<ProgressTab> {
           vertical: 6,
         ), // Compact padding
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? theme.cardColor : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           boxShadow: isSelected
               ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
@@ -527,7 +582,9 @@ class _ProgressTabState extends State<ProgressTab> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isSelected ? const Color(0xFF007AFF) : Colors.grey,
+            color: isSelected
+                ? (isDark ? Colors.white : theme.primaryColor)
+                : theme.hintColor,
           ),
         ),
       ),
@@ -540,10 +597,11 @@ class _ProgressTabState extends State<ProgressTab> {
     IconData icon,
     Color color,
   ) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12), // Reduced from 16
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -577,10 +635,10 @@ class _ProgressTabState extends State<ProgressTab> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF8E8E93),
+                    color: theme.hintColor,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -593,10 +651,10 @@ class _ProgressTabState extends State<ProgressTab> {
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18, // Slightly adjusted base size
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1C1C1E),
+                color: theme.textTheme.titleLarge?.color,
                 letterSpacing: -0.5,
               ),
             ),
@@ -609,13 +667,11 @@ class _ProgressTabState extends State<ProgressTab> {
   Widget _buildEvolutionChart(List<ExerciseHistoryRecord> data) {
     if (data.isEmpty) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     List<FlSpot> spots = [];
     List<FlSpot> spots2 = [];
-
-    // Map timestamps to X axis (index-based for simplicity in this prototype,
-    // but equidistant points are fine if we just want to show "sessions")
-    // If we want accurate time axis: spots.add(FlSpot(rec.fecha.millisecondsSinceEpoch.toDouble(), ...))
-    // Let's stick to index 0..N for clean categorical spacing logic.
 
     for (int i = 0; i < data.length; i++) {
       final rec = data[i];
@@ -673,10 +729,20 @@ class _ProgressTabState extends State<ProgressTab> {
 
     // Colors
     final mainColor = _metric == 'strength'
-        ? const Color(0xFF007AFF)
+        ? (isDark
+              ? const Color(0xFF409CFF)
+              : theme.primaryColor) // Lighter blue for dark mode
         : (_metric == 'volume'
               ? const Color(0xFFAF52DE)
               : const Color(0xFF30D158));
+
+    final secondaryColor = isDark
+        ? const Color(0xFFFFD60A)
+        : const Color(0xFFFFB800);
+
+    final gridColor = isDark
+        ? Colors.white.withOpacity(0.12)
+        : theme.dividerColor.withOpacity(0.5);
 
     return LineChart(
       LineChartData(
@@ -686,7 +752,7 @@ class _ProgressTabState extends State<ProgressTab> {
           show: true,
           drawVerticalLine: false,
           getDrawingHorizontalLine: (val) =>
-              FlLine(color: Colors.grey.shade100, strokeWidth: 1),
+              FlLine(color: gridColor, strokeWidth: 1),
         ),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
@@ -699,18 +765,12 @@ class _ProgressTabState extends State<ProgressTab> {
                 if (val >= 1000) {
                   return Text(
                     '${(val / 1000).toStringAsFixed(1)}k',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF8E8E93),
-                    ),
+                    style: TextStyle(fontSize: 10, color: theme.hintColor),
                   );
                 }
                 return Text(
                   val.toInt().toString(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF8E8E93),
-                  ),
+                  style: TextStyle(fontSize: 10, color: theme.hintColor),
                 );
               },
             ),
@@ -730,10 +790,7 @@ class _ProgressTabState extends State<ProgressTab> {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       '${date.day}/${date.month}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF8E8E93),
-                      ),
+                      style: TextStyle(fontSize: 10, color: theme.hintColor),
                     ),
                   );
                 }
@@ -771,59 +828,12 @@ class _ProgressTabState extends State<ProgressTab> {
             LineChartBarData(
               spots: spots2,
               isCurved: true,
-              color: const Color(0xFFFFB800), // Amber for 1RM
+              color: secondaryColor,
               barWidth: 2,
               dashArray: [5, 5],
               dotData: FlDotData(show: false),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String msg) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.bar_chart_rounded,
-                size: 32,
-                color: Colors.grey.shade400,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              msg,
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: Color(0xFF8E8E93),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.0,
-        ),
       ),
     );
   }

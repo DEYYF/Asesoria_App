@@ -27,7 +27,6 @@ class _TrainingTabState extends State<TrainingTab> {
   Future<void> _loadEntrenamientos() async {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      // Matching React: GET /entrenamientos?clienteId=...
       final res = await api.get(
         '/entrenamientos?clienteId=${widget.clienteId}',
       );
@@ -56,17 +55,27 @@ class _TrainingTabState extends State<TrainingTab> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (_entrenamientos.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Aún no hay entrenamientos',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: theme.hintColor,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text('Crea el primer plan para este cliente'),
+            Text(
+              'Crea el primer plan para este cliente',
+              style: TextStyle(color: theme.hintColor),
+            ),
             const SizedBox(height: 16),
             Builder(
               builder: (context) {
@@ -74,13 +83,16 @@ class _TrainingTabState extends State<TrainingTab> {
                 if (auth.isClient) return const SizedBox.shrink();
                 return ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to Create Training
                     context.push(
                       '/clientes/${widget.clienteId}/crear-entrenamiento',
                     );
                   },
                   icon: const Icon(Icons.fitness_center),
                   label: const Text('Crear entrenamiento'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
                 );
               },
             ),
@@ -97,9 +109,13 @@ class _TrainingTabState extends State<TrainingTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Entrenamientos',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
               ),
               Builder(
                 builder: (context) {
@@ -113,6 +129,10 @@ class _TrainingTabState extends State<TrainingTab> {
                     },
                     icon: const Icon(Icons.add),
                     label: const Text('Nuevo plan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
                   );
                 },
               ),
@@ -146,81 +166,102 @@ class _TrainingTabState extends State<TrainingTab> {
   }
 
   Widget _buildCard(Entrenamiento ent) {
-    // Calculate stats
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     int weeks = ent.semanas.length;
     int days = ent.semanas.fold(0, (sum, s) => sum + s.dias.length);
-    int exercises = ent.semanas.fold(
-      0,
-      (sum, s) => sum + s.dias.fold(0, (dSum, d) => dSum + d.items.length),
-    );
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          if (ent.id != null) {
-            // Navigate to detail
-            context.push('/entrenamientos/${ent.id}');
-          }
-        },
-        child: Column(
-          children: [
-            Container(height: 6, color: Colors.blue.shade300),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ent.titulo,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () {
+            if (ent.id != null) {
+              context.push('/entrenamientos/${ent.id}');
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(height: 4, color: theme.primaryColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ent.titulo,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                      const Spacer(),
+                      Row(
                         children: [
-                          _buildChip(Icons.calendar_view_week, '$weeks sem'),
-                          const SizedBox(width: 4),
-                          _buildChip(Icons.today, '$days días'),
-                          const SizedBox(width: 4),
-                          _buildChip(Icons.fitness_center, '$exercises ej'),
-                          if (!ent.activo) ...[
-                            const SizedBox(width: 4),
-                            Chip(
-                              label: const Text(
-                                'Inactivo',
-                                style: TextStyle(fontSize: 10),
-                              ),
-                              backgroundColor: Colors.grey.shade200,
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
+                          _buildChip(
+                            Icons.calendar_view_week_rounded,
+                            '$weeks sem',
+                          ),
+                          const SizedBox(width: 8),
+                          _buildChip(Icons.today_rounded, '$days d'),
                         ],
                       ),
-                    ),
-                  ],
+                      if (!ent.activo) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'INACTIVO',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: theme.hintColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildChip(IconData icon, String label) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Chip(
       label: Text(label, style: const TextStyle(fontSize: 11)),
-      avatar: Icon(icon, size: 14, color: Colors.blueGrey),
+      avatar: Icon(
+        icon,
+        size: 14,
+        color: isDark ? theme.iconTheme.color : Colors.blueGrey,
+      ),
+      backgroundColor: isDark ? theme.scaffoldBackgroundColor : null,
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
+      side: BorderSide.none,
     );
   }
 }
