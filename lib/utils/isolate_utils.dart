@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/ejercicio_model.dart';
 import '../models/cliente_model.dart';
+import '../models/ingrediente_model.dart';
+import '../models/receta_model.dart';
 
 /// Isolate utility functions for offloading heavy computations
 /// from the UI thread to improve app performance.
@@ -33,6 +35,30 @@ List<Ejercicio> _parseEjercicios(String jsonString) {
   final data = jsonDecode(jsonString);
   final List<dynamic> items = data is List ? data : (data['items'] ?? []);
   return items.map((e) => Ejercicio.fromJson(e)).toList();
+}
+
+// ============================================================================
+// COMIDAS ISOLATES
+// ============================================================================
+
+/// Parse and convert JSON to list of Ingrediente models in isolate
+Future<List<Ingrediente>> parseIngredientesInIsolate(String jsonString) async {
+  return compute(_parseIngredientes, jsonString);
+}
+
+List<Ingrediente> _parseIngredientes(String jsonString) {
+  final List<dynamic> data = jsonDecode(jsonString) as List;
+  return data.map((i) => Ingrediente.fromJson(i)).toList();
+}
+
+/// Parse and convert JSON to list of Receta models in isolate
+Future<List<Receta>> parseRecetasInIsolate(String jsonString) async {
+  return compute(_parseRecetas, jsonString);
+}
+
+List<Receta> _parseRecetas(String jsonString) {
+  final List<dynamic> data = jsonDecode(jsonString) as List;
+  return data.map((r) => Receta.fromJson(r)).toList();
 }
 
 /// Filter ejercicios by search term and filters in isolate

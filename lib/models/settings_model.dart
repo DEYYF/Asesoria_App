@@ -6,6 +6,10 @@ class UserSettings {
   final String? emailSignature; // admin only
   final String? signatureImageUrl; // admin only
   final String? businessEmail; // admin only
+  final String weightFrequency;
+  final String fatFrequency;
+  final String measuresFrequency;
+  final String muscleFrequency;
 
   UserSettings({
     this.pushNotifications = true,
@@ -15,6 +19,10 @@ class UserSettings {
     this.emailSignature,
     this.signatureImageUrl,
     this.businessEmail,
+    this.weightFrequency = 'weekly',
+    this.fatFrequency = 'weekly',
+    this.measuresFrequency = 'monthly',
+    this.muscleFrequency = 'monthly',
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -26,6 +34,10 @@ class UserSettings {
       emailSignature: json['emailSignature'],
       signatureImageUrl: json['signatureImageUrl'],
       businessEmail: json['businessEmail'],
+      weightFrequency: json['weightFrequency'] ?? 'weekly',
+      fatFrequency: json['fatFrequency'] ?? 'weekly',
+      measuresFrequency: json['measuresFrequency'] ?? 'monthly',
+      muscleFrequency: json['muscleFrequency'] ?? 'monthly',
     );
   }
 
@@ -38,6 +50,10 @@ class UserSettings {
       if (emailSignature != null) 'emailSignature': emailSignature,
       if (signatureImageUrl != null) 'signatureImageUrl': signatureImageUrl,
       if (businessEmail != null) 'businessEmail': businessEmail,
+      'weightFrequency': weightFrequency,
+      'fatFrequency': fatFrequency,
+      'measuresFrequency': measuresFrequency,
+      'muscleFrequency': muscleFrequency,
     };
   }
 
@@ -49,6 +65,10 @@ class UserSettings {
     String? emailSignature,
     String? signatureImageUrl,
     String? businessEmail,
+    String? weightFrequency,
+    String? fatFrequency,
+    String? measuresFrequency,
+    String? muscleFrequency,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -58,6 +78,10 @@ class UserSettings {
       emailSignature: emailSignature ?? this.emailSignature,
       signatureImageUrl: signatureImageUrl ?? this.signatureImageUrl,
       businessEmail: businessEmail ?? this.businessEmail,
+      weightFrequency: weightFrequency ?? this.weightFrequency,
+      fatFrequency: fatFrequency ?? this.fatFrequency,
+      measuresFrequency: measuresFrequency ?? this.measuresFrequency,
+      muscleFrequency: muscleFrequency ?? this.muscleFrequency,
     );
   }
 }

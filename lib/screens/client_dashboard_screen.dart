@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart';
 import '../models/cliente_model.dart';
 import '../models/tarifa_model.dart';
 import '../utils/isolate_utils.dart';
@@ -190,7 +189,6 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthService>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -264,14 +262,6 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                             ],
                           ),
                         ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.logout),
-                        color: theme.iconTheme.color,
-                        onPressed: () {
-                          auth.logout();
-                          context.go('/login');
-                        },
                       ),
                     ],
                   ),
@@ -496,11 +486,6 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/settings'),
-        backgroundColor: theme.primaryColor,
-        child: const Icon(Icons.settings, color: Colors.white),
       ),
     );
   }

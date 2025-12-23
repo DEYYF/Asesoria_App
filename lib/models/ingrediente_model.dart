@@ -5,6 +5,7 @@ class Ingrediente {
   final double proteinas;
   final double carbohidratos;
   final double grasas;
+  final String? tipo;
 
   Ingrediente({
     required this.id,
@@ -13,6 +14,7 @@ class Ingrediente {
     this.proteinas = 0,
     this.carbohidratos = 0,
     this.grasas = 0,
+    this.tipo,
   });
 
   factory Ingrediente.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class Ingrediente {
       proteinas: (json['proteinas'] as num?)?.toDouble() ?? 0,
       carbohidratos: (json['carbohidratos'] as num?)?.toDouble() ?? 0,
       grasas: (json['grasas'] as num?)?.toDouble() ?? 0,
+      tipo: json['tipo'],
     );
   }
 
@@ -34,6 +37,7 @@ class Ingrediente {
       'proteinas': proteinas,
       'carbohidratos': carbohidratos,
       'grasas': grasas,
+      'tipo': tipo,
     };
   }
 }

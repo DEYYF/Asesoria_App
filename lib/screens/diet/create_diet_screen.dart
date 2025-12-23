@@ -7,6 +7,7 @@ import '../../models/dieta_model.dart';
 import '../../models/receta_model.dart';
 import '../../models/ingrediente_model.dart';
 import '../../models/macros_model.dart';
+import '../../utils/isolate_utils.dart';
 import 'diet_detail_screen.dart';
 
 class CreateDietScreen extends StatefulWidget {
@@ -18,8 +19,10 @@ class CreateDietScreen extends StatefulWidget {
   State<CreateDietScreen> createState() => _CreateDietScreenState();
 }
 
-class _CreateDietScreenState extends State<CreateDietScreen> {
+class _CreateDietScreenState extends State<CreateDietScreen>
+    with TickerProviderStateMixin {
   // State
+  late TabController _foodTabController;
   final TextEditingController _nameCtrl = TextEditingController(
     text: 'Nueva Dieta',
   );
@@ -57,6 +60,7 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     } else {
       _initComidas(3);
     }
+    _foodTabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -64,6 +68,7 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     _nameCtrl.dispose();
     _goalCtrl.dispose();
     _comboNameCtrl.dispose();
+    _foodTabController.dispose();
     super.dispose();
   }
 
@@ -104,16 +109,16 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
       ]);
 
       if (mounted) {
-        setState(() {
-          if (results[0].statusCode == 200) {
-            final List list = jsonDecode(results[0].body);
-            _recetas = list.map((e) => Receta.fromJson(e)).toList();
-          }
-          if (results[1].statusCode == 200) {
-            final List list = jsonDecode(results[1].body);
-            _ingredientes = list.map((e) => Ingrediente.fromJson(e)).toList();
-          }
-        });
+        if (results[0].statusCode == 200) {
+          final recetas = await parseRecetasInIsolate(results[0].body);
+          setState(() => _recetas = recetas);
+        }
+        if (results[1].statusCode == 200) {
+          final ingredientes = await parseIngredientesInIsolate(
+            results[1].body,
+          );
+          setState(() => _ingredientes = ingredientes);
+        }
       }
     } catch (e) {
       debugPrint('Error loading food data: $e');
@@ -188,6 +193,8 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
   }
 
   Macros _calculateMealMacros(Comida m) {
+    if (m.opciones.isEmpty) return Macros();
+
     double k = 0, p = 0, c = 0, g = 0;
     for (final op in m.opciones) {
       final mac = _calculateItemMacros(op);
@@ -196,7 +203,14 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
       c += mac['c']!;
       g += mac['g']!;
     }
-    return Macros(kcal: k, proteinas: p, carbohidratos: c, grasas: g);
+
+    final count = m.opciones.length;
+    return Macros(
+      kcal: k / count,
+      proteinas: p / count,
+      carbohidratos: c / count,
+      grasas: g / count,
+    );
   }
 
   Macros _calculateTotalMacros() {
@@ -306,6 +320,104 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
 
   void _removeOption(int index) {
     setState(() => _comidas[_activeComidaIndex].opciones.removeAt(index));
+  }
+
+  void _showRenameMealDialog() {
+    final active = _comidas[_activeComidaIndex];
+    final ctrl = TextEditingController(text: active.titulo);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renombrar Comida'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (ctrl.text.trim().isNotEmpty) {
+                setState(() {
+                  _comidas[_activeComidaIndex] = Comida(
+                    titulo: ctrl.text.trim(),
+                    hora: active.hora,
+                    notas: active.notas,
+                    opciones: active.opciones,
+                    totales: active.totales,
+                  );
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditOptionDialog(int idx) {
+    final op = _comidas[_activeComidaIndex].opciones[idx];
+
+    if (op.tipo == 'ingrediente') {
+      final ctrl = TextEditingController(text: op.gramos?.round().toString());
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Editar ${op.nombre}'),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(
+              labelText: 'Gramos',
+              suffix: Text('g'),
+            ),
+            keyboardType: TextInputType.number,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final g = double.tryParse(ctrl.text) ?? 100;
+                setState(() {
+                  _comidas[_activeComidaIndex].opciones[idx] = OpcionDieta(
+                    tipo: op.tipo,
+                    ingredienteId: op.ingredienteId,
+                    nombre: op.nombre,
+                    gramos: g,
+                  );
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      );
+    } else if (op.tipo == 'combinacion') {
+      // Re-use combination logic but pre-filled
+      setState(() {
+        _currentComboItems = List.from(op.items ?? []);
+        _comboNameCtrl.text = op.nombre ?? '';
+        // Remove from list so it can be "re-added" after editing
+        _comidas[_activeComidaIndex].opciones.removeAt(idx);
+        // Switch to Combo tab to edit using our state managed controller
+        _foodTabController.animateTo(2);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Editando combo en la pestaña correspondiente'),
+        ),
+      );
+    }
   }
 
   // --- UI Components ---
@@ -587,23 +699,40 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
             ),
           ),
         ),
-        DropdownButtonFormField<int>(
-          value: _activeComidaIndex,
-          items: _comidas
-              .asMap()
-              .entries
-              .map(
-                (e) =>
-                    DropdownMenuItem(value: e.key, child: Text(e.value.titulo)),
-              )
-              .toList(),
-          onChanged: (idx) {
-            if (idx != null) setState(() => _activeComidaIndex = idx);
-          },
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<int>(
+                value: _activeComidaIndex,
+                items: _comidas
+                    .asMap()
+                    .entries
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value.titulo),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (idx) {
+                  if (idx != null) setState(() => _activeComidaIndex = idx);
+                },
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              icon: const Icon(Icons.edit_rounded, size: 20),
+              onPressed: _showRenameMealDialog,
+              tooltip: 'Renombrar comida',
+            ),
+          ],
         ),
       ],
     );
@@ -616,87 +745,86 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
-      child: DefaultTabController(
-        length: 3,
-        child: Column(
-          children: [
-            TabBar(
-              labelColor: theme.primaryColor,
-              unselectedLabelColor: theme.hintColor,
-              indicatorColor: theme.primaryColor,
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Alimento'),
-                Tab(text: 'Receta'),
-                Tab(text: 'Combo'),
+      child: Column(
+        children: [
+          TabBar(
+            controller: _foodTabController,
+            labelColor: theme.primaryColor,
+            unselectedLabelColor: theme.hintColor,
+            indicatorColor: theme.primaryColor,
+            dividerColor: Colors.transparent,
+            tabs: const [
+              Tab(text: 'Alimento'),
+              Tab(text: 'Receta'),
+              Tab(text: 'Combo'),
+            ],
+          ),
+          SizedBox(
+            height: 380, // Increased height for better visibility
+            child: TabBarView(
+              controller: _foodTabController,
+              children: [
+                _IngredientSelector(
+                  ingredientes: _ingredientes,
+                  onAdd: (ing, grams) {
+                    _addOption(
+                      OpcionDieta(
+                        tipo: 'ingrediente',
+                        ingredienteId: ing.id,
+                        nombre: ing.nombre,
+                        gramos: grams,
+                      ),
+                    );
+                  },
+                ),
+                _RecipeSelector(
+                  recetas: _recetas,
+                  onAdd: (rec) {
+                    _addOption(
+                      OpcionDieta(
+                        tipo: 'receta',
+                        recetaId: rec.id,
+                        nombre: rec.nombre,
+                      ),
+                    );
+                  },
+                ),
+                _CombinationSelector(
+                  ingredientes: _ingredientes,
+                  currentItems: _currentComboItems,
+                  comboNameCtrl: _comboNameCtrl,
+                  onAddItem: (item) {
+                    setState(() {
+                      _currentComboItems.add(item);
+                    });
+                  },
+                  onRemoveItem: (index) {
+                    setState(() {
+                      _currentComboItems.removeAt(index);
+                    });
+                  },
+                  onSave: () {
+                    if (_currentComboItems.isEmpty) return;
+                    final name = _comboNameCtrl.text.isNotEmpty
+                        ? _comboNameCtrl.text
+                        : _currentComboItems.map((e) => e.nombre).join(' + ');
+                    _addOption(
+                      OpcionDieta(
+                        tipo: 'combinacion',
+                        nombre: name,
+                        items: List.from(_currentComboItems),
+                      ),
+                    );
+                    setState(() {
+                      _currentComboItems.clear();
+                      _comboNameCtrl.clear();
+                    });
+                  },
+                ),
               ],
             ),
-            SizedBox(
-              height: 380, // Increased height for better visibility
-              child: TabBarView(
-                children: [
-                  _IngredientSelector(
-                    ingredientes: _ingredientes,
-                    onAdd: (ing, grams) {
-                      _addOption(
-                        OpcionDieta(
-                          tipo: 'ingrediente',
-                          ingredienteId: ing.id,
-                          nombre: ing.nombre,
-                          gramos: grams,
-                        ),
-                      );
-                    },
-                  ),
-                  _RecipeSelector(
-                    recetas: _recetas,
-                    onAdd: (rec) {
-                      _addOption(
-                        OpcionDieta(
-                          tipo: 'receta',
-                          recetaId: rec.id,
-                          nombre: rec.nombre,
-                        ),
-                      );
-                    },
-                  ),
-                  _CombinationSelector(
-                    ingredientes: _ingredientes,
-                    currentItems: _currentComboItems,
-                    comboNameCtrl: _comboNameCtrl,
-                    onAddItem: (item) {
-                      setState(() {
-                        _currentComboItems.add(item);
-                      });
-                    },
-                    onRemoveItem: (index) {
-                      setState(() {
-                        _currentComboItems.removeAt(index);
-                      });
-                    },
-                    onSave: () {
-                      if (_currentComboItems.isEmpty) return;
-                      final name = _comboNameCtrl.text.isNotEmpty
-                          ? _comboNameCtrl.text
-                          : _currentComboItems.map((e) => e.nombre).join(' + ');
-                      _addOption(
-                        OpcionDieta(
-                          tipo: 'combinacion',
-                          nombre: name,
-                          items: List.from(_currentComboItems),
-                        ),
-                      );
-                      setState(() {
-                        _currentComboItems.clear();
-                        _comboNameCtrl.clear();
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -787,13 +915,28 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
                         ? '${op.gramos!.round()} g'
                         : (op.tipo == 'receta' ? 'Receta completa' : 'Combo'),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.redAccent,
-                      size: 20,
-                    ),
-                    onPressed: () => _removeOption(idx),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (op.tipo !=
+                          'receta') // Recipes are usually fixed, or handled differently
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_outlined,
+                            size: 20,
+                            color: Colors.blueAccent,
+                          ),
+                          onPressed: () => _showEditOptionDialog(idx),
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                        onPressed: () => _removeOption(idx),
+                      ),
+                    ],
                   ),
                 ),
               );

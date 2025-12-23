@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/ejercicio_model.dart';
 import '../../models/entrenamiento_model.dart';
+import '../../utils/isolate_utils.dart';
 
 class CreateTrainingScreen extends StatefulWidget {
   final String? clienteId;
@@ -50,17 +51,8 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
         params: {'t': DateTime.now().millisecondsSinceEpoch.toString()},
       );
       if (res.statusCode == 200) {
-        final dynamic decoded = jsonDecode(res.body);
-        List list = [];
-        if (decoded is List)
-          list = decoded;
-        else if (decoded is Map<String, dynamic>) {
-          if (decoded.containsKey('items'))
-            list = decoded['items'];
-          else if (decoded.containsKey('ejercicios'))
-            list = decoded['ejercicios'];
-        }
-        _allEjercicios = list.map((e) => Ejercicio.fromJson(e)).toList();
+        final ejercicios = await parseEjerciciosInIsolate(res.body);
+        _allEjercicios = ejercicios;
       }
     } catch (e) {
       // Silent fail on init, showing later? Or SnackBar

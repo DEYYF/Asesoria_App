@@ -4,6 +4,7 @@ class Progreso {
   final DateTime fecha;
   final double? peso;
   final double? grasaCorporal;
+  final double? masaMusculoEsqueletica;
   final List<MedidaMusculo>? musculo;
 
   Progreso({
@@ -12,6 +13,7 @@ class Progreso {
     required this.fecha,
     this.peso,
     this.grasaCorporal,
+    this.masaMusculoEsqueletica,
     this.musculo,
   });
 
@@ -25,6 +27,9 @@ class Progreso {
       peso: json['peso'] != null ? (json['peso'] as num).toDouble() : null,
       grasaCorporal: json['grasaCorporal'] != null
           ? (json['grasaCorporal'] as num).toDouble()
+          : null,
+      masaMusculoEsqueletica: json['MasaMusculoEsqueletica'] != null
+          ? (json['MasaMusculoEsqueletica'] as num).toDouble()
           : null,
       musculo: json['musculo'] != null
           ? (json['musculo'] as List)

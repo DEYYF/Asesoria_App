@@ -11,13 +11,14 @@ import 'screens/login_screen.dart';
 // import 'screens/home_screen.dart';
 import 'screens/client_dashboard_screen.dart';
 import 'screens/client_profile_screen.dart';
-import 'screens/client_home_screen.dart';
 import 'screens/diet/create_diet_screen.dart';
 import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
-import 'screens/ejercicios_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/exercises/ejercicios_screen.dart';
+import 'screens/meals/comidas_screen.dart';
+import 'screens/settings/settings_screen.dart';
+import 'widgets/scaffold_with_navbar.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -111,43 +112,74 @@ class MyApp extends StatelessWidget {
             return FirstLoginScreen(email: email);
           },
         ),
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const ClientDashboardScreen(),
-        ),
-        // Client profile route - redirects to shell for admins, shows profile for clients
-        GoRoute(
-          path: '/clientes/:id',
-          builder: (context, state) {
-            final auth = Provider.of<AuthService>(context, listen: false);
-            final clienteId = state.pathParameters['id']!;
-
-            // For clients, show profile without bottom nav
-            if (auth.isClient) {
-              return ClientProfileScreen(clienteId: clienteId);
-            }
-
-            // For admins, use the shell route with bottom nav
-            return ClientHomeScreen(clienteId: clienteId);
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) {
+            return ScaffoldWithNavbar(navigationShell: navigationShell);
           },
-          routes: [
-            GoRoute(
-              path: 'crear-dieta',
-              builder: (context, state) =>
-                  CreateDietScreen(clienteId: state.pathParameters['id']!),
+          branches: [
+            // Branch 0: Dashboard/Clients
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/',
+                  builder: (context, state) => const ClientDashboardScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'clientes/:id',
+                      builder: (context, state) {
+                        return ClientProfileScreen(
+                          clienteId: state.pathParameters['id']!,
+                        );
+                      },
+                      routes: [
+                        GoRoute(
+                          path: 'crear-dieta',
+                          builder: (context, state) => CreateDietScreen(
+                            clienteId: state.pathParameters['id']!,
+                          ),
+                        ),
+                        GoRoute(
+                          path: 'crear-entrenamiento',
+                          builder: (context, state) => CreateTrainingScreen(
+                            clienteId: state.pathParameters['id']!,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
-            GoRoute(
-              path: 'crear-entrenamiento',
-              builder: (context, state) =>
-                  CreateTrainingScreen(clienteId: state.pathParameters['id']!),
+            // Branch 1: Exercises
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/ejercicios',
+                  builder: (context, state) => const EjerciciosScreen(),
+                ),
+              ],
+            ),
+            // Branch 2: Comidas
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/comidas',
+                  builder: (context, state) => const ComidasScreen(),
+                ),
+              ],
+            ),
+            // Branch 3: Settings
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/settings',
+                  builder: (context, state) => const SettingsScreen(),
+                ),
+              ],
             ),
           ],
         ),
-        GoRoute(
-          path: '/ejercicios',
-          builder: (context, state) => const EjerciciosScreen(),
-        ),
-        // Other routes
+        // Routes without bottom bar (or details)
         GoRoute(
           path: '/entrenamientos/:id',
           builder: (context, state) => TrainingDetailScreen(
@@ -165,10 +197,6 @@ class MyApp extends StatelessWidget {
             entrenamientoId: state.pathParameters['id'],
             clienteId: null, // Context will load via API
           ),
-        ),
-        GoRoute(
-          path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
         ),
       ],
     );

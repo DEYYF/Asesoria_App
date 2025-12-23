@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'client_profile_screen.dart';
-import 'ejercicios_screen.dart';
+import 'exercises/ejercicios_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   final String clienteId;

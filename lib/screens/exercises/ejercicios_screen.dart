@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/api_service.dart';
-import '../models/ejercicio_model.dart';
-import '../utils/isolate_utils.dart';
+import '../../services/api_service.dart';
+import '../../models/ejercicio_model.dart';
+import '../../utils/isolate_utils.dart';
 import 'ejercicio_detail_screen.dart';
+import '../../widgets/dialogs/add_edit_ejercicio_dialog.dart';
 
 class EjerciciosScreen extends StatefulWidget {
   const EjerciciosScreen({super.key});
@@ -144,6 +145,61 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
       _selectedNivel = null;
       _filteredEjercicios = _ejercicios;
     });
+  }
+
+  Future<void> _deleteEjercicio(Ejercicio ejercicio) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Ejercicio'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar "${ejercicio.nombre}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        await api.delete('/ejercicios/${ejercicio.id}');
+        _loadEjercicios(); // Refresh list
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ejercicio eliminado correctamente')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+        }
+      }
+    }
+  }
+
+  void _showAddEditDialog([Ejercicio? ejercicio]) {
+    showDialog(
+      context: context,
+      builder: (context) => AddEditEjercicioDialog(
+        ejercicio: ejercicio,
+        onSuccess: _loadEjercicios,
+      ),
+    );
   }
 
   @override
@@ -444,14 +500,55 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                                       ),
                                   ],
                                 ),
-                                trailing: ejercicio.urlVideo != null
-                                    ? Icon(
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (ejercicio.urlVideo != null &&
+                                        ejercicio.urlVideo!.isNotEmpty)
+                                      Icon(
                                         Icons.play_circle_outline,
                                         color: theme.primaryColor,
-                                      )
-                                    : null,
-                                onTap: () {
-                                  Navigator.push(
+                                      ),
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert),
+                                      onSelected: (val) {
+                                        if (val == 'edit') {
+                                          _showAddEditDialog(ejercicio);
+                                        } else if (val == 'delete') {
+                                          _deleteEjercicio(ejercicio);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: ListTile(
+                                            leading: Icon(Icons.edit),
+                                            title: Text('Editar'),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: ListTile(
+                                            leading: Icon(
+                                              Icons.delete,
+                                              color: Colors.red,
+                                            ),
+                                            title: Text(
+                                              'Eliminar',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                onTap: () async {
+                                  final refresh = await Navigator.push<bool>(
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) =>
@@ -460,6 +557,9 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                                           ),
                                     ),
                                   );
+                                  if (refresh == true) {
+                                    _loadEjercicios();
+                                  }
                                 },
                               ),
                             );
@@ -468,6 +568,11 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                 ),
               ],
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddEditDialog(),
+        backgroundColor: theme.primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 }

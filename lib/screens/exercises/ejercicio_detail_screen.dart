@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
-import '../models/ejercicio_model.dart';
+import '../../models/ejercicio_model.dart';
+import '../../services/api_service.dart';
+import '../../widgets/dialogs/add_edit_ejercicio_dialog.dart';
 
 class EjercicioDetailScreen extends StatefulWidget {
   final Ejercicio ejercicio;
@@ -12,18 +15,22 @@ class EjercicioDetailScreen extends StatefulWidget {
 }
 
 class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
+  late Ejercicio _ejercicio;
   YoutubePlayerController? _youtubeController;
 
   @override
   void initState() {
     super.initState();
+    _ejercicio = widget.ejercicio;
     _initializeYoutubePlayer();
   }
 
   void _initializeYoutubePlayer() {
-    if (widget.ejercicio.urlVideo != null &&
-        widget.ejercicio.urlVideo!.isNotEmpty) {
-      final videoId = YoutubePlayer.convertUrlToId(widget.ejercicio.urlVideo!);
+    _youtubeController?.dispose();
+    _youtubeController = null;
+
+    if (_ejercicio.urlVideo != null && _ejercicio.urlVideo!.isNotEmpty) {
+      final videoId = YoutubePlayer.convertUrlToId(_ejercicio.urlVideo!);
       if (videoId != null) {
         _youtubeController = YoutubePlayerController(
           initialVideoId: videoId,
@@ -31,6 +38,77 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _deleteEjercicio() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Ejercicio'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar "${_ejercicio.nombre}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(
+              'Eliminar',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        await api.delete('/ejercicios/${_ejercicio.id}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ejercicio eliminado correctamente')),
+          );
+          Navigator.pop(context, true); // Pop with true to indicate deletion
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+        }
+      }
+    }
+  }
+
+  void _editEjercicio() {
+    showDialog(
+      context: context,
+      builder: (context) => AddEditEjercicioDialog(
+        ejercicio: _ejercicio,
+        onSuccess: () async {
+          // Re-fetch exercise details or simply update state if dialog returns updated object
+          // For now, let's re-fetch from API to be sure
+          final api = Provider.of<ApiService>(context, listen: false);
+          try {
+            final res = await api.get('/ejercicios/${_ejercicio.id}');
+            if (res.statusCode == 200) {
+              final data = await api.parseJsonResponse(res);
+              setState(() {
+                _ejercicio = Ejercicio.fromJson(data);
+                _initializeYoutubePlayer();
+              });
+            }
+          } catch (e) {
+            debugPrint('Error updating detail view: $e');
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -42,10 +120,23 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.ejercicio.nombre)),
+      appBar: AppBar(
+        title: Text(_ejercicio.nombre),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _editEjercicio,
+            tooltip: 'Editar',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _deleteEjercicio,
+            tooltip: 'Eliminar',
+          ),
+        ],
+      ),
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Column(
@@ -75,7 +166,7 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          widget.ejercicio.nombre,
+                          _ejercicio.nombre,
                           style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -88,9 +179,9 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      if (widget.ejercicio.grupo != null)
+                      if (_ejercicio.grupo != null)
                         Chip(
-                          label: Text(widget.ejercicio.grupo!),
+                          label: Text(_ejercicio.grupo!),
                           backgroundColor: theme.colorScheme.primaryContainer
                               .withOpacity(0.5),
                           labelStyle: TextStyle(
@@ -98,9 +189,9 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                           ),
                           side: BorderSide.none,
                         ),
-                      if (widget.ejercicio.equipo != null)
+                      if (_ejercicio.equipo != null)
                         Chip(
-                          label: Text(widget.ejercicio.equipo!),
+                          label: Text(_ejercicio.equipo!),
                           backgroundColor: theme.colorScheme.secondaryContainer
                               .withOpacity(0.5),
                           labelStyle: TextStyle(
@@ -108,9 +199,9 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                           ),
                           side: BorderSide.none,
                         ),
-                      if (widget.ejercicio.nivel != null)
+                      if (_ejercicio.nivel != null)
                         Chip(
-                          label: Text(widget.ejercicio.nivel!),
+                          label: Text(_ejercicio.nivel!),
                           backgroundColor: theme.colorScheme.tertiaryContainer
                               .withOpacity(0.5),
                           labelStyle: TextStyle(
@@ -161,7 +252,7 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      widget.ejercicio.instrucciones ?? '—',
+                      _ejercicio.instrucciones ?? '—',
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
@@ -196,19 +287,19 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
                         _buildDetailRow(
                           context,
                           'Grupo muscular',
-                          widget.ejercicio.grupo ?? '—',
+                          _ejercicio.grupo ?? '—',
                         ),
                         Divider(height: 24, color: theme.dividerColor),
                         _buildDetailRow(
                           context,
                           'Equipo necesario',
-                          widget.ejercicio.equipo ?? '—',
+                          _ejercicio.equipo ?? '—',
                         ),
                         Divider(height: 24, color: theme.dividerColor),
                         _buildDetailRow(
                           context,
                           'Nivel',
-                          widget.ejercicio.nivel ?? '—',
+                          _ejercicio.nivel ?? '—',
                         ),
                       ],
                     ),

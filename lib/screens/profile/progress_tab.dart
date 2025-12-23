@@ -6,12 +6,14 @@ import '../../models/exercise_history_model.dart';
 import '../../widgets/charts/weight_chart.dart';
 import '../../widgets/charts/body_fat_chart.dart';
 import '../../widgets/charts/muscle_chart.dart';
+import '../../widgets/charts/muscle_mass_chart.dart';
 import '../../widgets/heatmap_panel.dart';
 import '../../services/api_service.dart';
 import '../../utils/isolate_utils.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/muscle_mass_bar.dart';
 
 class ProgressTab extends StatefulWidget {
   final Cliente cliente;
@@ -269,6 +271,7 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildCorporalView() {
+    final theme = Theme.of(context);
     final List<Progreso> historial = widget.cliente.historialProgreso != null
         ? widget.cliente.historialProgreso!
               .map((json) => Progreso.fromJson(json))
@@ -282,6 +285,76 @@ class _ProgressTabState extends State<ProgressTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Summary Cards for Corporal
+        if (historial.isNotEmpty) ...[
+          // Metric Summary Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  'PESO',
+                  '${historial.last.peso ?? '-'} kg',
+                  Icons.fitness_center_rounded,
+                  theme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSummaryCard(
+                  'GRASA',
+                  '${historial.last.grasaCorporal ?? '-'} %',
+                  Icons.water_drop_rounded,
+                  Colors.pink,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildSummaryCard(
+                  'MÚSCULO',
+                  '${historial.last.masaMusculoEsqueletica ?? '-'} kg',
+                  Icons.monitor_weight_outlined,
+                  Colors.teal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Trend Cards Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildTrendCard('PESO', historial, (p) => p.peso, 'kg'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildTrendCard(
+                  'GRASA',
+                  historial,
+                  (p) => p.grasaCorporal,
+                  '%',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildTrendCard(
+                  'MÚSCULO',
+                  historial,
+                  (p) => p.masaMusculoEsqueletica,
+                  'kg',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          MuscleMassBar(
+            weight: historial.last.peso ?? 0,
+            muscleMass: historial.last.masaMusculoEsqueletica ?? 0,
+            height: widget.cliente.altura,
+            gender: widget.cliente.sexo,
+          ),
+          const SizedBox(height: 24),
+        ],
+
         _sectionTitle('MAPA CORPORAL'),
         HeatmapPanel(historial: historial),
         const SizedBox(height: 24),
@@ -290,6 +363,8 @@ class _ProgressTabState extends State<ProgressTab> {
         WeightChart(historial: historial),
         const SizedBox(height: 16),
         BodyFatChart(historial: historial),
+        const SizedBox(height: 16),
+        MuscleMassChart(historial: historial),
         const SizedBox(height: 16),
         MuscleChart(historial: historial),
       ],
@@ -554,6 +629,121 @@ class _ProgressTabState extends State<ProgressTab> {
                 : theme.hintColor,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTrendCard(
+    String title,
+    List<Progreso> historial,
+    double? Function(Progreso) getValue,
+    String unit,
+  ) {
+    if (historial.length < 2) return const SizedBox.shrink();
+
+    final latest = historial.last;
+    final latestVal = getValue(latest);
+    if (latestVal == null) return const SizedBox.shrink();
+
+    // Find the immediate previous entry with this specific data point
+    Progreso? previous;
+    for (var i = historial.length - 2; i >= 0; i--) {
+      if (getValue(historial[i]) != null) {
+        previous = historial[i];
+        break;
+      }
+    }
+
+    if (previous == null) {
+      return const SizedBox.shrink();
+    }
+
+    final prevVal = getValue(previous)!;
+    final diff = latestVal - prevVal;
+    final theme = Theme.of(context);
+
+    Color color;
+    IconData icon;
+    String label;
+
+    // User requested: Subida = Verde/Up, Bajada = Roja/Down
+    if (diff > 0.01) {
+      color = Colors.green;
+      icon = Icons.arrow_upward_rounded;
+      label = "SUBE";
+    } else if (diff < -0.01) {
+      color = Colors.red;
+      icon = Icons.arrow_downward_rounded;
+      label = "BAJA";
+    } else {
+      color = Colors.blue;
+      icon = Icons.horizontal_rule_rounded;
+      label = "IGUAL";
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: theme.hintColor,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  "${diff > 0 ? '+' : ''}${diff.toStringAsFixed(1)}$unit",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: theme.textTheme.titleLarge?.color,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: color.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

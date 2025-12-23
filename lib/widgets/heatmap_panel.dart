@@ -8,51 +8,71 @@ const bodyPaths = {
     'Traps': "M103,18 L115,22 L110,35 L90,35 L85,22 L97,18 Z",
     'Pectorals':
         "M75,45 Q100,55 125,45 Q135,60 125,80 Q100,85 75,80 Q65,60 75,45 Z",
-    'Deltoids': "M60,40 Q50,55 55,70 L70,60 Z M140,40 Q150,55 145,70 L130,60 Z",
-    'Biceps': "M55,70 Q50,90 55,100 L68,90 Z M145,70 Q150,90 145,100 L132,90 Z",
-    'Forearms':
-        "M50,100 Q45,125 50,135 L62,125 Z M150,100 Q155,125 150,135 L138,125 Z",
+    'DeltoidsLeft': "M60,40 Q50,55 55,70 L70,60 Z",
+    'DeltoidsRight': "M140,40 Q150,55 145,70 L130,60 Z",
+    'BicepsLeft': "M55,70 Q50,90 55,100 L68,90 Z",
+    'BicepsRight': "M145,70 Q150,90 145,100 L132,90 Z",
+    'ForearmsLeft': "M50,100 Q45,125 50,135 L62,125 Z",
+    'ForearmsRight': "M150,100 Q155,125 150,135 L138,125 Z",
     'Abs': "M85,80 L115,80 L112,115 L88,115 Z",
-    'Obliques':
-        "M85,80 L72,100 L80,120 L88,115 Z M115,80 L128,100 L120,120 L112,115 Z",
-    'Quads':
-        "M80,120 Q70,170 80,210 L95,200 L90,125 Z M120,120 Q130,170 120,210 L105,200 L110,125 Z",
-    'Calves':
-        "M80,210 Q75,235 80,255 L90,245 Z M120,210 Q125,235 120,255 L110,245 Z",
+    'ObliquesLeft': "M85,80 L72,100 L80,120 L88,115 Z",
+    'ObliquesRight': "M115,80 L128,100 L120,120 L112,115 Z",
+    'QuadsLeft': "M80,120 Q70,170 80,210 L95,200 L90,125 Z",
+    'QuadsRight': "M120,120 Q130,170 120,210 L105,200 L110,125 Z",
+    'CalvesLeft': "M80,210 Q75,235 80,255 L90,245 Z",
+    'CalvesRight': "M120,210 Q125,235 120,255 L110,245 Z",
   },
   'back': {
     'Traps': "M85,20 L115,20 L110,40 L90,40 Z",
     'Lats': "M80,40 L65,70 L85,90 L115,90 L135,70 L120,40 L110,40 L90,40 Z",
     'LowerBack': "M90,90 L110,90 L105,110 L95,110 Z",
     'Glutes': "M80,110 L120,110 Q130,135 120,150 L80,150 Q70,135 80,110 Z",
-    'Hamstrings':
-        "M80,150 Q75,185 80,210 L95,205 L90,150 Z M120,150 Q125,185 120,210 L105,205 L110,150 Z",
-    'Calves':
-        "M80,210 Q75,235 80,255 L90,245 Z M120,210 Q125,235 120,255 L110,245 Z",
-    'Triceps': "M60,55 Q55,75 60,85 L70,75 Z M140,55 Q145,75 140,85 L130,75 Z",
-    'RearDelts': "M60,40 L70,55 L60,55 Z M140,40 L130,55 L140,55 Z",
+    'HamstringsLeft': "M80,150 Q75,185 80,210 L95,205 L90,150 Z",
+    'HamstringsRight': "M120,150 Q125,185 120,210 L105,205 L110,150 Z",
+    'CalvesLeft': "M80,210 Q75,235 80,255 L90,245 Z",
+    'CalvesRight': "M120,210 Q125,235 120,255 L110,245 Z",
+    'TricepsLeft': "M60,55 Q55,75 60,85 L70,75 Z",
+    'TricepsRight': "M140,55 Q145,75 140,85 L130,75 Z",
+    'RearDeltsLeft': "M60,40 L70,55 L60,55 Z",
+    'RearDeltsRight': "M140,40 L130,55 L140,55 Z",
   },
 };
 
 const groupMapping = {
   "Pecho": ["front.Pectorals"],
-  "Espalda": ["back.Lats", "back.LowerBack", "back.RearDelts"],
+  "Espalda": [
+    "back.Lats",
+    "back.LowerBack",
+    "back.RearDeltsLeft",
+    "back.RearDeltsRight",
+  ],
   "Trapecio": ["back.Traps", "front.Traps"],
-  "Hombro": ["front.Deltoids", "back.RearDelts"],
-  "Brazo": ["front.Biceps", "back.Triceps"],
-  "Antebrazo": ["front.Forearms"],
+  "Hombro derecho": ["front.DeltoidsRight", "back.RearDeltsRight"],
+  "Hombro izquierdo": ["front.DeltoidsLeft", "back.RearDeltsLeft"],
+  "Brazo derecho": ["front.BicepsRight", "back.TricepsRight"],
+  "Brazo izquierdo": ["front.BicepsLeft", "back.TricepsLeft"],
+  "Antebrazo derecho": ["front.ForearmsRight"],
+  "Antebrazo izquierdo": ["front.ForearmsLeft"],
   "Glúteo": ["back.Glutes"],
-  "Cuádriceps": ["front.Quads"],
-  "Femoral": ["back.Hamstrings"],
-  "Pierna": [
-    "front.Quads",
-    "back.Hamstrings",
-    "front.Calves",
-    "back.Calves",
+  "Cuádriceps": ["front.QuadsLeft", "front.QuadsRight"],
+  "Femoral": ["back.HamstringsLeft", "back.HamstringsRight"],
+  "Pierna derecha": [
+    "front.QuadsRight",
+    "back.HamstringsRight",
+    "front.CalvesRight",
+    "back.CalvesRight",
+    "back.Glutes", // Glutes is shared but we'll map it to both if needed, here just mapped
+  ],
+  "Pierna izquierda": [
+    "front.QuadsLeft",
+    "back.HamstringsLeft",
+    "front.CalvesLeft",
+    "back.CalvesLeft",
     "back.Glutes",
   ],
-  "Gemelo": ["back.Calves", "front.Calves"],
-  "CINTURA ANCHA": ["front.Obliques"],
+  "Gemelo derecho": ["back.CalvesRight", "front.CalvesRight"],
+  "Gemelo izquierdo": ["back.CalvesLeft", "front.CalvesLeft"],
+  "CINTURA ANCHA": ["front.ObliquesLeft", "front.ObliquesRight"],
   "CINTURA ESTRECHA": ["front.Abs"],
 };
 
@@ -300,6 +320,9 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
   Widget _buildDataTable(Progreso p) {
     final weightStr = p.peso != null ? '${p.peso} kg' : '-';
     final fatStr = p.grasaCorporal != null ? '${p.grasaCorporal}%' : '-';
+    final muscleMassStr = p.masaMusculoEsqueletica != null
+        ? '${p.masaMusculoEsqueletica} kg'
+        : '-';
 
     return Column(
       children: [
@@ -308,6 +331,18 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
             Expanded(child: _dataItem("Peso", weightStr, Icons.fitness_center)),
             const SizedBox(width: 12),
             Expanded(child: _dataItem("Grasa", fatStr, Icons.water_drop)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _dataItem(
+                "Masa Músculo-Esquelética",
+                muscleMassStr,
+                Icons.monitor_weight_outlined,
+              ),
+            ),
           ],
         ),
         if (p.musculo != null && p.musculo!.isNotEmpty) ...[
