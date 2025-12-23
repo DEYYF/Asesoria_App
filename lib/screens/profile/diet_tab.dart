@@ -164,13 +164,6 @@ class _DietTabState extends State<DietTab> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Card(
-      clipBehavior: Clip.antiAlias,
-      color: theme.colorScheme.surface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor),
-      ),
       child: InkWell(
         onTap: () {
           if (dieta.id != null) {
@@ -184,7 +177,7 @@ class _DietTabState extends State<DietTab> {
         },
         child: Column(
           children: [
-            Container(height: 6, color: Colors.orange.shade300),
+            Container(height: 6, color: theme.primaryColor.withOpacity(0.8)),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -204,45 +197,19 @@ class _DietTabState extends State<DietTab> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          Chip(
-                            label: Text(
-                              '${dieta.macros.kcal.toInt()} kcal',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            backgroundColor: isDark
-                                ? theme.scaffoldBackgroundColor
-                                : null,
-                            avatar: const Icon(
-                              Icons.local_fire_department,
-                              size: 14,
-                              color: Colors.orange,
-                            ),
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            side: BorderSide.none,
+                          _CompactChip(
+                            label: '${dieta.macros.kcal.toInt()} kcal',
+                            icon: Icons.local_fire_department,
+                            iconColor: Colors.orange,
                           ),
-                          const SizedBox(width: 4),
-                          if (dieta.objetivo != null)
-                            Chip(
-                              label: Text(
-                                dieta.objetivo!,
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              avatar: Icon(
-                                Icons.flag,
-                                size: 14,
-                                color: theme.iconTheme.color,
-                              ),
-                              backgroundColor: isDark
-                                  ? theme.scaffoldBackgroundColor
-                                  : null,
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                              side: BorderSide.none,
+                          if (dieta.objetivo != null) ...[
+                            const SizedBox(width: 8),
+                            _CompactChip(
+                              label: dieta.objetivo!,
+                              icon: Icons.flag_rounded,
+                              iconColor: theme.primaryColor,
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -252,6 +219,45 @@ class _DietTabState extends State<DietTab> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CompactChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+
+  const _CompactChip({
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: iconColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+            ),
+          ),
+        ],
       ),
     );
   }

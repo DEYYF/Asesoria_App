@@ -47,10 +47,10 @@ dependencies:
   printing: ^5.14.2
   downloadsfolder: ^1.2.0
   youtube_player_flutter: ^9.0.3
-  animated_notch_bottom_bar: ^1.0.0
   image_picker: ^1.2.1
   mobile_scanner: ^7.1.4
   google_mlkit_text_recognition: ^0.15.0
+  sidebarx: ^0.17.2
 
 dev_dependencies:
   flutter_test:

@@ -15,6 +15,7 @@ import 'screens/diet/create_diet_screen.dart';
 import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
+import 'screens/training/live_session_screen.dart';
 import 'screens/exercises/ejercicios_screen.dart';
 import 'screens/meals/comidas_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -179,7 +180,11 @@ class MyApp extends StatelessWidget {
             ),
           ],
         ),
-        // Routes without bottom bar (or details)
+        GoRoute(
+          path: '/entrenamientos/sesion/:id',
+          builder: (context, state) =>
+              LiveSessionScreen(entrenamientoId: state.pathParameters['id']!),
+        ),
         GoRoute(
           path: '/entrenamientos/:id',
           builder: (context, state) => TrainingDetailScreen(

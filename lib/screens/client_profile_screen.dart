@@ -250,6 +250,38 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
   }
 
+  Future<void> _navigateToLiveSession() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get('/entrenamientos/cliente/${widget.clienteId}');
+      if (res.statusCode == 200) {
+        final List<dynamic> trainings = jsonDecode(res.body);
+        if (trainings.isNotEmpty) {
+          final activeTraining = trainings.first;
+          final entrenamientoId = activeTraining['_id'];
+          if (mounted) {
+            context.push('/entrenamientos/sesion/$entrenamientoId');
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No hay plan de entrenamiento activo'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error navigating to live session: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar el entrenamiento')),
+        );
+      }
+    }
+  }
+
   Future<void> _navigateToRegisterTraining() async {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
@@ -412,22 +444,33 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.shade200),
+                              color: isDark
+                                  ? Colors.orange.withOpacity(0.15)
+                                  : Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.orange.withOpacity(0.3)
+                                    : Colors.orange.shade200,
+                              ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.warning_amber,
-                                  color: Colors.orange.shade800,
+                                  Icons.warning_amber_rounded,
+                                  color: isDark
+                                      ? Colors.orangeAccent
+                                      : Colors.orange.shade800,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     'Presupuesto pendiente. Funciones restringidas.',
                                     style: TextStyle(
-                                      color: Colors.orange.shade900,
+                                      color: isDark
+                                          ? Colors.orangeAccent
+                                          : Colors.orange.shade900,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
@@ -486,10 +529,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                         },
                                         icon: Icons.arrow_back_rounded,
                                         label: 'Volver',
-                                        backgroundColor: isDark
-                                            ? theme.colorScheme.surface
-                                            : const Color(0xFFF2F2F7),
-                                        foregroundColor: theme.iconTheme.color!,
+                                        backgroundColor:
+                                            theme.colorScheme.surfaceVariant,
+                                        foregroundColor:
+                                            theme.textTheme.bodyMedium!.color!,
                                       );
                                     }
                                   },
@@ -500,10 +543,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                                     onPressed: _navigateToRegisterTraining,
                                     icon: Icons.fitness_center_rounded,
                                     label: 'Registrar',
-                                    backgroundColor: isDark
-                                        ? theme.primaryColor.withOpacity(0.2)
-                                        : const Color(0xFFE5F1FF),
+                                    backgroundColor: theme.primaryColor
+                                        .withOpacity(0.15),
                                     foregroundColor: theme.primaryColor,
+                                    isPrimary: true,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _AestheticHeaderButton(
+                                    onPressed: _navigateToLiveSession,
+                                    icon: Icons.play_arrow_rounded,
+                                    label: 'Comenzar entrenamiento',
+                                    backgroundColor: const Color(
+                                      0xFF34C759,
+                                    ).withOpacity(0.15),
+                                    foregroundColor: const Color(0xFF34C759),
                                     isPrimary: true,
                                   ),
                                 ],
@@ -518,16 +571,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                             children: [
                               _StatusChip(
                                 label:
-                                    'Inicio: ${_formatDate(_cliente!.fechaInicio)}',
+                                    'Vigencia: ${_formatDate(_cliente!.fechaInicio)} - ${_formatDateShort(_cliente!.fechaFin)}',
                               ),
                               const SizedBox(width: 8),
                               _StatusChip(
-                                label:
-                                    'Fin: ${_formatDate(_cliente!.fechaFin)}',
-                              ),
-                              const SizedBox(width: 8),
-                              const _StatusChip(
-                                label: '1 Mes',
+                                label: _getDuration(
+                                  _cliente!.fechaInicio,
+                                  _cliente!.fechaFin,
+                                ),
                                 isDuration: true,
                               ),
                             ],
@@ -541,17 +592,24 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   delegate: _SliverAppBarDelegate(
                     TabBar(
                       tabs: tabs,
-                      labelColor: isDark ? Colors.white : theme.primaryColor,
+                      labelColor: Colors.white,
                       unselectedLabelColor: theme.hintColor,
-                      indicatorColor: theme.primaryColor,
-                      indicatorWeight: 2,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: theme.primaryColor,
+                      ),
                       labelStyle: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
                       ),
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
-                      dividerColor: theme.dividerColor,
+                      dividerColor: Colors.transparent,
                     ),
                     theme.colorScheme.surface,
                     theme.dividerColor,
@@ -569,7 +627,31 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '-';
-    return '${date.day}/${date.month}/${date.year}';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
+
+  String _formatDateShort(DateTime? date) {
+    if (date == null) return '-';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final y = date.year.toString().substring(2);
+    return '$d/$m/$y';
+  }
+
+  String _getDuration(DateTime? start, DateTime? end) {
+    if (start == null || end == null) return _cliente?.tiempoTarifa ?? '1 Mes';
+    final days = end
+        .difference(start)
+        .inDays
+        .abs(); // Use abs to handle potential swap
+    if (days >= 360) return '12 Meses';
+    if (days >= 180) return '6 Meses';
+    if (days >= 90) return '3 Meses';
+    if (days >= 28) return '1 Mes';
+    if (days == 0) return '0 Días';
+    return '$days Días';
   }
 }
 
@@ -613,18 +695,16 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? theme.colorScheme.surface
-            : Colors.grey.shade100,
+        color: theme.colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: theme.textTheme.bodyMedium?.color,
+          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
         ),
       ),
     );

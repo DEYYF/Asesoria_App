@@ -188,7 +188,10 @@ class _AddEditIngredienteDialogState extends State<AddEditIngredienteDialog> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Guardar'),
         ),

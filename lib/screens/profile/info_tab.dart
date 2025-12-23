@@ -104,12 +104,12 @@ class _InfoTabState extends State<InfoTab> {
           _buildGroup([
             _appleRow(
               'Tarifa',
-              '${widget.cliente.tipoServicio} (${widget.cliente.tiempoTarifa ?? '1 Mes'})',
+              '${widget.cliente.tipoServicio?.toUpperCase() ?? ''} (${_getDuration(widget.cliente.fechaInicio, widget.cliente.fechaFin)})',
               valueColor: theme.primaryColor,
             ),
             _appleRow(
               'Vigencia',
-              '${_formatDate(widget.cliente.fechaInicio)} - ${_formatDate(widget.cliente.fechaFin)}',
+              '${_formatDate(widget.cliente.fechaInicio)} - ${_formatDateShort(widget.cliente.fechaFin)}',
             ),
           ]),
 
@@ -266,7 +266,29 @@ class _InfoTabState extends State<InfoTab> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '-';
-    return '${date.day}/${date.month}/${date.year}';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
+  }
+
+  String _formatDateShort(DateTime? date) {
+    if (date == null) return '-';
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final y = date.year.toString().substring(2);
+    return '$d/$m/$y';
+  }
+
+  String _getDuration(DateTime? start, DateTime? end) {
+    if (start == null || end == null)
+      return widget.cliente.tiempoTarifa ?? '1 Mes';
+    final days = end.difference(start).inDays.abs();
+    if (days >= 360) return '12 Meses';
+    if (days >= 180) return '6 Meses';
+    if (days >= 90) return '3 Meses';
+    if (days >= 28) return '1 Mes';
+    if (days == 0) return '0 Días';
+    return '$days Días';
   }
 
   Widget _sectionTitle(String title) {
@@ -289,9 +311,11 @@ class _InfoTabState extends State<InfoTab> {
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        color: theme.cardTheme.color,
+        borderRadius: theme.cardTheme.shape is RoundedRectangleBorder
+            ? (theme.cardTheme.shape as RoundedRectangleBorder).borderRadius
+            : BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),
       child: Column(
         children: children.asMap().entries.map((entry) {
@@ -349,9 +373,9 @@ class _InfoTabState extends State<InfoTab> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),
       child: Column(
         children: [
@@ -361,31 +385,42 @@ class _InfoTabState extends State<InfoTab> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Entrenamientos',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.titleLarge?.color,
+                    ),
                   ),
                   Text(
                     'Sesiones realizadas este mes',
-                    style: TextStyle(fontSize: 12, color: theme.hintColor),
+                    style: TextStyle(fontSize: 13, color: theme.hintColor),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 18,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: theme.primaryColor,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Text(
                   '${widget.cliente.sesionesCounter ?? 0}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: theme.primaryColor,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -438,7 +473,7 @@ class _ObjectiveChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
+        color: theme.colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),
