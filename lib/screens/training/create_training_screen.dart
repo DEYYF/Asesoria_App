@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
+import 'dart:async';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/ejercicio_model.dart';
@@ -228,10 +229,21 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    if (_isLoading)
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          title: const Text(
+            'Cargando...',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: theme.scaffoldBackgroundColor,
+          elevation: 0,
+        ),
+        body: _buildSkeletonUI(theme),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -261,73 +273,116 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Header Card
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    TextFormField(
-                      controller: _tituloController,
-                      decoration: const InputDecoration(
-                        labelText: 'Título del Plan',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.title),
+                    // Header Card
+                    Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _objetivoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Objetivo Principal',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.flag),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _tituloController,
+                              decoration: const InputDecoration(
+                                labelText: 'Título del Plan',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.title),
+                              ),
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? 'Requerido' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _objetivoController,
+                              decoration: const InputDecoration(
+                                labelText: 'Objetivo Principal',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.flag),
+                              ),
+                              maxLines: 2,
+                            ),
+                          ],
+                        ),
                       ),
-                      maxLines: 2,
                     ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Weeks
-            ..._semanas.asMap().entries.map(
-              (entry) => _buildSemanaCard(entry.key, entry.value),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return _buildSemanaCard(index, _semanas[index]);
+                }, childCount: _semanas.length),
+              ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Add Week Button
-            Center(
-              child: OutlinedButton.icon(
-                onPressed: _addSemana,
-                icon: const Icon(Icons.add),
-                label: const Text('Añadir Semana'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 24),
+                    Center(
+                      child: OutlinedButton.icon(
+                        onPressed: _addSemana,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Añadir Semana'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 48),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSkeletonUI(ThemeData theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          height: 150,
+          decoration: BoxDecoration(
+            color: theme.cardColor.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        const SizedBox(height: 24),
+        ...List.generate(3, (index) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            height: 200,
+            decoration: BoxDecoration(
+              color: theme.cardColor.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -577,10 +632,9 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     ItemEntrenamiento item,
   ) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      color: theme.cardColor, // Required for dragging visuals
+      color: theme.cardColor,
       child: Column(
         children: [
           ListTile(
@@ -606,39 +660,41 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
               },
             ),
           ),
-          // Schema Inputs Row
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-                _miniInput(
-                  'Series',
-                  item.esquema?.series,
-                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'series', v),
+                _OptimizedMiniInput(
+                  label: 'Series',
+                  val: item.esquema?.series,
+                  onChange: (v) => _updateSchema(wIdx, dIdx, iIdx, 'series', v),
                 ),
                 const SizedBox(width: 8),
-                _miniInput(
-                  'Reps',
-                  item.esquema?.repsMin,
-                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'repsMin', v),
-                ), // Simplify to just repsMin/target for now? Or Range
+                _OptimizedMiniInput(
+                  label: 'Reps',
+                  val: item.esquema?.repsMin,
+                  onChange: (v) =>
+                      _updateSchema(wIdx, dIdx, iIdx, 'repsMin', v),
+                ),
                 const Text(' - ', style: TextStyle(color: Colors.grey)),
-                _miniInput(
-                  'Max',
-                  item.esquema?.repsMax,
-                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'repsMax', v),
+                _OptimizedMiniInput(
+                  label: 'Max',
+                  val: item.esquema?.repsMax,
+                  onChange: (v) =>
+                      _updateSchema(wIdx, dIdx, iIdx, 'repsMax', v),
                 ),
                 const SizedBox(width: 8),
-                _miniInput(
-                  'RIR',
-                  item.esquema?.rir,
-                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'rir', v),
+                _OptimizedMiniInput(
+                  label: 'RIR',
+                  val: item.esquema?.rir,
+                  onChange: (v) => _updateSchema(wIdx, dIdx, iIdx, 'rir', v),
                 ),
                 const SizedBox(width: 8),
-                _miniInput(
-                  'Desc (s)',
-                  item.esquema?.descanso,
-                  (v) => _updateSchema(wIdx, dIdx, iIdx, 'descanso', v),
+                _OptimizedMiniInput(
+                  label: 'Desc (s)',
+                  val: item.esquema?.descanso,
+                  onChange: (v) =>
+                      _updateSchema(wIdx, dIdx, iIdx, 'descanso', v),
                   flex: 2,
                 ),
               ],
@@ -650,48 +706,50 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     );
   }
 
-  Widget _miniInput(
-    String label,
-    num? val,
-    Function(String) onChange, {
-    int flex = 1,
-  }) {
-    final theme = Theme.of(context);
-    return Expanded(
-      flex: flex,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 10, color: theme.hintColor)),
-          SizedBox(
-            height: 32,
-            child: TextFormField(
-              initialValue: val?.toString() ?? '',
-              keyboardType: TextInputType.number,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.textTheme.bodyMedium?.color,
-              ),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 0,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-              ),
-              onChanged: onChange,
-            ),
-          ),
-        ],
-      ),
+  Timer? _debounceTimer;
+
+  void _updateSchema(int wIdx, int dIdx, int iIdx, String field, String val) {
+    // 1. Update the data immediately without setState for maximum speed
+    final item = _semanas[wIdx].dias[dIdx].items[iIdx];
+    final currentE = item.esquema ?? EsquemaSerie();
+
+    EsquemaSerie nextE;
+    switch (field) {
+      case 'series':
+        nextE = currentE.copyWith(series: int.tryParse(val) ?? currentE.series);
+        break;
+      case 'repsMin':
+        nextE = currentE.copyWith(repsMin: int.tryParse(val));
+        break;
+      case 'repsMax':
+        nextE = currentE.copyWith(repsMax: int.tryParse(val));
+        break;
+      case 'rir':
+        nextE = currentE.copyWith(rir: num.tryParse(val));
+        break;
+      case 'descanso':
+        nextE = currentE.copyWith(descanso: int.tryParse(val));
+        break;
+      default:
+        nextE = currentE;
+    }
+
+    // Direct object update
+    _semanas[wIdx].dias[dIdx].items[iIdx] = ItemEntrenamiento(
+      orden: item.orden,
+      ejercicio: item.ejercicio,
+      ejercicioId: item.ejercicioId,
+      ejercicioNombre: item.ejercicioNombre,
+      grupoId: item.grupoId,
+      esquema: nextE,
+      urlVideo: item.urlVideo,
     );
+
+    // 2. Debounce the setState to UI only when user stops typing
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() {});
+    });
   }
 
   // Logic to show dialog
@@ -724,36 +782,87 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
       ),
     );
   }
+}
 
-  void _updateSchema(int wIdx, int dIdx, int iIdx, String field, String val) {
-    setState(() {
-      final dia = _semanas[wIdx].dias[dIdx];
-      final item = dia.items[iIdx];
-      final old = item.esquema ?? EsquemaSerie();
-      num? n = num.tryParse(val);
+class _OptimizedMiniInput extends StatefulWidget {
+  final String label;
+  final num? val;
+  final Function(String) onChange;
+  final int flex;
 
-      dia.items[iIdx] = ItemEntrenamiento(
-        orden: item.orden,
-        ejercicio: item.ejercicio,
-        ejercicioId: item.ejercicioId,
-        ejercicioNombre: item.ejercicioNombre,
-        grupoId: item.grupoId,
-        esquema: EsquemaSerie(
-          series: field == 'series' ? (n?.toInt() ?? old.series) : old.series,
-          repsMin: field == 'repsMin'
-              ? (n?.toInt() ?? old.repsMin)
-              : old.repsMin,
-          repsMax: field == 'repsMax'
-              ? (n?.toInt() ?? old.repsMax)
-              : old.repsMax,
-          rir: field == 'rir' ? (n ?? old.rir) : old.rir,
-          descanso: field == 'descanso'
-              ? (n?.toInt() ?? old.descanso)
-              : old.descanso,
-          notas: old.notas,
-        ),
-      );
-    });
+  const _OptimizedMiniInput({
+    required this.label,
+    required this.val,
+    required this.onChange,
+    this.flex = 1,
+  });
+
+  @override
+  State<_OptimizedMiniInput> createState() => _OptimizedMiniInputState();
+}
+
+class _OptimizedMiniInputState extends State<_OptimizedMiniInput> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.val?.toString() ?? '');
+  }
+
+  @override
+  void didUpdateWidget(_OptimizedMiniInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.val?.toString() != oldWidget.val?.toString() &&
+        widget.val?.toString() != _controller.text) {
+      _controller.text = widget.val?.toString() ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Expanded(
+      flex: widget.flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.label,
+            style: TextStyle(fontSize: 10, color: theme.hintColor),
+          ),
+          SizedBox(
+            height: 32,
+            child: TextField(
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              style: TextStyle(
+                fontSize: 13,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: theme.dividerColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide(color: theme.dividerColor),
+                ),
+              ),
+              onChanged: widget.onChange,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -175,6 +175,24 @@ class EsquemaSerie {
     this.notas,
   });
 
+  EsquemaSerie copyWith({
+    int? series,
+    int? repsMin,
+    int? repsMax,
+    num? rir,
+    int? descanso,
+    String? notas,
+  }) {
+    return EsquemaSerie(
+      series: series ?? this.series,
+      repsMin: repsMin ?? this.repsMin,
+      repsMax: repsMax ?? this.repsMax,
+      rir: rir ?? this.rir,
+      descanso: descanso ?? this.descanso,
+      notas: notas ?? this.notas,
+    );
+  }
+
   factory EsquemaSerie.fromJson(Map<String, dynamic> json) {
     return EsquemaSerie(
       series: json['series'] != null
