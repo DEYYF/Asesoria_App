@@ -111,7 +111,7 @@ class _CalendarTabState extends State<CalendarTab> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      color: Colors.black, // Dark background as per photo
+      color: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -128,10 +128,6 @@ class _CalendarTabState extends State<CalendarTab> {
                   children: [
                     // 1. Header
                     _buildHeader(theme),
-                    const SizedBox(height: 30),
-
-                    // 2. Goals Section
-                    _buildGoalsSection(theme),
                     const SizedBox(height: 30),
 
                     // 3. Calendar Title "Hoy"
@@ -163,19 +159,19 @@ class _CalendarTabState extends State<CalendarTab> {
           children: [
             Text(
               'Hola ${widget.cliente.nombre.split(' ').first},',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: theme.textTheme.headlineMedium?.color,
                 letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Tus metas',
+              'Tu agenda diaria',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.white.withOpacity(0.6),
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
               ),
             ),
           ],
@@ -194,94 +190,14 @@ class _CalendarTabState extends State<CalendarTab> {
     );
   }
 
-  Widget _buildGoalsSection(ThemeData theme) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildGoalCard(
-            Icons.directions_walk,
-            'Pasos',
-            '10.000',
-            const Color(0xFFE6A23C),
-          ),
-        ), // Orange
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildGoalCard(
-            Icons.favorite_border,
-            'Cardio',
-            '3 x 20 min',
-            const Color(0xFFF56C6C),
-          ),
-        ), // Red
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildGoalCard(
-            Icons.fitness_center,
-            'Fuerza',
-            '2 x 8 sets',
-            const Color(0xFF409EFF),
-          ),
-        ), // Blue
-      ],
-    );
-  }
-
-  Widget _buildGoalCard(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-  ) {
-    return Container(
-      height: 140,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E), // Dark grey card
-        borderRadius: BorderRadius.circular(20),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Circular icon bg
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const Spacer(),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCalendarHeader(ThemeData theme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Hoy',
           style: TextStyle(
-            color: Colors.white,
+            color: theme.textTheme.titleLarge?.color,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
@@ -338,7 +254,11 @@ class _CalendarTabState extends State<CalendarTab> {
                       'es',
                     ).format(date).toUpperCase().substring(0, 2),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(isSelected ? 1 : 0.6),
+                      color:
+                          (isSelected
+                                  ? Colors.white
+                                  : theme.textTheme.bodySmall?.color)
+                              ?.withOpacity(isSelected ? 1 : 0.6),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -347,7 +267,9 @@ class _CalendarTabState extends State<CalendarTab> {
                   Text(
                     '${date.day}',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isSelected
+                          ? Colors.white
+                          : theme.textTheme.titleMedium?.color,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -400,7 +322,7 @@ class _CalendarTabState extends State<CalendarTab> {
           Text(
             '¿Listo para tu próxima actividad?',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
               fontSize: 16,
             ),
           ),
@@ -427,6 +349,7 @@ class _CalendarTabState extends State<CalendarTab> {
         if (hasCitas)
           ...citas.map(
             (c) => _buildItemCard(
+              theme,
               c['title'],
               '${c['hora']}',
               Icons.event,
@@ -435,6 +358,7 @@ class _CalendarTabState extends State<CalendarTab> {
           ),
         if (hasSession)
           _buildItemCard(
+            theme,
             'Entrenamiento',
             'Completado',
             Icons.check_circle,
@@ -445,6 +369,7 @@ class _CalendarTabState extends State<CalendarTab> {
   }
 
   Widget _buildItemCard(
+    ThemeData theme,
     String title,
     String subtitle,
     IconData icon,
@@ -454,7 +379,7 @@ class _CalendarTabState extends State<CalendarTab> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -473,8 +398,8 @@ class _CalendarTabState extends State<CalendarTab> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: theme.textTheme.titleMedium?.color,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -482,7 +407,7 @@ class _CalendarTabState extends State<CalendarTab> {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.5),
                   fontSize: 14,
                 ),
               ),
