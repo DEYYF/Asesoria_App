@@ -30,8 +30,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
   Future<Dieta?> _fetchDiet() async {
     final api = Provider.of<ApiService>(context, listen: false);
     final res = await api.get('/dietas/${widget.dietaId}');
-    if (res.statusCode != 200)
+    if (res.statusCode != 200) {
       throw Exception('HTTP ${res.statusCode}: ${res.body}');
+    }
     final data = jsonDecode(res.body);
     return Dieta.fromJson(data);
   }
@@ -220,8 +221,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
                               ),
                             ),
                           );
-                          if (mounted)
+                          if (mounted) {
                             setState(() => _dietFuture = _fetchDiet());
+                          }
                         },
                         onDelete: _showDeleteDialog,
                       ),

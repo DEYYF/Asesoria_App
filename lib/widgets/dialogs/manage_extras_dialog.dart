@@ -48,8 +48,9 @@ class _ManageExtrasDialogState extends State<ManageExtrasDialog> {
         '/presupuestos',
         params: {'clienteId': widget.clienteId},
       );
-      if (resBudgets.statusCode != 200)
+      if (resBudgets.statusCode != 200) {
         throw Exception('Error fetching budgets');
+      }
       final listBudgets = (jsonDecode(resBudgets.body) as List)
           .map((i) => Presupuesto.fromJson(i))
           .toList();
@@ -73,11 +74,12 @@ class _ManageExtrasDialogState extends State<ManageExtrasDialog> {
         _isLoading = false;
       });
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
         });
+      }
     }
   }
 

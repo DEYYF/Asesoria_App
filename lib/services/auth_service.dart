@@ -21,6 +21,7 @@ class AuthService with ChangeNotifier {
       userType == 'admin'; // null for backward compatibility
   bool get isClient => userType == 'client';
   String? get userId => _user?['_id'];
+  String? get userEmail => _user?['email'];
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();

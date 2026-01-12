@@ -37,11 +37,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   bool _isResting = false;
 
   // Session Duration Timer
-  Stopwatch _sessionStopwatch = Stopwatch();
+  final Stopwatch _sessionStopwatch = Stopwatch();
   Timer? _durationRefreshTimer;
 
   // Data storage
-  Map<int, List<Map<String, dynamic>>> _loggedData = {};
+  final Map<int, List<Map<String, dynamic>>> _loggedData = {};
   Set<String> _completedDayNames = {};
 
   @override
@@ -293,10 +293,12 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_ent == null)
+    }
+    if (_ent == null) {
       return const Scaffold(body: Center(child: Text('Error al cargar')));
+    }
 
     final theme = Theme.of(context);
 
@@ -513,7 +515,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
               ),
             ),
           );
-        }).toList(),
+        }),
 
         const SizedBox(height: 40),
         SizedBox(

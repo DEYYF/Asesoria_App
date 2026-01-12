@@ -117,6 +117,16 @@ List<Cliente> _parseClientes(String jsonString) {
   return data.map((c) => Cliente.fromJson(c)).toList();
 }
 
+/// Parse and convert JSON to a single Cliente model in isolate
+Future<Cliente> parseClienteInIsolate(String jsonString) async {
+  return compute(_parseCliente, jsonString);
+}
+
+Cliente _parseCliente(String jsonString) {
+  final data = jsonDecode(jsonString);
+  return Cliente.fromJson(data);
+}
+
 /// Filter clientes by search term in isolate
 Future<List<Cliente>> filterClientesInIsolate(
   ClienteFilterParams params,

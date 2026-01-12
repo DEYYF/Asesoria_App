@@ -61,7 +61,7 @@ const groupMapping = {
     "back.HamstringsRight",
     "front.CalvesRight",
     "back.CalvesRight",
-    "back.Glutes", // Glutes is shared but we'll map it to both if needed, here just mapped
+    "back.Glutes",
   ],
   "Pierna izquierda": [
     "front.QuadsLeft",
@@ -162,27 +162,31 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
   }
 
   Color _getColor(String view, String part) {
-    if (_selectedProgreso == null || _selectedProgreso!.musculo == null)
-      return Colors.grey.shade300;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_selectedProgreso == null || _selectedProgreso!.musculo == null) {
+      return isDark ? Colors.grey.shade800 : Colors.grey.shade300;
+    }
 
     final fullPart = '$view.$part';
 
     for (var m in _selectedProgreso!.musculo!) {
       final affectedParts = groupMapping[m.nombre] ?? [];
       if (affectedParts.contains(fullPart)) {
-        if (_hoveredPart == fullPart)
+        if (_hoveredPart == fullPart) {
           return Colors.blue.shade700; // Highlight on hover
+        }
         return Colors.blue;
       }
     }
     return _hoveredPart == fullPart
-        ? Colors.grey.shade400
-        : Colors.grey.shade300;
+        ? (isDark ? Colors.grey.shade700 : Colors.grey.shade400)
+        : (isDark ? Colors.grey.shade800 : Colors.grey.shade300);
   }
 
   String? _getValue(String view, String part) {
-    if (_selectedProgreso == null || _selectedProgreso!.musculo == null)
+    if (_selectedProgreso == null || _selectedProgreso!.musculo == null) {
       return null;
+    }
 
     final fullPart = '$view.$part';
     for (var m in _selectedProgreso!.musculo!) {
@@ -194,11 +198,7 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
     return null;
   }
 
-  void _handleHover(
-    PointerEvent event,
-    String viewKey,
-    BoxConstraints constraints,
-  ) {
+  void _handleHover(PointerEvent event, String viewKey) {
     final scaleX = 120.0 / 200.0;
     final scaleY = 200.0 / 320.0;
 
@@ -224,7 +224,7 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
       });
 
       if (hitPart != null) {
-        final parts = hitPart!.split('.');
+        final parts = hitPart.split('.');
         final val = _getValue(parts[0], parts[1]);
         if (val != null) {
           _showOverlay(context, val, event.position);
@@ -239,11 +239,17 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+
     return Card(
       elevation: 0,
+      color: theme.cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -252,15 +258,24 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   "Mapa Corporal",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                 ),
                 if (widget.historial.isNotEmpty)
                   DropdownButton<Progreso>(
                     value: _selectedProgreso,
                     underline: Container(),
-                    icon: const Icon(Icons.calendar_today, size: 16),
+                    dropdownColor: theme.cardColor,
+                    icon: Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: theme.hintColor,
+                    ),
                     onChanged: (val) {
                       setState(() => _selectedProgreso = val);
                       _hoveredPart = null;
@@ -291,7 +306,10 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _legendItem(Colors.grey.shade300, "Sin dato"),
+                _legendItem(
+                  isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                  "Sin dato",
+                ),
                 const SizedBox(width: 16),
                 _legendItem(Colors.blue, "Registrado"),
               ],
@@ -300,16 +318,16 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildView('FRONTAL', 'front'),
+                _buildView('FRONTAL', 'front', isDark),
                 const SizedBox(width: 24),
-                _buildView('TRASERO', 'back'),
+                _buildView('TRASERO', 'back', isDark),
               ],
             ),
             if (_selectedProgreso != null) ...[
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 16),
-              _buildDataTable(_selectedProgreso!),
+              _buildDataTable(_selectedProgreso!, isDark),
             ],
           ],
         ),
@@ -317,7 +335,7 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
     );
   }
 
-  Widget _buildDataTable(Progreso p) {
+  Widget _buildDataTable(Progreso p, bool isDark) {
     final weightStr = p.peso != null ? '${p.peso} kg' : '-';
     final fatStr = p.grasaCorporal != null ? '${p.grasaCorporal}%' : '-';
     final muscleMassStr = p.masaMusculoEsqueletica != null
@@ -328,9 +346,13 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
       children: [
         Row(
           children: [
-            Expanded(child: _dataItem("Peso", weightStr, Icons.fitness_center)),
+            Expanded(
+              child: _dataItem("Peso", weightStr, Icons.fitness_center, isDark),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _dataItem("Grasa", fatStr, Icons.water_drop)),
+            Expanded(
+              child: _dataItem("Grasa", fatStr, Icons.water_drop, isDark),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -341,6 +363,7 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
                 "Masa Músculo-Esquelética",
                 muscleMassStr,
                 Icons.monitor_weight_outlined,
+                isDark,
               ),
             ),
           ],
@@ -351,9 +374,15 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              color: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : Colors.grey.shade200,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,9 +405,10 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
                       children: [
                         Text(
                           "${m.nombre}: ",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white70 : Colors.black87,
                           ),
                         ),
                         Text(
@@ -401,33 +431,40 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
     );
   }
 
-  Widget _dataItem(String label, String value, IconData icon) {
+  Widget _dataItem(String label, String value, IconData icon, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+        ),
       ),
       child: Row(
         children: [
           Icon(icon, size: 16, color: Colors.blue),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
-              ),
-            ],
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -437,22 +474,25 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
   Widget _legendItem(Color color, String label) {
     return Row(
       children: [
-        Container(width: 12, height: 12, color: color),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
 
-  Widget _buildView(String label, String viewKey) {
+  Widget _buildView(String label, String viewKey, bool isDark) {
     return Column(
       children: [
         MouseRegion(
-          onHover: (event) => _handleHover(
-            event,
-            viewKey,
-            const BoxConstraints(maxWidth: 120, maxHeight: 200),
-          ),
+          onHover: (event) => _handleHover(event, viewKey),
           onExit: (_) {
             setState(() => _hoveredPart = null);
             _removeOverlay();
@@ -463,6 +503,7 @@ class _HeatmapPanelState extends State<HeatmapPanel> {
               silhouette: silhouettePath,
               parts: bodyPaths[viewKey]!,
               getColor: (part) => _getColor(viewKey, part),
+              isDark: isDark,
             ),
           ),
         ),
@@ -484,11 +525,13 @@ class BodyPainter extends CustomPainter {
   final String silhouette;
   final Map<String, String> parts;
   final Color Function(String) getColor;
+  final bool isDark;
 
   BodyPainter({
     required this.silhouette,
     required this.parts,
     required this.getColor,
+    required this.isDark,
   });
 
   @override
@@ -506,15 +549,27 @@ class BodyPainter extends CustomPainter {
 
     // Silhouette
     final silPath = parseSvgPathData(silhouette);
-    canvas.drawPath(silPath, paint..color = Colors.grey.shade200);
-    canvas.drawPath(silPath, strokePaint..color = Colors.blueGrey.shade100);
+    canvas.drawPath(
+      silPath,
+      paint
+        ..color = isDark
+            ? Colors.white.withOpacity(0.05)
+            : Colors.grey.shade200,
+    );
+    canvas.drawPath(
+      silPath,
+      strokePaint..color = isDark ? Colors.white10 : Colors.blueGrey.shade100,
+    );
 
     // Parts
     parts.forEach((key, pathData) {
       final path = parseSvgPathData(pathData);
       final color = getColor(key);
       canvas.drawPath(path, paint..color = color);
-      canvas.drawPath(path, strokePaint..color = Colors.white);
+      canvas.drawPath(
+        path,
+        strokePaint..color = isDark ? const Color(0xFF1C1C1E) : Colors.white,
+      );
     });
   }
 

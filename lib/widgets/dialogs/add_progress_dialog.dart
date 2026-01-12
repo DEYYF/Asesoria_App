@@ -96,14 +96,17 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
           final date = DateTime.parse(dateStr);
 
           if (_lastWeight == null && entry['peso'] != null) _lastWeight = date;
-          if (_lastFat == null && entry['grasaCorporal'] != null)
+          if (_lastFat == null && entry['grasaCorporal'] != null) {
             _lastFat = date;
-          if (_lastMuscle == null && entry['MasaMusculoEsqueletica'] != null)
+          }
+          if (_lastMuscle == null && entry['MasaMusculoEsqueletica'] != null) {
             _lastMuscle = date;
+          }
           if (_lastMeasures == null &&
               entry['musculo'] != null &&
-              (entry['musculo'] as List).isNotEmpty)
+              (entry['musculo'] as List).isNotEmpty) {
             _lastMeasures = date;
+          }
         }
       }
 

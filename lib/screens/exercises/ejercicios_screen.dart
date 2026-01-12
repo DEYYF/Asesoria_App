@@ -219,7 +219,7 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                   padding: const EdgeInsets.all(16),
                   color: isDark
                       ? theme.cardColor
-                      : theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                      : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -273,7 +273,7 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedGrupo,
+                              initialValue: _selectedGrupo,
                               dropdownColor: theme.cardColor,
                               style: TextStyle(
                                 color: theme.textTheme.bodyMedium?.color,
@@ -328,7 +328,7 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedEquipo,
+                              initialValue: _selectedEquipo,
                               dropdownColor: theme.cardColor,
                               style: TextStyle(
                                 color: theme.textTheme.bodyMedium?.color,
@@ -384,7 +384,7 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedNivel,
+                        initialValue: _selectedNivel,
                         dropdownColor: theme.cardColor,
                         style: TextStyle(
                           color: theme.textTheme.bodyMedium?.color,

@@ -71,10 +71,11 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
           _loadedClienteId = ent.clienteId;
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error cargando plan: $e')));
+        }
       }
     } else {
       // New Plan
@@ -176,10 +177,11 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
 
     // Validate loaded client ID
     if (_loadedClienteId == null) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: Falta ID del Cliente')),
         );
+      }
       setState(() => _isSaving = false);
       return;
     }
@@ -209,16 +211,18 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
           context.pop();
         }
       } else {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error: ${res.body}')));
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error excepción: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

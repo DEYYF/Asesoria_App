@@ -14,6 +14,14 @@ import '../widgets/dialogs/manage_extras_dialog.dart';
 import '../widgets/dialogs/change_tariff_dialog.dart';
 import '../widgets/dialogs/edit_info_dialog.dart';
 import 'profile/journal_tab.dart';
+import 'chat/chat_detail_screen.dart';
+import '../../services/settings_service.dart';
+import '../../models/settings_model.dart';
+import '../../services/chat_service.dart';
+import '../../utils/isolate_utils.dart';
+import 'profile/client_view_layout.dart';
+import 'profile/advisor_view_layout.dart';
+import 'profile/calendar_tab.dart'; // Add import
 
 class ClientProfileScreen extends StatefulWidget {
   final String clienteId;
@@ -25,13 +33,13 @@ class ClientProfileScreen extends StatefulWidget {
 
 class _ClientProfileScreenState extends State<ClientProfileScreen> {
   Cliente? _cliente;
+  UserSettings? _settings;
   bool _isLoading = true;
   String? _error;
 
   // Budget Status
-  bool _canEditFeatures =
-      true; // Default to true while loading? React defaults to restricted or loading.
-  String? _budgetEstado; // 'pendiente' etc.
+  bool _canEditFeatures = true;
+  String? _budgetEstado;
 
   @override
   void initState() {
@@ -41,22 +49,24 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   Future<void> _loadData() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final settingsService = SettingsService(api);
     try {
-      // Parallel fetch
       final results = await Future.wait([
         api.get('/clientes/${widget.clienteId}'),
         api.get('/clientes/${widget.clienteId}/budget-status'),
+        settingsService.getSettings(),
       ]);
 
-      final resClient = results[0];
-      final resBudget = results[1];
+      final resClient = results[0] as dynamic;
+      final resBudget = results[1] as dynamic;
+      final userSettings = results[2] as UserSettings;
 
       if (!mounted) return;
 
       if (resClient.statusCode == 200) {
-        final c = Cliente.fromJson(jsonDecode(resClient.body));
+        final c = await parseClienteInIsolate(resClient.body);
 
-        bool canEdit = false; // Default safe
+        bool canEdit = false;
         String? bState;
 
         if (resBudget.statusCode == 200) {
@@ -64,14 +74,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           canEdit = bData['canEdit'] ?? false;
           bState = bData['estado'];
         } else {
-          // If budget endpoint fails, what should we do?
-          // React handles catch with console error.
-          // If assume success:
           canEdit = true;
         }
 
         setState(() {
           _cliente = c;
+          _settings = userSettings;
           _canEditFeatures = canEdit;
           _budgetEstado = bState;
           _isLoading = false;
@@ -163,9 +171,9 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
       await api.delete('/clientes/${widget.clienteId}');
-      if (context.mounted) Navigator.pop(context);
+      if (mounted) context.pop();
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
@@ -273,42 +281,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error navigating to live session: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al cargar el entrenamiento')),
-        );
-      }
-    }
-  }
-
-  Future<void> _navigateToRegisterTraining() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-    try {
-      final res = await api.get('/entrenamientos/cliente/${widget.clienteId}');
-      if (res.statusCode == 200) {
-        final List<dynamic> trainings = jsonDecode(res.body);
-        if (trainings.isNotEmpty) {
-          // Get the most recent active training
-          final activeTraining = trainings.first;
-          final entrenamientoId = activeTraining['_id'];
-          // Navigate to notebook screen
-          if (mounted) {
-            context.push('/entrenamientos/cuaderno/$entrenamientoId');
-          }
-        } else {
-          // No training plan found
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No hay plan de entrenamiento activo'),
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error navigating to training: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error al cargar el entrenamiento')),
@@ -333,13 +305,21 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     }
 
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final auth = Provider.of<AuthService>(context);
 
-    // Build Tabs
-    final tabs = <Widget>[const Tab(text: 'Información y Registro')];
-    final tabViews = <Widget>[
-      InfoTab(
+    // Common tabs logic for Advisor view is now handled within AdvisorViewLayout
+    // or passed as simple lists if we want to keep logic here.
+    // But AdvisorViewLayout was designed to take 'tabs' and 'tabViews'.
+    // Let's reconstruct them here for Advisor, but Client uses its own internal logic
+    // inside ClientViewLayout? No, ClientViewLayout has its own internal bottom bar logic.
+    // So distinct logic:
+
+    if (auth.isClient) {
+      return ClientViewLayout(
         cliente: _cliente!,
+        hasDieta: _hasDieta,
+        hasEntrenamiento: _hasEntrenamiento,
+        canEditFeatures: _canEditFeatures,
         onRenovar: _handleRenovar,
         onDelete: _handleDelete,
         onAddProgress: _showAddProgress,
@@ -347,460 +327,201 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         onChangeTariff: _showChangeTariff,
         onEditInfo: _showEditInfo,
         onSessionAction: _handleSessionAction,
-      ),
-    ];
-
-    // Conditional Tabs
-    if (_hasDieta) {
-      if (_canEditFeatures) {
-        tabs.add(const Tab(text: 'Dieta'));
-        tabViews.add(DietTab(clienteId: _cliente!.id));
-      } else {
-        tabs.add(
-          const Tab(
-            child: Row(
-              children: [
-                Text('Dieta'),
-                SizedBox(width: 4),
-                Icon(Icons.lock, size: 14),
-              ],
-            ),
-          ),
-        );
-        tabViews.add(const _LockedView());
-      }
-    }
-
-    if (_hasEntrenamiento) {
-      if (_canEditFeatures) {
-        tabs.add(const Tab(text: 'Entrenamiento'));
-        tabViews.add(TrainingTab(clienteId: _cliente!.id));
-        tabs.add(const Tab(text: 'Progreso'));
-        tabViews.add(
-          ProgressTab(cliente: _cliente!, onAddProgress: _showAddProgress),
-        );
-        tabs.add(const Tab(text: 'Libreta'));
-        tabViews.add(JournalTab(cliente: _cliente!));
-      } else {
-        tabs.add(
-          const Tab(
-            child: Row(
-              children: [
-                Text('Entrenamiento'),
-                SizedBox(width: 4),
-                Icon(Icons.lock, size: 14),
-              ],
-            ),
-          ),
-        );
-        tabViews.add(const _LockedView());
-        // Hide progress too or lock it?
-        tabs.add(
-          const Tab(
-            child: Row(
-              children: [
-                Text('Progreso'),
-                SizedBox(width: 4),
-                Icon(Icons.lock, size: 14),
-              ],
-            ),
-          ),
-        );
-        tabViews.add(const _LockedView());
-
-        tabs.add(
-          const Tab(
-            child: Row(
-              children: [
-                Text('Libreta'),
-                SizedBox(width: 4),
-                Icon(Icons.lock, size: 14),
-              ],
-            ),
-          ),
-        );
-        tabViews.add(const _LockedView());
-      }
-    }
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: DefaultTabController(
-          length: tabs.length,
-          child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) {
-              return [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Budget Warning
-                        if (_budgetEstado == 'pendiente')
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.orange.withOpacity(0.15)
-                                  : Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isDark
-                                    ? Colors.orange.withOpacity(0.3)
-                                    : Colors.orange.shade200,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: isDark
-                                      ? Colors.orangeAccent
-                                      : Colors.orange.shade800,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Presupuesto pendiente. Funciones restringidas.',
-                                    style: TextStyle(
-                                      color: isDark
-                                          ? Colors.orangeAccent
-                                          : Colors.orange.shade900,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Perfil de\n${_cliente!.nombre}',
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.1,
-                                  letterSpacing: -0.5,
-                                  color: theme.textTheme.titleLarge?.color,
-                                ),
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Builder(
-                                  builder: (context) {
-                                    final auth = Provider.of<AuthService>(
-                                      context,
-                                      listen: false,
-                                    );
-                                    if (auth.isClient) {
-                                      return _AestheticHeaderButton(
-                                        onPressed: () async {
-                                          await auth.logout();
-                                          if (context.mounted) {
-                                            context.go('/login');
-                                          }
-                                        },
-                                        icon: Icons.logout_rounded,
-                                        label: 'Cerrar Sesión',
-                                        backgroundColor: isDark
-                                            ? Colors.red.withOpacity(0.2)
-                                            : const Color(0xFFFFE5E5),
-                                        foregroundColor: isDark
-                                            ? Colors.redAccent
-                                            : const Color(0xFFFF3B30),
-                                      );
-                                    } else {
-                                      return _AestheticHeaderButton(
-                                        onPressed: () {
-                                          if (context.canPop()) {
-                                            context.pop();
-                                          } else {
-                                            context.go('/');
-                                          }
-                                        },
-                                        icon: Icons.arrow_back_rounded,
-                                        label: 'Volver',
-                                        backgroundColor:
-                                            theme.colorScheme.surfaceVariant,
-                                        foregroundColor:
-                                            theme.textTheme.bodyMedium!.color!,
-                                      );
-                                    }
-                                  },
-                                ),
-                                if (_hasEntrenamiento && _canEditFeatures) ...[
-                                  const SizedBox(height: 12),
-                                  _AestheticHeaderButton(
-                                    onPressed: _navigateToRegisterTraining,
-                                    icon: Icons.fitness_center_rounded,
-                                    label: 'Registrar',
-                                    backgroundColor: theme.primaryColor
-                                        .withOpacity(0.15),
-                                    foregroundColor: theme.primaryColor,
-                                    isPrimary: true,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _AestheticHeaderButton(
-                                    onPressed: _navigateToLiveSession,
-                                    icon: Icons.play_arrow_rounded,
-                                    label: 'Comenzar entrenamiento',
-                                    backgroundColor: const Color(
-                                      0xFF34C759,
-                                    ).withOpacity(0.15),
-                                    foregroundColor: const Color(0xFF34C759),
-                                    isPrimary: true,
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _StatusChip(
-                                label:
-                                    'Vigencia: ${_formatDate(_cliente!.fechaInicio)} - ${_formatDateShort(_cliente!.fechaFin)}',
-                              ),
-                              const SizedBox(width: 8),
-                              _StatusChip(
-                                label: _getDuration(
-                                  _cliente!.fechaInicio,
-                                  _cliente!.fechaFin,
-                                ),
-                                isDuration: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SliverPersistentHeader(
-                  delegate: _SliverAppBarDelegate(
-                    TabBar(
-                      tabs: tabs,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: theme.hintColor,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      indicator: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: theme.primaryColor,
-                      ),
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      dividerColor: Colors.transparent,
-                    ),
-                    theme.colorScheme.surface,
-                    theme.dividerColor,
-                  ),
-                  pinned: true,
-                ),
-              ];
-            },
-            body: TabBarView(children: tabViews),
-          ),
+        onNavigateToLiveSession: _navigateToLiveSession,
+        chatTabWidget: _buildChatTab(theme),
+      );
+    } else {
+      // Reconstruct tabs for Advisor
+      final tabs = <Widget>[const Tab(text: 'Información y Registro')];
+      final tabViews = <Widget>[
+        InfoTab(
+          cliente: _cliente!,
+          onRenovar: _handleRenovar,
+          onDelete: _handleDelete,
+          onAddProgress: _showAddProgress,
+          onManageExtras: _showManageExtras,
+          onChangeTariff: _showChangeTariff,
+          onEditInfo: _showEditInfo,
+          onSessionAction: _handleSessionAction,
         ),
-      ),
-    );
-  }
+      ];
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    return '$d/$m/${date.year}';
-  }
-
-  String _formatDateShort(DateTime? date) {
-    if (date == null) return '-';
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final y = date.year.toString().substring(2);
-    return '$d/$m/$y';
-  }
-
-  String _getDuration(DateTime? start, DateTime? end) {
-    if (start == null || end == null) return _cliente?.tiempoTarifa ?? '1 Mes';
-    final days = end
-        .difference(start)
-        .inDays
-        .abs(); // Use abs to handle potential swap
-    if (days >= 360) return '12 Meses';
-    if (days >= 180) return '6 Meses';
-    if (days >= 90) return '3 Meses';
-    if (days >= 28) return '1 Mes';
-    if (days == 0) return '0 Días';
-    return '$days Días';
-  }
-}
-
-class _LockedView extends StatelessWidget {
-  const _LockedView();
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.lock_outline, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Función bloqueada',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'El presupuesto está pendiente de pago.',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final bool isDuration;
-  const _StatusChip({required this.label, this.isDuration = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
-        ),
-      ),
-    );
-  }
-}
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar _tabBar;
-  final Color backgroundColor;
-  final Color dividerColor;
-
-  _SliverAppBarDelegate(this._tabBar, this.backgroundColor, this.dividerColor);
-
-  @override
-  double get minExtent => _tabBar.preferredSize.height + 1;
-  @override
-  double get maxExtent => _tabBar.preferredSize.height + 1;
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: backgroundColor,
-      child: Column(
-        children: [
-          _tabBar,
-          Divider(height: 1, thickness: 1, color: dividerColor),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) =>
-      oldDelegate.backgroundColor != backgroundColor;
-}
-
-class _AestheticHeaderButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final bool isPrimary;
-
-  const _AestheticHeaderButton({
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    this.isPrimary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isPrimary
-                ? [
-                    BoxShadow(
-                      color: foregroundColor.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: foregroundColor),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: foregroundColor,
-                  letterSpacing: -0.2,
-                ),
+      if (_hasDieta) {
+        if (_canEditFeatures) {
+          tabs.add(const Tab(text: 'Dieta'));
+          tabViews.add(DietTab(clienteId: _cliente!.id));
+        } else {
+          tabs.add(
+            const Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Dieta'),
+                  SizedBox(width: 4),
+                  Icon(Icons.lock, size: 14),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          );
+          tabViews.add(const Center(child: Icon(Icons.lock)));
+        }
+      }
+
+      if (_hasEntrenamiento) {
+        if (_canEditFeatures) {
+          tabs.add(const Tab(text: 'Entrenamiento'));
+          tabViews.add(TrainingTab(clienteId: _cliente!.id));
+          if (_settings?.enabledTrainingLog ?? true) {
+            tabs.add(const Tab(text: 'Libreta'));
+            tabViews.add(JournalTab(cliente: _cliente!));
+          }
+        } else {
+          tabs.add(
+            const Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Entrenamiento'),
+                  SizedBox(width: 4),
+                  Icon(Icons.lock, size: 14),
+                ],
+              ),
+            ),
+          );
+          tabViews.add(const Center(child: Icon(Icons.lock)));
+          tabs.add(
+            const Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Libreta'),
+                  SizedBox(width: 4),
+                  Icon(Icons.lock, size: 14),
+                ],
+              ),
+            ),
+          );
+          tabViews.add(const Center(child: Icon(Icons.lock)));
+        }
+      }
+
+      // Progreso
+      if (_hasDieta || _hasEntrenamiento) {
+        if (_canEditFeatures) {
+          tabs.add(const Tab(text: 'Progreso'));
+          tabViews.add(
+            ProgressTab(cliente: _cliente!, onAddProgress: _showAddProgress),
+          );
+        } else {
+          tabs.add(
+            const Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Progreso'),
+                  SizedBox(width: 4),
+                  Icon(Icons.lock, size: 14),
+                ],
+              ),
+            ),
+          );
+          tabViews.add(const Center(child: Icon(Icons.lock)));
+        }
+      }
+
+      return AdvisorViewLayout(
+        cliente: _cliente!,
+        budgetEstado: _budgetEstado,
+        hasEntrenamiento: _hasEntrenamiento,
+        canEditFeatures: _canEditFeatures,
+        tabs: tabs,
+        tabViews: tabViews,
+        onAddProgress: _showAddProgress,
+        onNavigateToLiveSession: _navigateToLiveSession,
+        onShowChat: () {},
+      );
+    }
+  }
+
+  Widget _buildChatTab(ThemeData theme) {
+    return FutureBuilder<String?>(
+      future: _getOrCreateConversationId(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return Center(
+            child: Text('Error al cargar el chat: ${snapshot.error}'),
+          );
+        }
+        return ChatDetailScreen(
+          conversationId: snapshot.data!,
+          isEmbedded: true,
+        );
+      },
     );
+  }
+
+  Future<String?> _getOrCreateConversationId() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    try {
+      // If Advisor/Admin, we want the "official" conversation first
+      if (!auth.isClient) {
+        final resOfficial = await api.get(
+          '/chat/conversations/client/${_cliente!.id}',
+        );
+        if (resOfficial.statusCode == 200 && resOfficial.body != 'null') {
+          final official = jsonDecode(resOfficial.body);
+          if (official != null) return official['_id'];
+        }
+      }
+
+      final res = await api.get('/chat/conversations');
+      if (res.statusCode == 200) {
+        final List<dynamic> conversations = jsonDecode(res.body);
+
+        dynamic existing;
+        if (auth.isClient) {
+          // Client looking for conversation with their advisor
+          existing = conversations.firstWhere(
+            (c) =>
+                c['asesorId'] == _cliente!.asesorId ||
+                (c['asesorId'] is Map &&
+                    c['asesorId']['_id'] == _cliente!.asesorId),
+            orElse: () => null,
+          );
+        } else {
+          // Advisor looking for conversation with this specific client
+          existing = conversations.firstWhere(
+            (c) =>
+                c['clienteId'] == _cliente!.id ||
+                (c['clienteId'] is Map &&
+                    c['clienteId']['_id'] == _cliente!.id),
+            orElse: () => null,
+          );
+        }
+
+        if (existing != null) return existing['_id'];
+      }
+
+      // If no conversation exists, create one (especially for advisors starting a chat)
+      if (!auth.isClient) {
+        final chatService = Provider.of<ChatService>(context, listen: false);
+        final newConv = await chatService.findOrCreateConversation(
+          type: 'advisor-client',
+          asesorId: _cliente!.asesorId ?? auth.userId!,
+          clienteId: _cliente!.id,
+        );
+        return newConv.id;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error getting conversation ID: $e');
+      return null;
+    }
   }
 }

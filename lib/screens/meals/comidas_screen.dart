@@ -6,8 +6,10 @@ import '../../services/api_service.dart';
 import '../../widgets/dialogs/add_edit_ingrediente_dialog.dart';
 import '../../widgets/dialogs/add_edit_receta_dialog.dart';
 import '../../utils/isolate_utils.dart';
+import '../../services/settings_service.dart';
+import '../../models/settings_model.dart';
 import 'widgets/add_food_options_sheet.dart';
-import 'widgets/scanner_placeholder_dialog.dart';
+import 'widgets/add_product_source_dialog.dart';
 
 class ComidasScreen extends StatefulWidget {
   const ComidasScreen({super.key});
@@ -23,6 +25,7 @@ class _ComidasScreenState extends State<ComidasScreen>
 
   List<Ingrediente> _ingredientes = [];
   List<Receta> _recetas = [];
+  UserSettings? _settings;
   bool _isLoading = true;
   String _searchQuery = '';
 
@@ -36,9 +39,12 @@ class _ComidasScreenState extends State<ComidasScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
+    final settingsService = SettingsService(api);
+
     try {
       final ingsRes = await api.get('/comidas/ingredientes');
       final recsRes = await api.get('/comidas/recetas');
+      final settings = await settingsService.getSettings();
 
       if (ingsRes.statusCode == 200 && recsRes.statusCode == 200) {
         final ingredientes = await parseIngredientesInIsolate(ingsRes.body);
@@ -47,6 +53,7 @@ class _ComidasScreenState extends State<ComidasScreen>
         setState(() {
           _ingredientes = ingredientes;
           _recetas = recetas;
+          _settings = settings;
           _isLoading = false;
         });
       }
@@ -119,10 +126,11 @@ class _ComidasScreenState extends State<ComidasScreen>
         await api.delete('/comidas/ingredientes/${ing.id}');
         _loadData();
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
       }
     }
   }
@@ -138,10 +146,11 @@ class _ComidasScreenState extends State<ComidasScreen>
         await api.delete('/comidas/recetas/${receta.id}');
         _loadData();
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
       }
     }
   }
@@ -176,6 +185,7 @@ class _ComidasScreenState extends State<ComidasScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => AddFoodOptionsSheet(
         currentTabIndex: _tabController.index,
+        showScan: _settings?.enabledFoodScanner ?? false,
         onAddManual: () {
           Navigator.pop(context);
           _tabController.index == 0
@@ -184,16 +194,16 @@ class _ComidasScreenState extends State<ComidasScreen>
         },
         onScanProduct: () {
           Navigator.pop(context);
-          _showScannerPlaceholder();
+          _showScannerSource();
         },
       ),
     );
   }
 
-  void _showScannerPlaceholder() {
+  void _showScannerSource() {
     showDialog(
       context: context,
-      builder: (context) => ScannerPlaceholderDialog(onSuccess: _loadData),
+      builder: (context) => AddProductSourceDialog(onSuccess: _loadData),
     );
   }
 

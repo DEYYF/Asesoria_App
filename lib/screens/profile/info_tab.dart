@@ -65,8 +65,9 @@ class _InfoTabState extends State<InfoTab> {
   }
 
   List<Extra> get _clienteExtras {
-    if (widget.cliente.extras == null || widget.cliente.extras!.isEmpty)
+    if (widget.cliente.extras == null || widget.cliente.extras!.isEmpty) {
       return [];
+    }
     final clienteExtraIds = widget.cliente.extras!
         .map((e) => (e is Map) ? (e['_id'] ?? e['id']) : e.toString())
         .toList();
@@ -106,10 +107,12 @@ class _InfoTabState extends State<InfoTab> {
               'Tarifa',
               '${widget.cliente.tipoServicio?.toUpperCase() ?? ''} (${_getDuration(widget.cliente.fechaInicio, widget.cliente.fechaFin)})',
               valueColor: theme.primaryColor,
+              icon: Icons.assignment_rounded,
             ),
             _appleRow(
               'Vigencia',
               '${_formatDate(widget.cliente.fechaInicio)} - ${_formatDateShort(widget.cliente.fechaFin)}',
+              icon: Icons.calendar_today_rounded,
             ),
           ]),
 
@@ -280,8 +283,9 @@ class _InfoTabState extends State<InfoTab> {
   }
 
   String _getDuration(DateTime? start, DateTime? end) {
-    if (start == null || end == null)
+    if (start == null || end == null) {
       return widget.cliente.tiempoTarifa ?? '1 Mes';
+    }
     final days = end.difference(start).inDays.abs();
     if (days >= 360) return '12 Meses';
     if (days >= 180) return '6 Meses';
@@ -344,15 +348,24 @@ class _InfoTabState extends State<InfoTab> {
     );
   }
 
-  Widget _appleRow(String label, String? value, {Color? valueColor}) {
+  Widget _appleRow(
+    String label,
+    String? value, {
+    Color? valueColor,
+    IconData? icon,
+  }) {
     final theme = Theme.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        if (icon != null) ...[
+          Icon(icon, size: 18, color: theme.primaryColor.withOpacity(0.7)),
+          const SizedBox(width: 12),
+        ],
         Text(
           label,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
+        const Spacer(),
         Text(
           value ?? '-',
           style: TextStyle(
@@ -371,55 +384,81 @@ class _InfoTabState extends State<InfoTab> {
     bool isDark,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [theme.cardColor, theme.cardColor.withOpacity(0.8)]
+              : [Colors.white, Colors.grey.shade50],
+        ),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Entrenamientos',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.titleLarge?.color,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.bolt_rounded, color: theme.primaryColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rendimiento Mensual',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: theme.textTheme.titleLarge?.color,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Sesiones realizadas este mes',
-                    style: TextStyle(fontSize: 13, color: theme.hintColor),
-                  ),
-                ],
+                    Text(
+                      'Sesiones completadas',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: theme.hintColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
+                  horizontal: 20,
+                  vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.primaryColor.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.primaryColor,
+                      theme.primaryColor.withBlue(255),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   '${widget.cliente.sesionesCounter ?? 0}',
                   style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
@@ -427,20 +466,23 @@ class _InfoTabState extends State<InfoTab> {
             ],
           ),
           if (!Provider.of<AuthService>(context, listen: false).isClient) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _circleIconButton(
-                  Icons.remove_rounded,
-                  const Color(0xFFFF3B30),
-                  () => widget.onSessionAction?.call('decrement'),
+                Expanded(
+                  child: _CounterButton(
+                    icon: Icons.remove_rounded,
+                    color: Colors.redAccent,
+                    onPressed: () => widget.onSessionAction?.call('decrement'),
+                  ),
                 ),
-                const SizedBox(width: 40),
-                _circleIconButton(
-                  Icons.add_rounded,
-                  const Color(0xFF34C759),
-                  () => widget.onSessionAction?.call('increment'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _CounterButton(
+                    icon: Icons.add_rounded,
+                    color: Colors.greenAccent.shade700,
+                    onPressed: () => widget.onSessionAction?.call('increment'),
+                  ),
                 ),
               ],
             ),
@@ -449,15 +491,33 @@ class _InfoTabState extends State<InfoTab> {
       ),
     );
   }
+}
 
-  Widget _circleIconButton(IconData icon, Color color, VoidCallback onPressed) {
-    return IconButton.filled(
-      icon: Icon(icon, size: 28),
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
-        foregroundColor: color,
-        minimumSize: const Size(56, 56),
+class _CounterButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _CounterButton({
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: color.withOpacity(isDark ? 0.15 : 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Icon(icon, color: color, size: 28),
       ),
     );
   }
@@ -473,7 +533,7 @@ class _ObjectiveChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
       ),

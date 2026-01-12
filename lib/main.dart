@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
+import 'services/settings_service.dart';
 import 'providers/theme_provider.dart';
+import 'providers/settings_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 // import 'screens/home_screen.dart';
@@ -20,6 +22,14 @@ import 'screens/exercises/ejercicios_screen.dart';
 import 'screens/meals/comidas_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'widgets/scaffold_with_navbar.dart';
+import 'services/chat_service.dart';
+import 'screens/chat/advisor_chat_list_screen.dart';
+import 'screens/chat/chat_detail_screen.dart';
+import 'screens/chat/chat_contacts_screen.dart';
+import 'screens/advisor_calendar_screen.dart'; // Add
+import 'screens/presupuestos_screen.dart';
+import 'screens/settings/automation_screen.dart';
+import 'services/template_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -38,7 +48,23 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authService),
         Provider(create: (_) => ApiService()),
+        ProxyProvider2<ApiService, AuthService, ChatService>(
+          update: (_, api, auth, __) => ChatService(api, auth),
+          dispose: (_, chat) => chat.dispose(),
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProxyProvider<ApiService, TemplateService>(
+          create: (context) =>
+              TemplateService(Provider.of<ApiService>(context, listen: false)),
+          update: (_, api, previous) => previous ?? TemplateService(api),
+        ),
+        ChangeNotifierProxyProvider<ApiService, SettingsProvider>(
+          create: (context) => SettingsProvider(
+            SettingsService(Provider.of<ApiService>(context, listen: false)),
+          ),
+          update: (_, api, previous) =>
+              previous ?? SettingsProvider(SettingsService(api)),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -178,7 +204,54 @@ class MyApp extends StatelessWidget {
                 ),
               ],
             ),
+            // Branch 4: Chat
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/chat',
+                  builder: (context, state) => const AdvisorChatListScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'new',
+                      builder: (context, state) => const ChatContactsScreen(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            // Branch 5: Calendar (Advisor)
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/calendar',
+                  builder: (context, state) => const AdvisorCalendarScreen(),
+                ),
+              ],
+            ),
+            // Branch 6: Presupuestos
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/presupuestos',
+                  builder: (context, state) => const PresupuestosScreen(),
+                ),
+              ],
+            ),
+            // Branch 7: Automation
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/automation',
+                  builder: (context, state) => const AutomationScreen(),
+                ),
+              ],
+            ),
           ],
+        ),
+        GoRoute(
+          path: '/chat/:id',
+          builder: (context, state) =>
+              ChatDetailScreen(conversationId: state.pathParameters['id']!),
         ),
         GoRoute(
           path: '/entrenamientos/sesion/:id',

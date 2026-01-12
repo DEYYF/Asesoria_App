@@ -27,9 +27,8 @@ class AppTheme {
       colorScheme: baseScheme.copyWith(
         primary: primaryColor,
         surface: isDark ? const Color(0xFF1C1C1E) : surfaceColor,
-        background: isDark ? const Color(0xFF000000) : backgroundColor,
         error: errorColor,
-        surfaceVariant: isDark
+        surfaceContainerHighest: isDark
             ? const Color(0xFF2C2C2E)
             : const Color(0xFFE5E5EA),
         secondary: primaryColor,

@@ -145,7 +145,7 @@ class _AddEditEjercicioDialogState extends State<AddEditEjercicioDialog> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedGrupo,
+                  initialValue: _selectedGrupo,
                   decoration: const InputDecoration(labelText: 'Grupo'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('—')),
@@ -157,7 +157,7 @@ class _AddEditEjercicioDialogState extends State<AddEditEjercicioDialog> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedEquipo,
+                  initialValue: _selectedEquipo,
                   decoration: const InputDecoration(labelText: 'Equipo'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('—')),
@@ -169,7 +169,7 @@ class _AddEditEjercicioDialogState extends State<AddEditEjercicioDialog> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedNivel,
+                  initialValue: _selectedNivel,
                   decoration: const InputDecoration(labelText: 'Nivel'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('—')),

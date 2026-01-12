@@ -8,6 +8,8 @@ import '../utils/isolate_utils.dart';
 import '../widgets/cliente_card.dart';
 import '../widgets/add_client_dialog.dart';
 import '../widgets/dialogs/bulk_email_dialog.dart';
+import '../widgets/dialogs/bulk_chat_dialog.dart';
+import '../widgets/dialogs/communication_choice_dialog.dart';
 
 class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
@@ -180,8 +182,9 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
       }
 
       // Tarifa Filter
-      if (_filterTarifa != null && c.tipoServicio != _filterTarifa)
+      if (_filterTarifa != null && c.tipoServicio != _filterTarifa) {
         return false;
+      }
 
       return true;
     }).toList();
@@ -367,16 +370,32 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                         OutlinedButton.icon(
                           onPressed: displayedList.isEmpty
                               ? null
-                              : () {
-                                  showDialog(
+                              : () async {
+                                  final method = await showDialog<String>(
                                     context: context,
-                                    builder: (context) => BulkEmailDialog(
-                                      clientes: displayedList,
-                                    ),
+                                    builder: (_) =>
+                                        const CommunicationChoiceDialog(),
                                   );
+                                  if (!context.mounted) return;
+
+                                  if (method == 'email') {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => BulkEmailDialog(
+                                        clientes: displayedList,
+                                      ),
+                                    );
+                                  } else if (method == 'chat') {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => BulkChatDialog(
+                                        clientes: displayedList,
+                                      ),
+                                    );
+                                  }
                                 },
-                          icon: const Icon(Icons.email_outlined, size: 18),
-                          label: const Text('Enviar Email Masivo'),
+                          icon: const Icon(Icons.send_outlined, size: 18),
+                          label: const Text('Enviar Mensaje Masivo'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: isDark
                                 ? Colors.white

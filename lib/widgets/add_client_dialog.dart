@@ -27,7 +27,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
 
   // Objectivesr
   final _objCtrl = TextEditingController();
-  List<String> _objetivos = [];
+  final List<String> _objetivos = [];
   final List<String> _sugerencias = [
     "Pérdida de peso",
     "Ganar masa muscular",
@@ -73,11 +73,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
         throw Exception('Error loading data');
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Error: $e';
           _loadingData = false;
         });
+      }
     }
   }
 
@@ -170,8 +171,9 @@ class _AddClientDialogState extends State<AddClientDialog> {
       };
 
       final resC = await api.post('/clientes', clientBody);
-      if (resC.statusCode != 200 && resC.statusCode != 201)
+      if (resC.statusCode != 200 && resC.statusCode != 201) {
         throw Exception('Error creando cliente: ${resC.body}');
+      }
 
       final clientId = jsonDecode(resC.body)['_id'];
 
@@ -189,11 +191,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
       widget.onSuccess();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = e.toString();
           _isLoading = false;
         });
+      }
     }
   }
 
@@ -344,7 +347,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _sexo,
+                            initialValue: _sexo,
                             dropdownColor: theme.colorScheme.surface,
                             style: TextStyle(
                               color: theme.textTheme.bodyMedium?.color,
@@ -455,8 +458,9 @@ class _AddClientDialogState extends State<AddClientDialog> {
                                 color: theme.textTheme.bodyMedium?.color,
                               ),
                               onPressed: () {
-                                if (!_objetivos.contains(s))
+                                if (!_objetivos.contains(s)) {
                                   setState(() => _objetivos.add(s));
+                                }
                               },
                             ),
                           )
@@ -476,7 +480,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _selectedTarifaId,
+                      initialValue: _selectedTarifaId,
                       dropdownColor: theme.colorScheme.surface,
                       style: TextStyle(
                         color: theme.textTheme.bodyMedium?.color,
@@ -528,10 +532,11 @@ class _AddClientDialogState extends State<AddClientDialog> {
                               : null,
                           onSelected: (sel) {
                             setState(() {
-                              if (sel)
+                              if (sel) {
                                 _selectedExtrasIds.add(e.id);
-                              else
+                              } else {
                                 _selectedExtrasIds.remove(e.id);
+                              }
                             });
                           },
                         );

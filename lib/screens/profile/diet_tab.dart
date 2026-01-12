@@ -135,20 +135,22 @@ class _DietTabState extends State<DietTab> {
           const SizedBox(height: 16),
           if (_dietas.length == 1)
             SizedBox(
-              height: 170, // Constrain height to avoid RenderFlex error
+              height: 140,
               width: double.infinity,
               child: _buildDietaCard(_dietas.first),
             )
           else
             SizedBox(
-              height: 150,
+              height: 140,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 itemCount: _dietas.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 16),
                 itemBuilder: (context, index) {
                   return SizedBox(
-                    width: 240,
+                    width: 260,
                     child: _buildDietaCard(_dietas[index]),
                   );
                 },
@@ -163,61 +165,88 @@ class _DietTabState extends State<DietTab> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Card(
-      child: InkWell(
-        onTap: () {
-          if (dieta.id != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DietDetailScreen(dietaId: dieta.id!),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () {
+            if (dieta.id != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DietDetailScreen(dietaId: dieta.id!),
+                ),
+              );
+            }
+          },
+          child: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.primaryColor,
+                        theme.primaryColor.withOpacity(0.5),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            );
-          }
-        },
-        child: Column(
-          children: [
-            Container(height: 6, color: theme.primaryColor.withOpacity(0.8)),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       dieta.nombre,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: const TextStyle(
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
+                    Row(
+                      children: [
+                        _CompactChip(
+                          label: '${dieta.macros.kcal.toInt()} kcal',
+                          icon: Icons.local_fire_department_rounded,
+                          iconColor: Colors.orangeAccent,
+                        ),
+                        if (dieta.objetivo != null) ...[
+                          const SizedBox(width: 8),
                           _CompactChip(
-                            label: '${dieta.macros.kcal.toInt()} kcal',
-                            icon: Icons.local_fire_department,
-                            iconColor: Colors.orange,
+                            label: dieta.objetivo!,
+                            icon: Icons.track_changes_rounded,
+                            iconColor: theme.primaryColor,
                           ),
-                          if (dieta.objetivo != null) ...[
-                            const SizedBox(width: 8),
-                            _CompactChip(
-                              label: dieta.objetivo!,
-                              icon: Icons.flag_rounded,
-                              iconColor: theme.primaryColor,
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -241,7 +270,7 @@ class _CompactChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

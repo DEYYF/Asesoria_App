@@ -10,6 +10,13 @@ class UserSettings {
   final String fatFrequency;
   final String measuresFrequency;
   final String muscleFrequency;
+  final bool enabledChat;
+  final bool enabledEmail;
+  final bool enabledProgressFrequencies;
+  final bool enabledTemplateManagement;
+  final bool enabledTrainingLog;
+  final bool enabledFoodScanner;
+  final bool enabledAutomation;
 
   UserSettings({
     this.pushNotifications = true,
@@ -23,6 +30,13 @@ class UserSettings {
     this.fatFrequency = 'weekly',
     this.measuresFrequency = 'monthly',
     this.muscleFrequency = 'monthly',
+    this.enabledChat = true,
+    this.enabledEmail = true,
+    this.enabledProgressFrequencies = true,
+    this.enabledTemplateManagement = true,
+    this.enabledTrainingLog = true,
+    this.enabledFoodScanner = true,
+    this.enabledAutomation = true,
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -38,6 +52,13 @@ class UserSettings {
       fatFrequency: json['fatFrequency'] ?? 'weekly',
       measuresFrequency: json['measuresFrequency'] ?? 'monthly',
       muscleFrequency: json['muscleFrequency'] ?? 'monthly',
+      enabledChat: json['enabledChat'] ?? true,
+      enabledEmail: json['enabledEmail'] ?? true,
+      enabledProgressFrequencies: json['enabledProgressFrequencies'] ?? true,
+      enabledTemplateManagement: json['enabledTemplateManagement'] ?? true,
+      enabledTrainingLog: json['enabledTrainingLog'] ?? true,
+      enabledFoodScanner: json['enabledFoodScanner'] ?? true,
+      enabledAutomation: json['enabledAutomation'] ?? true,
     );
   }
 
@@ -54,6 +75,13 @@ class UserSettings {
       'fatFrequency': fatFrequency,
       'measuresFrequency': measuresFrequency,
       'muscleFrequency': muscleFrequency,
+      'enabledChat': enabledChat,
+      'enabledEmail': enabledEmail,
+      'enabledProgressFrequencies': enabledProgressFrequencies,
+      'enabledTemplateManagement': enabledTemplateManagement,
+      'enabledTrainingLog': enabledTrainingLog,
+      'enabledFoodScanner': enabledFoodScanner,
+      'enabledAutomation': enabledAutomation,
     };
   }
 
@@ -69,6 +97,13 @@ class UserSettings {
     String? fatFrequency,
     String? measuresFrequency,
     String? muscleFrequency,
+    bool? enabledChat,
+    bool? enabledEmail,
+    bool? enabledProgressFrequencies,
+    bool? enabledTemplateManagement,
+    bool? enabledTrainingLog,
+    bool? enabledFoodScanner,
+    bool? enabledAutomation,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -82,6 +117,15 @@ class UserSettings {
       fatFrequency: fatFrequency ?? this.fatFrequency,
       measuresFrequency: measuresFrequency ?? this.measuresFrequency,
       muscleFrequency: muscleFrequency ?? this.muscleFrequency,
+      enabledChat: enabledChat ?? this.enabledChat,
+      enabledEmail: enabledEmail ?? this.enabledEmail,
+      enabledProgressFrequencies:
+          enabledProgressFrequencies ?? this.enabledProgressFrequencies,
+      enabledTemplateManagement:
+          enabledTemplateManagement ?? this.enabledTemplateManagement,
+      enabledTrainingLog: enabledTrainingLog ?? this.enabledTrainingLog,
+      enabledFoodScanner: enabledFoodScanner ?? this.enabledFoodScanner,
+      enabledAutomation: enabledAutomation ?? this.enabledAutomation,
     );
   }
 }

@@ -158,7 +158,7 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedSex,
+                initialValue: _selectedSex,
                 dropdownColor: theme.colorScheme.surface,
                 style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 items: ['Hombre', 'Mujer', 'Otro']

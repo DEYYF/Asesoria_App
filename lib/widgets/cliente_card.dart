@@ -6,6 +6,9 @@ import '../models/cliente_model.dart';
 import '../services/api_service.dart';
 import 'dialog_correo.dart';
 import 'dialog_cita.dart';
+import 'dialogs/communication_choice_dialog.dart';
+import 'dialogs/compose_chat_dialog.dart';
+import '../services/settings_service.dart';
 
 class ClienteCard extends StatefulWidget {
   final Cliente cliente;
@@ -29,6 +32,9 @@ class _ClienteCardState extends State<ClienteCard> {
   String _computedStatus = 'Cargando...';
   int? _ultimaDietaDias;
   Color _statusColor = Colors.grey;
+  bool _isProgressOverdue = false;
+  bool _isProgressDueToday = false;
+  String _overdueMetric = '';
 
   @override
   void initState() {
@@ -129,6 +135,98 @@ class _ClienteCardState extends State<ClienteCard> {
           });
         }
       }
+
+      // 3. Progress Frequency Check
+      final settingsService = SettingsService(api);
+      final settings = await settingsService.getSettings();
+      if (settings.enabledProgressFrequencies &&
+          c.historialProgreso != null &&
+          c.historialProgreso!.isNotEmpty) {
+        final history = c.historialProgreso!;
+        DateTime? lastWeight, lastFat, lastMuscle, lastMeasures;
+
+        for (var entry in history.reversed) {
+          final date = DateTime.parse(entry['fecha']);
+          if (lastWeight == null && entry['peso'] != null) lastWeight = date;
+          if (lastFat == null && entry['grasaCorporal'] != null) lastFat = date;
+          if (lastMuscle == null && entry['MasaMusculoEsqueletica'] != null) {
+            lastMuscle = date;
+          }
+          if (lastMeasures == null &&
+              entry['musculo'] != null &&
+              (entry['musculo'] as List).isNotEmpty) {
+            lastMeasures = date;
+          }
+        }
+
+        bool isOverdue(DateTime? last, String freq) {
+          if (last == null) {
+            return true; // Never recorded is technically overdue if expected
+          }
+          final diff = DateTime.now().difference(last).inDays;
+          int days = 7;
+          if (freq == 'daily') {
+            days = 1;
+          } else if (freq == 'weekly')
+            days = 7;
+          else if (freq == 'biweekly')
+            days = 14;
+          else if (freq == 'monthly')
+            days = 30;
+          else if (freq == 'quarterly')
+            days = 90;
+          return diff > days;
+        }
+
+        bool isDueToday(DateTime? last, String freq) {
+          if (last == null) return false;
+          final diff = DateTime.now().difference(last).inDays;
+          int days = 7;
+          if (freq == 'daily') {
+            days = 1;
+          } else if (freq == 'weekly')
+            days = 7;
+          else if (freq == 'biweekly')
+            days = 14;
+          else if (freq == 'monthly')
+            days = 30;
+          else if (freq == 'quarterly')
+            days = 90;
+          return diff == days;
+        }
+
+        if (isOverdue(lastWeight, settings.weightFrequency)) {
+          setState(() {
+            _isProgressOverdue = true;
+            _overdueMetric = 'Peso';
+          });
+        } else if (isOverdue(lastFat, settings.fatFrequency)) {
+          setState(() {
+            _isProgressOverdue = true;
+            _overdueMetric = 'Grasa';
+          });
+        } else if (isOverdue(lastMeasures, settings.measuresFrequency)) {
+          setState(() {
+            _isProgressOverdue = true;
+            _overdueMetric = 'Medidas';
+          });
+        } else if (isDueToday(lastWeight, settings.weightFrequency)) {
+          setState(() {
+            _isProgressDueToday = true;
+            _overdueMetric = 'Peso';
+          });
+        } else if (isDueToday(lastFat, settings.fatFrequency)) {
+          setState(() {
+            _isProgressDueToday = true;
+            _overdueMetric = 'Grasa';
+          });
+        } else if (isDueToday(lastMeasures, settings.measuresFrequency)) {
+          setState(() {
+            _isProgressDueToday = true;
+            _overdueMetric = 'Medidas';
+          });
+        }
+      }
     } catch (e) {
       // Quiet fail
       print('Error calc status: $e');
@@ -162,6 +260,53 @@ class _ClienteCardState extends State<ClienteCard> {
       context: context,
       builder: (_) => DialogCita(cliente: widget.cliente),
     );
+  }
+
+  Future<void> _handleMessageAction() async {
+    final settingsService = SettingsService(
+      Provider.of<ApiService>(context, listen: false),
+    );
+    final settings = await settingsService.getSettings();
+
+    if (!settings.enabledChat && !settings.enabledEmail) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La comunicación está desactivada')),
+        );
+      }
+      return;
+    }
+
+    if (settings.enabledChat && !settings.enabledEmail) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => ComposeChatDialog(cliente: widget.cliente),
+        );
+      }
+      return;
+    }
+
+    if (!settings.enabledChat && settings.enabledEmail) {
+      _openEmailDialog();
+      return;
+    }
+
+    // Both are enabled, show choice
+    if (!mounted) return;
+    final method = await showDialog<String>(
+      context: context,
+      builder: (_) => const CommunicationChoiceDialog(),
+    );
+
+    if (method == 'email') {
+      _openEmailDialog();
+    } else if (method == 'chat') {
+      showDialog(
+        context: context,
+        builder: (_) => ComposeChatDialog(cliente: widget.cliente),
+      );
+    }
   }
 
   @override
@@ -214,7 +359,10 @@ class _ClienteCardState extends State<ClienteCard> {
                     decoration: BoxDecoration(
                       color: _statusColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: theme.colorScheme.surface, width: 2),
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -368,6 +516,50 @@ class _ClienteCardState extends State<ClienteCard> {
                           ),
                         ),
                       ),
+                      if (_isProgressOverdue || _isProgressDueToday) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                (_isProgressOverdue
+                                        ? Colors.red
+                                        : Colors.orange)
+                                    .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isProgressOverdue
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.today_rounded,
+                                color: _isProgressOverdue
+                                    ? Colors.red
+                                    : Colors.orange,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _isProgressOverdue
+                                    ? 'Atr: $_overdueMetric'
+                                    : 'Hoy: $_overdueMetric',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isProgressOverdue
+                                      ? Colors.red
+                                      : Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 12),
                       Flexible(
                         child: Row(
@@ -414,6 +606,11 @@ class _ClienteCardState extends State<ClienteCard> {
                     alignment: WrapAlignment.end,
                     children: [
                       _ActionButton(
+                        label: 'Mensaje',
+                        icon: Icons.message_outlined,
+                        onPressed: _handleMessageAction,
+                      ),
+                      _ActionButton(
                         label: 'Llamar',
                         icon: Icons.phone,
                         onPressed: _makeCall,
@@ -445,7 +642,7 @@ class _ClienteCardState extends State<ClienteCard> {
                         onSelected: (val) {
                           if (val == 'delete') widget.onDelete();
                           if (val == 'toggle') widget.onToggleStatus();
-                          if (val == 'email') _openEmailDialog();
+                          if (val == 'message') _handleMessageAction();
                           if (val == 'cita') _openCitaDialog();
                         },
                         itemBuilder: (context) => [
@@ -462,9 +659,9 @@ class _ClienteCardState extends State<ClienteCard> {
                             ),
                           ),
                           PopupMenuItem(
-                            value: 'email',
+                            value: 'message',
                             child: Text(
-                              'Enviar correo',
+                              'Enviar mensaje',
                               style: TextStyle(
                                 color: theme.textTheme.bodyMedium?.color,
                               ),

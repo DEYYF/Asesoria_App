@@ -14,6 +14,9 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/muscle_mass_bar.dart';
+import '../../widgets/progress_status_widget.dart';
+import '../../services/settings_service.dart';
+import '../../models/settings_model.dart';
 
 class ProgressTab extends StatefulWidget {
   final Cliente cliente;
@@ -40,10 +43,15 @@ class _ProgressTabState extends State<ProgressTab> {
   String _metric = 'strength'; // strength | volume | reps
   String _timeFilter = 'ALL'; // 1M, 3M, ALL
 
+  late Future<UserSettings> _settingsFuture;
+
   @override
   void initState() {
     super.initState();
     _loadEjercicios();
+    _settingsFuture = SettingsService(
+      Provider.of<ApiService>(context, listen: false),
+    ).getSettings();
   }
 
   Future<void> _loadEjercicios() async {
@@ -174,7 +182,39 @@ class _ProgressTabState extends State<ProgressTab> {
               Builder(
                 builder: (context) {
                   final auth = Provider.of<AuthService>(context, listen: false);
-                  if (auth.isClient || widget.onAddProgress == null) {
+
+                  // For Clients, show a Chat shortcut
+                  if (auth.isClient) {
+                    return IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: theme.primaryColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: theme.primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      onPressed: () {
+                        // Find and switch to Chat tab
+                        final tabController = DefaultTabController.of(context);
+                        // In ClientProfileScreen, we add chat at the end.
+                        // But let's find it dynamically to be safe.
+                        // Since we don't have access to the tabs list here easily,
+                        // we can try to find by index or just jump to last if we know it's last.
+                        // Actually, better to just let the user know they can click the Chat tab
+                        // OR use a more robust way to find it.
+                        // In ClientProfileScreen, the Chat tab is the last one.
+                        tabController.animateTo(tabController.length - 1);
+                      },
+                      tooltip: 'Ir al Chat',
+                    );
+                  }
+
+                  if (widget.onAddProgress == null) {
                     return const SizedBox.shrink();
                   }
 
@@ -272,9 +312,12 @@ class _ProgressTabState extends State<ProgressTab> {
 
   Widget _buildCorporalView() {
     final theme = Theme.of(context);
-    final List<Progreso> historial = widget.cliente.historialProgreso != null
-        ? widget.cliente.historialProgreso!
-              .map((json) => Progreso.fromJson(json))
+    final rawHistorial = widget.cliente.historialProgreso;
+
+    final List<Progreso> historial = (rawHistorial != null)
+        ? rawHistorial
+              .whereType<Map>()
+              .map((json) => Progreso.fromJson(Map<String, dynamic>.from(json)))
               .toList()
         : [];
 
@@ -282,92 +325,167 @@ class _ProgressTabState extends State<ProgressTab> {
       return _buildEmptyState('No hay registros corporales.');
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Summary Cards for Corporal
-        if (historial.isNotEmpty) ...[
-          // Metric Summary Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  'PESO',
-                  '${historial.last.peso ?? '-'} kg',
-                  Icons.fitness_center_rounded,
-                  theme.primaryColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSummaryCard(
-                  'GRASA',
-                  '${historial.last.grasaCorporal ?? '-'} %',
-                  Icons.water_drop_rounded,
-                  Colors.pink,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildSummaryCard(
-                  'MÚSCULO',
-                  '${historial.last.masaMusculoEsqueletica ?? '-'} kg',
-                  Icons.monitor_weight_outlined,
-                  Colors.teal,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Trend Cards Row
-          Row(
-            children: [
-              Expanded(
-                child: _buildTrendCard('PESO', historial, (p) => p.peso, 'kg'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildTrendCard(
-                  'GRASA',
-                  historial,
-                  (p) => p.grasaCorporal,
-                  '%',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildTrendCard(
-                  'MÚSCULO',
-                  historial,
-                  (p) => p.masaMusculoEsqueletica,
-                  'kg',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          MuscleMassBar(
-            weight: historial.last.peso ?? 0,
-            muscleMass: historial.last.masaMusculoEsqueletica ?? 0,
-            height: widget.cliente.altura,
-            gender: widget.cliente.sexo,
-          ),
-          const SizedBox(height: 24),
-        ],
+    return FutureBuilder<UserSettings>(
+      future: _settingsFuture,
+      builder: (context, snapshot) {
+        final settings = snapshot.data;
+        if (settings == null) return const SizedBox.shrink();
 
-        _sectionTitle('MAPA CORPORAL'),
-        HeatmapPanel(historial: historial),
-        const SizedBox(height: 24),
+        // Calculate last dates
+        DateTime? lastWeight, lastFat, lastMuscle, lastMeasures;
+        for (var entry in historial) {
+          if (entry.peso != null) lastWeight = entry.fecha;
+          if (entry.grasaCorporal != null) lastFat = entry.fecha;
+          if (entry.masaMusculoEsqueletica != null) lastMuscle = entry.fecha;
+          if (entry.musculo != null && entry.musculo!.isNotEmpty) {
+            lastMeasures = entry.fecha;
+          }
+        }
 
-        _sectionTitle('EVOLUCIÓN'),
-        WeightChart(historial: historial),
-        const SizedBox(height: 16),
-        BodyFatChart(historial: historial),
-        const SizedBox(height: 16),
-        MuscleMassChart(historial: historial),
-        const SizedBox(height: 16),
-        MuscleChart(historial: historial),
-      ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (settings.enabledProgressFrequencies) ...[
+              _sectionTitle('ESTADO DE SEGUIMIENTO'),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 165,
+                      child: ProgressStatusWidget(
+                        label: 'PESO',
+                        lastDate: lastWeight,
+                        frequency: settings.weightFrequency,
+                        icon: Icons.fitness_center_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 165,
+                      child: ProgressStatusWidget(
+                        label: 'GRASA',
+                        lastDate: lastFat,
+                        frequency: settings.fatFrequency,
+                        icon: Icons.water_drop_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 165,
+                      child: ProgressStatusWidget(
+                        label: 'MEDIDAS',
+                        lastDate: lastMeasures,
+                        frequency: settings.measuresFrequency,
+                        icon: Icons.straighten_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 165,
+                      child: ProgressStatusWidget(
+                        label: 'MÚSCULO',
+                        lastDate: lastMuscle,
+                        frequency: settings.muscleFrequency,
+                        icon: Icons.monitor_weight_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Summary Cards for Corporal
+            if (historial.isNotEmpty) ...[
+              // Metric Summary Cards
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'PESO',
+                      '${historial.last.peso ?? '-'} kg',
+                      Icons.fitness_center_rounded,
+                      theme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'GRASA',
+                      '${historial.last.grasaCorporal ?? '-'} %',
+                      Icons.water_drop_rounded,
+                      Colors.pink,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'MÚSCULO',
+                      '${historial.last.masaMusculoEsqueletica ?? '-'} kg',
+                      Icons.monitor_weight_outlined,
+                      Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Trend Cards Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTrendCard(
+                      'PESO',
+                      historial,
+                      (p) => p.peso,
+                      'kg',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTrendCard(
+                      'GRASA',
+                      historial,
+                      (p) => p.grasaCorporal,
+                      '%',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildTrendCard(
+                      'MÚSCULO',
+                      historial,
+                      (p) => p.masaMusculoEsqueletica,
+                      'kg',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              MuscleMassBar(
+                weight: historial.last.peso ?? 0,
+                muscleMass: historial.last.masaMusculoEsqueletica ?? 0,
+                height: widget.cliente.altura,
+                gender: widget.cliente.sexo,
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            _sectionTitle('MAPA CORPORAL'),
+            HeatmapPanel(historial: historial),
+            const SizedBox(height: 24),
+
+            _sectionTitle('EVOLUCIÓN'),
+            WeightChart(historial: historial),
+            const SizedBox(height: 16),
+            BodyFatChart(historial: historial),
+            const SizedBox(height: 16),
+            MuscleMassChart(historial: historial),
+            const SizedBox(height: 16),
+            MuscleChart(historial: historial),
+          ],
+        );
+      },
     );
   }
 
@@ -385,8 +503,9 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildRendimientoView() {
-    if (_isLoadingExercises)
+    if (_isLoadingExercises) {
       return const Center(child: CircularProgressIndicator());
+    }
 
     if (_ejercicios.isEmpty) {
       return _buildEmptyState('No hay registros de entrenamiento.');
@@ -972,8 +1091,9 @@ class _ProgressTabState extends State<ProgressTab> {
                 final idx = val.toInt();
                 if (idx >= 0 && idx < data.length) {
                   // Show 1 every 3 labels to avoid clutter
-                  if (data.length > 5 && idx % (data.length ~/ 4) != 0)
+                  if (data.length > 5 && idx % (data.length ~/ 4) != 0) {
                     return const SizedBox.shrink();
+                  }
 
                   final date = data[idx].fecha;
                   return Padding(

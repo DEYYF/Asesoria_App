@@ -20,6 +20,7 @@ class Cliente {
   String? estado; // Added (Mutable for optimistic updates)
   final String? avatarUrl; // Added
   final List<String>? objetivos; // Added
+  final String? asesorId; // Added
 
   Cliente({
     required this.id,
@@ -43,6 +44,7 @@ class Cliente {
     this.estado,
     this.avatarUrl,
     this.objetivos,
+    this.asesorId,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
@@ -74,6 +76,7 @@ class Cliente {
       objetivos: (json['objetivos'] as List?)
           ?.map((e) => e.toString())
           .toList(),
+      asesorId: json['asesorId']?.toString(),
     );
   }
 
@@ -95,6 +98,7 @@ class Cliente {
       'sesionesCounter': sesionesCounter,
       'sesionesLastMonth': sesionesLastMonth,
       'historialProgreso': historialProgreso,
+      'asesorId': asesorId,
     };
   }
 
@@ -143,6 +147,7 @@ class Cliente {
       estado: estado ?? this.estado,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       objetivos: objetivos ?? this.objetivos,
+      asesorId: asesorId ?? asesorId,
     );
   }
 }

@@ -511,7 +511,7 @@ class _CreateDietScreenState extends State<CreateDietScreen>
 
   Widget _buildObjectivesDropdown(ThemeData theme) {
     return DropdownButtonFormField<String>(
-      value: _selectedObjetivo,
+      initialValue: _selectedObjetivo,
       decoration: const InputDecoration(
         labelText: 'Objetivo',
         prefixIcon: Icon(Icons.flag_rounded),
@@ -703,7 +703,7 @@ class _CreateDietScreenState extends State<CreateDietScreen>
           children: [
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: _activeComidaIndex,
+                initialValue: _activeComidaIndex,
                 items: _comidas
                     .asMap()
                     .entries
@@ -830,8 +830,9 @@ class _CreateDietScreenState extends State<CreateDietScreen>
   }
 
   Widget _buildAddedList(ThemeData theme, bool isDark) {
-    if (_comidas.isEmpty || _activeComidaIndex >= _comidas.length)
+    if (_comidas.isEmpty || _activeComidaIndex >= _comidas.length) {
       return const SizedBox.shrink();
+    }
 
     final active = _comidas[_activeComidaIndex];
     final mealMacros = _calculateMealMacros(active);

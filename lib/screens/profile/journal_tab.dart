@@ -420,7 +420,7 @@ class _JournalTabState extends State<JournalTab> {
                       ],
                     ),
                   );
-                }).toList()
+                })
               else
                 Padding(
                   padding: const EdgeInsets.only(left: 12),

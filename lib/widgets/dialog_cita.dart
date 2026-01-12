@@ -110,12 +110,13 @@ class _DialogCitaState extends State<DialogCita> {
   Future<void> _openWhatsApp() async {
     final phone = _formatPhoneForWa(widget.cliente.telefono);
     if (phone == null) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('El cliente no tiene teléfono válido para WhatsApp'),
           ),
         );
+      }
       return;
     }
 
@@ -137,10 +138,11 @@ class _DialogCitaState extends State<DialogCita> {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No se pudo abrir WhatsApp')),
           );
+        }
       }
     } catch (e) {
       print('Error launching WA: $e');

@@ -77,10 +77,11 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
         context.pop();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -188,12 +189,14 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_ent == null)
+    }
+    if (_ent == null) {
       return const Scaffold(
         body: Center(child: Text('Entrenamiento no encontrado')),
       );
+    }
 
     final theme = Theme.of(context);
 
@@ -364,11 +367,11 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                   const SizedBox(height: 16),
                   ...sem.dias.map((dia) {
                     return _DaySection(dia: dia);
-                  }).toList(),
+                  }),
                   const SizedBox(height: 16),
                 ],
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -471,7 +474,7 @@ class _DaySectionState extends State<_DaySection> {
             // Table Header
             _buildTableHeader(),
             // Table Body
-            ...widget.dia.items.map((item) => _buildExerciseRow(item)).toList(),
+            ...widget.dia.items.map((item) => _buildExerciseRow(item)),
           ],
         ],
       ),

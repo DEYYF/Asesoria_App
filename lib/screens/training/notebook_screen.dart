@@ -82,8 +82,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
     });
   }
 
-  void _handleDayChange(int? val) {
-    if (val == null) return;
+  void _handleDayChange(int val) {
     setState(() {
       _selectedDayIdx = val;
       if (_ent != null) _initFormData(_ent!, _selectedWeekIdx, val);
@@ -161,10 +160,11 @@ class _NotebookScreenState extends State<NotebookScreen> {
         }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -172,10 +172,12 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_ent == null)
+    }
+    if (_ent == null) {
       return const Scaffold(body: Center(child: Text('Error al cargar')));
+    }
 
     final semanas = _ent!.semanas;
     final currentSemana = semanas[_selectedWeekIdx];
@@ -184,422 +186,518 @@ class _NotebookScreenState extends State<NotebookScreen> {
         ? dias[_selectedDayIdx]
         : null;
 
-    if (currentDia == null)
+    if (currentDia == null) {
       return const Scaffold(
         body: Center(child: Text('Configuración inválida')),
       );
+    }
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Registrar Sesión',
-          style: TextStyle(
-            color: theme.textTheme.titleLarge?.color,
-            fontWeight: FontWeight.bold,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      Colors.black.withOpacity(0.9),
+                      Colors.black.withOpacity(0.6),
+                    ]
+                  : [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
+            ),
           ),
         ),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        leading: BackButton(
-          color: theme.iconTheme.color,
-          onPressed: () => context.pop(),
+        leading: BackButton(color: Colors.white),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
         ),
       ),
-      body: Column(
-        children: [
-          // Selectors
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              border: Border(bottom: BorderSide(color: theme.dividerColor)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: _selectedWeekIdx,
-                        isExpanded: true,
-                        dropdownColor: theme.cardColor,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: theme.primaryColor,
-                        ),
-                        items: List.generate(
-                          semanas.length,
-                          (index) => DropdownMenuItem(
-                            value: index,
+      body: Container(
+        decoration: BoxDecoration(color: theme.scaffoldBackgroundColor),
+        child: Column(
+          children: [
+            // Header with Gradient and Week Selector
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 110, 16, 20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          Colors.black.withOpacity(0.9),
+                          Colors.black.withOpacity(0.6),
+                        ]
+                      : [
+                          theme.primaryColor,
+                          theme.primaryColor.withOpacity(0.8),
+                        ],
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(30),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Week Selector
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: semanas.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final sem = entry.value;
+                        final isSelected = idx == _selectedWeekIdx;
+                        return GestureDetector(
+                          onTap: () => _handleWeekChange(idx),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                             child: Text(
-                              'Semana ${semanas[index].numero}',
+                              'Semana ${sem.numero}',
                               style: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
+                                color: isSelected
+                                    ? theme.primaryColor
+                                    : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                           ),
-                        ),
-                        onChanged: _handleWeekChange,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Horizontal Day Selector
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: dias.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final dia = entry.value;
+                        final isSelected = idx == _selectedDayIdx;
+                        return GestureDetector(
+                          onTap: () => _handleDayChange(idx),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (isDark
+                                        ? theme.colorScheme.secondary
+                                        : Colors.white)
+                                  : (isDark
+                                        ? Colors.grey.shade900
+                                        : Colors.white.withOpacity(0.2)),
+                              borderRadius: BorderRadius.circular(16),
+                              border: !isSelected
+                                  ? Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                    )
+                                  : null,
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : [],
+                            ),
+                            child: Text(
+                              dia.nombre,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? (isDark
+                                          ? Colors.white
+                                          : theme.primaryColor)
+                                    : Colors.white.withOpacity(0.9),
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
+                itemCount: currentDia.items.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(height: 20),
+                itemBuilder: (context, index) {
+                  // Comment Card
+                  if (index == currentDia.items.length) {
+                    return _buildCommentCard(theme, isDark);
+                  }
+
+                  // Exercise Card
+                  final item = currentDia.items[index];
+                  final seriesData = _formData[index] ?? [];
+                  return _buildExerciseCard(
+                    theme,
+                    isDark,
+                    item,
+                    seriesData,
+                    index,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              offset: const Offset(0, -4),
+              blurRadius: 16,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          // Ensure button is not behind home indicator
+          child: SizedBox(
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _handleSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                elevation: 4,
+                shadowColor: theme.primaryColor.withOpacity(0.4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Finalizar y Guardar Sesión',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
                       ),
                     ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommentCard(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.notes_rounded, color: theme.primaryColor, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'Notas Finales',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            decoration: InputDecoration(
+              hintText: '¿Sensaciones? ¿Molestias? ¿Mejoras?',
+              filled: true,
+              fillColor: theme.scaffoldBackgroundColor,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            maxLines: 3,
+            onChanged: (v) => _comentarios = v,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(
+    ThemeData theme,
+    bool isDark,
+    ItemEntrenamiento item,
+    List<Map<String, dynamic>> seriesData,
+    int exerciseIndex,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center_rounded,
+                    color: theme.primaryColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.ejercicioNombre ??
+                            item.ejercicio?.nombre ??
+                            'Ejercicio',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textTheme.titleLarge?.color,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      if (item.ejercicio?.grupo != null)
+                        Text(
+                          item.ejercicio!.grupo!.toUpperCase(),
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: theme.dividerColor.withOpacity(0.5)),
+
+          // Table Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 30,
+                  child: Center(child: Text('#', style: _headerStyle(theme))),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'PESO (KG)',
+                    textAlign: TextAlign.center,
+                    style: _headerStyle(theme),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: _selectedDayIdx,
-                        isExpanded: true,
-                        dropdownColor: theme.cardColor,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: theme.primaryColor,
-                        ),
-                        items: List.generate(
-                          dias.length,
-                          (index) => DropdownMenuItem(
-                            value: index,
-                            child: Text(
-                              dias[index].nombre,
-                              style: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
-                              ),
-                            ),
-                          ),
-                        ),
-                        onChanged: _handleDayChange,
-                      ),
-                    ),
+                  child: Text(
+                    'REPS',
+                    textAlign: TextAlign.center,
+                    style: _headerStyle(theme),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'RIR',
+                    textAlign: TextAlign.center,
+                    style: _headerStyle(theme),
                   ),
                 ),
               ],
             ),
           ),
 
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: currentDia.items.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                // Comment Card
-                if (index == currentDia.items.length) {
-                  return Card(
-                    color: theme.cardColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: theme.dividerColor),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Comentarios finales',
+          // Series List
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              children: seriesData.asMap().entries.map((entry) {
+                final sIdx = entry.key;
+                final sData = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 30,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: theme.scaffoldBackgroundColor,
+                          child: Text(
+                            '${sIdx + 1}',
                             style: TextStyle(
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: theme.textTheme.titleLarge?.color,
+                              color: theme.hintColor,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            decoration: InputDecoration(
-                              hintText: '¿Cómo te sentiste? ¿Alguna molestia?',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              contentPadding: const EdgeInsets.all(12),
-                              filled: true,
-                              fillColor: theme.scaffoldBackgroundColor,
-                              hintStyle: TextStyle(color: theme.hintColor),
-                            ),
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            maxLines: 3,
-                            onChanged: (v) => _comentarios = v,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  );
-                }
-
-                // Exercise Card
-                final item = currentDia.items[index];
-                final seriesData = _formData[index] ?? [];
-
-                return Card(
-                  color: theme.cardColor,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: theme.dividerColor),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: theme.primaryColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.fitness_center,
-                                color: theme.primaryColor,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.ejercicioNombre ??
-                                        item.ejercicio?.nombre ??
-                                        'Ejercicio',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: theme.textTheme.titleLarge?.color,
-                                    ),
-                                  ),
-                                  if (item.ejercicio?.grupo != null)
-                                    Text(
-                                      item.ejercicio!.grupo!,
-                                      style: TextStyle(
-                                        color: theme.hintColor,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ModernInput(
+                          value: sData['peso'],
+                          hint: 'kg',
+                          onChanged: (v) =>
+                              _updateSerie(exerciseIndex, sIdx, 'peso', v),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Header Row
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 32,
-                                child: Center(
-                                  child: Text(
-                                    '#',
-                                    style: TextStyle(
-                                      color: theme.hintColor,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  'PESO (KG)',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: theme.hintColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'REPS',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: theme.hintColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'RIR',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: theme.hintColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ModernInput(
+                          value: sData['reps'],
+                          hint: '0',
+                          onChanged: (v) =>
+                              _updateSerie(exerciseIndex, sIdx, 'reps', v),
                         ),
-
-                        // Inputs
-                        ...seriesData.asMap().entries.map((entry) {
-                          final sIdx = entry.key;
-                          final sData = entry.value;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 32,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.scaffoldBackgroundColor,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${sIdx + 1}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.hintColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: _TableInput(
-                                    value: sData['peso'],
-                                    onChanged: (v) =>
-                                        _updateSerie(index, sIdx, 'peso', v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _TableInput(
-                                    value: sData['reps'],
-                                    onChanged: (v) =>
-                                        _updateSerie(index, sIdx, 'reps', v),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _TableInput(
-                                    value: sData['rir'],
-                                    onChanged: (v) =>
-                                        _updateSerie(index, sIdx, 'rir', v),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ModernInput(
+                          value: sData['rir'],
+                          hint: '-',
+                          onChanged: (v) =>
+                              _updateSerie(exerciseIndex, sIdx, 'rir', v),
+                        ),
+                      ),
+                    ],
                   ),
                 );
-              },
-            ),
-          ),
-
-          // Bottom Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              boxShadow: [
-                if (!isDark)
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    offset: const Offset(0, -4),
-                    blurRadius: 16,
-                  ),
-              ],
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _handleSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
-                  elevation: 0,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Finalizar y Guardar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
+              }).toList(),
             ),
           ),
         ],
       ),
     );
   }
+
+  TextStyle _headerStyle(ThemeData theme) {
+    return TextStyle(
+      color: theme.hintColor,
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.5,
+    );
+  }
 }
 
-class _TableInput extends StatelessWidget {
+class _ModernInput extends StatelessWidget {
   final String value;
+  final String hint;
   final Function(String) onChanged;
-  const _TableInput({required this.value, required this.onChanged});
+
+  const _ModernInput({
+    required this.value,
+    required this.hint,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Container(
+      height: 44,
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.transparent,
+        ), // Placeholder for active border
       ),
       child: TextFormField(
         initialValue: value,
@@ -607,12 +705,22 @@ class _TableInput extends StatelessWidget {
         textAlign: TextAlign.center,
         style: TextStyle(
           fontWeight: FontWeight.bold,
+          fontSize: 15,
           color: theme.textTheme.bodyMedium?.color,
         ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
-          isDense: true,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: theme.disabledColor.withOpacity(0.3)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: theme.scaffoldBackgroundColor,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 0,
+            horizontal: 8,
+          ),
         ),
         onChanged: onChanged,
       ),

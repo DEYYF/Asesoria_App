@@ -94,7 +94,7 @@ class _ChangeTariffDialogState extends State<ChangeTariffDialog> {
           : SizedBox(
               width: double.maxFinite,
               child: DropdownButtonFormField<String>(
-                value: _selectedTarifa,
+                initialValue: _selectedTarifa,
                 dropdownColor: theme.colorScheme.surface,
                 style: TextStyle(color: theme.textTheme.bodyMedium?.color),
                 items: _tarifas.map<DropdownMenuItem<String>>((t) {

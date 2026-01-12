@@ -10,8 +10,9 @@ class WeightChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (historial.isEmpty)
+    if (historial.isEmpty) {
       return const Center(child: Text('Sin datos de peso'));
+    }
 
     // Filter and Sort
     final data = historial.where((h) => h.peso != null).toList()

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 class AddFoodOptionsSheet extends StatelessWidget {
   final int currentTabIndex;
+  final bool showScan;
   final VoidCallback onAddManual;
   final VoidCallback onScanProduct;
 
   const AddFoodOptionsSheet({
     super.key,
     required this.currentTabIndex,
+    this.showScan = true,
     required this.onAddManual,
     required this.onScanProduct,
   });
@@ -59,15 +61,17 @@ class AddFoodOptionsSheet extends StatelessWidget {
             color: theme.primaryColor,
             onTap: onAddManual,
           ),
-          const SizedBox(height: 12),
-          _buildOptionItem(
-            context,
-            title: 'Scannea el producto',
-            subtitle: 'Obtén macros mediante código de barras',
-            icon: Icons.qr_code_scanner_rounded,
-            color: Colors.orange,
-            onTap: onScanProduct,
-          ),
+          if (showScan) ...[
+            const SizedBox(height: 12),
+            _buildOptionItem(
+              context,
+              title: 'Scannea el producto',
+              subtitle: 'Obtén macros mediante código de barras',
+              icon: Icons.qr_code_scanner_rounded,
+              color: Colors.orange,
+              onTap: onScanProduct,
+            ),
+          ],
           const SizedBox(height: 16),
         ],
       ),

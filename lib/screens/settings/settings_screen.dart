@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'email_history_screen.dart';
 import '../../services/settings_service.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
@@ -8,6 +9,10 @@ import '../../models/settings_model.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/business_settings_dialog.dart';
 import 'widgets/support_dialog.dart';
+import 'templates_screen.dart';
+import 'automation_screen.dart';
+import 'modules_management_screen.dart';
+import '../../providers/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -28,34 +33,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final settingsService = SettingsService(
-      Provider.of<ApiService>(context, listen: false),
+    final settingsProvider = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
     );
-    try {
-      final settings = await settingsService.getSettings();
+    await settingsProvider.loadSettings();
+    if (mounted) {
       setState(() {
-        _settings = settings;
-        _loading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading settings: $e');
-      setState(() {
-        _settings = UserSettings();
+        _settings = settingsProvider.settings;
         _loading = false;
       });
     }
   }
 
   Future<void> _updateSettings(UserSettings newSettings) async {
+    final settingsProvider = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    );
     final oldSettings = _settings;
     setState(() => _settings = newSettings);
 
-    final settingsService = SettingsService(
-      Provider.of<ApiService>(context, listen: false),
-    );
-
     try {
-      await settingsService.updateSettings(newSettings);
+      await settingsProvider.updateSettings(newSettings);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -87,239 +87,422 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : const Color(0xFFF2F2F7),
-      appBar: AppBar(
-        title: const Text(
-          'Ajustes',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-      ),
-      body: ListView(
+      backgroundColor: isDark ? Colors.black : const Color(0xFFF8F9FB),
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
-        children: [
-          // Notifications section
-          const SettingsSectionHeader(title: 'NOTIFICACIONES'),
-          SettingsGroup(
-            children: [
-              SettingsSwitchTile(
-                title: 'Notificaciones Push',
-                icon: Icons.notifications_active_rounded,
-                iconColor: Colors.redAccent,
-                value: _settings!.pushNotifications,
-                onChanged: (val) => _updateSettings(
-                  _settings!.copyWith(pushNotifications: val),
+        slivers: [
+          // PREMIUM HEADER WITH GRADIENT
+          SliverAppBar(
+            expandedHeight: 180.0,
+            floating: false,
+            pinned: true,
+            stretch: true,
+            elevation: 0,
+            backgroundColor: isDark
+                ? const Color(0xFF1C1C1E)
+                : Colors.blue[800],
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground],
+              title: const Text(
+                'Configuración',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  color: Colors.white,
                 ),
               ),
-              SettingsSwitchTile(
-                title: 'Notificaciones Email',
-                icon: Icons.alternate_email_rounded,
-                iconColor: Colors.blueAccent,
-                value: _settings!.emailNotifications,
-                onChanged: (val) => _updateSettings(
-                  _settings!.copyWith(emailNotifications: val),
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [const Color(0xFF1C1C1E), const Color(0xFF2C2C2E)]
+                        : [Colors.teal[700]!, Colors.blue[900]!],
+                  ),
                 ),
-              ),
-            ],
-          ),
-
-          // Appearance section
-          const SettingsSectionHeader(title: 'APARIENCIA'),
-          SettingsGroup(
-            children: [
-              SettingsNavigationTile(
-                title: 'Tema',
-                icon: Icons.palette_rounded,
-                iconColor: Colors.purple,
-                trailing: Text(
-                  _getThemeLabel(_settings!.theme),
-                  style: TextStyle(color: theme.hintColor),
-                ),
-                onTap: _showThemePicker,
-              ),
-              SettingsNavigationTile(
-                title: 'Color de Acento',
-                icon: Icons.colorize_rounded,
-                iconColor: Colors.orange,
-                trailing: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: _parseColor(_settings!.accentColor),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 1),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -30,
+                      top: -20,
+                      child: Icon(
+                        Icons.settings_suggest_rounded,
+                        size: 200,
+                        color: Colors.white.withOpacity(0.05),
                       ),
-                    ],
+                    ),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white24,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.2,
+                                    ),
+                                    child: const Icon(
+                                      Icons.person_rounded,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        auth.user?['email'] ?? 'Asesor Pro',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        'ID: ${auth.userId?.substring(0, 8) ?? 'Offline'}',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.7),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 12),
+
+              // Notifications section
+              const SettingsSectionHeader(title: 'Notificaciones'),
+              SettingsGroup(
+                children: [
+                  SettingsSwitchTile(
+                    title: 'Notificaciones Push',
+                    icon: Icons.notifications_active_rounded,
+                    iconColor: Colors.orange,
+                    value: _settings!.pushNotifications,
+                    onChanged: (val) => _updateSettings(
+                      _settings!.copyWith(pushNotifications: val),
+                    ),
                   ),
-                ),
-                onTap: _showColorPicker,
-              ),
-            ],
-          ),
-
-          // Account section
-          const SettingsSectionHeader(title: 'CUENTA'),
-          SettingsGroup(
-            children: [
-              SettingsNavigationTile(
-                title: 'Exportar Datos',
-                icon: Icons.download_for_offline_rounded,
-                iconColor: Colors.green,
-                onTap: _exportData,
-              ),
-              SettingsNavigationTile(
-                title: 'Eliminar Cuenta',
-                icon: Icons.person_remove_rounded,
-                iconColor: Colors.grey,
-                titleColor: Colors.red,
-                onTap: _confirmDeleteAccount,
-              ),
-            ],
-          ),
-
-          // Frequency section
-          const SettingsSectionHeader(title: 'FRECUENCIA DE MEDICIONES'),
-          SettingsGroup(
-            children: [
-              SettingsNavigationTile(
-                title: 'Peso',
-                icon: Icons.monitor_weight_rounded,
-                iconColor: Colors.blueAccent,
-                trailing: Text(
-                  _getFrequencyLabel(_settings!.weightFrequency),
-                  style: TextStyle(color: theme.hintColor),
-                ),
-                onTap: () => _showFrequencyPicker(
-                  'Peso',
-                  _settings!.weightFrequency,
-                  (val) {
-                    _updateSettings(_settings!.copyWith(weightFrequency: val));
-                  },
-                ),
-              ),
-              SettingsNavigationTile(
-                title: 'Porcentaje Graso',
-                icon: Icons.percent_rounded,
-                iconColor: Colors.orangeAccent,
-                trailing: Text(
-                  _getFrequencyLabel(_settings!.fatFrequency),
-                  style: TextStyle(color: theme.hintColor),
-                ),
-                onTap: () => _showFrequencyPicker(
-                  'Porcentaje Graso',
-                  _settings!.fatFrequency,
-                  (val) {
-                    _updateSettings(_settings!.copyWith(fatFrequency: val));
-                  },
-                ),
-              ),
-              SettingsNavigationTile(
-                title: 'Medidas',
-                icon: Icons.straighten_rounded,
-                iconColor: Colors.greenAccent,
-                trailing: Text(
-                  _getFrequencyLabel(_settings!.measuresFrequency),
-                  style: TextStyle(color: theme.hintColor),
-                ),
-                onTap: () => _showFrequencyPicker(
-                  'Medidas',
-                  _settings!.measuresFrequency,
-                  (val) {
-                    _updateSettings(
-                      _settings!.copyWith(measuresFrequency: val),
-                    );
-                  },
-                ),
-              ),
-              SettingsNavigationTile(
-                title: 'Porcentaje Musculoesquelético',
-                icon: Icons.fitness_center_rounded,
-                iconColor: Colors.redAccent,
-                trailing: Text(
-                  _getFrequencyLabel(_settings!.muscleFrequency),
-                  style: TextStyle(color: theme.hintColor),
-                ),
-                onTap: () => _showFrequencyPicker(
-                  'Porcentaje Musculoesquelético',
-                  _settings!.muscleFrequency,
-                  (val) {
-                    _updateSettings(_settings!.copyWith(muscleFrequency: val));
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          // Admin section
-          if (auth.isAdmin) ...[
-            const SettingsSectionHeader(title: 'ADMINISTRACIÓN'),
-            SettingsGroup(
-              children: [
-                SettingsNavigationTile(
-                  title: 'Configuración de Negocio',
-                  icon: Icons.business_center_rounded,
-                  iconColor: const Color(0xFF5856D6),
-                  trailing: Text(
-                    'Signature & Email',
-                    style: TextStyle(color: theme.hintColor, fontSize: 13),
+                  SettingsSwitchTile(
+                    title: 'Notificaciones Email',
+                    icon: Icons.alternate_email_rounded,
+                    iconColor: Colors.blue,
+                    value: _settings!.emailNotifications,
+                    onChanged: (val) => _updateSettings(
+                      _settings!.copyWith(emailNotifications: val),
+                    ),
                   ),
-                  onTap: _showBusinessSettingsDialog,
+                ],
+              ),
+
+              // Appearance section
+              const SettingsSectionHeader(title: 'Apariencia'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Tema Visual',
+                    subtitle: 'Cambiar entre modo claro y oscuro',
+                    icon: Icons.palette_rounded,
+                    iconColor: Colors.purple,
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _getThemeLabel(_settings!.theme),
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.grey[800],
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    onTap: _showThemePicker,
+                  ),
+                ],
+              ),
+
+              // Communication section
+              if (_settings!.enabledChat ||
+                  _settings!.enabledEmail ||
+                  _settings!.enabledTemplateManagement ||
+                  _settings!.enabledAutomation) ...[
+                const SettingsSectionHeader(title: 'Comunicación'),
+                SettingsGroup(
+                  children: [
+                    if (_settings!.enabledTemplateManagement)
+                      SettingsNavigationTile(
+                        title: 'Plantillas de Mensajes',
+                        subtitle: 'Gestionar respuestas rápidas',
+                        icon: Icons.auto_awesome_motion_rounded,
+                        iconColor: Colors.teal,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TemplatesScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    SettingsNavigationTile(
+                      title: 'Historial de Correos',
+                      subtitle: 'Registro de correos enviados',
+                      icon: Icons.history_edu_rounded,
+                      iconColor: Colors.blueGrey,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EmailHistoryScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (_settings!.enabledAutomation)
+                      SettingsNavigationTile(
+                        title: 'Automatización',
+                        subtitle: 'Reglas para mensajes automáticos',
+                        icon: Icons.auto_mode_rounded,
+                        iconColor: Colors.deepPurpleAccent,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AutomationScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                 ),
               ],
-            ),
-          ],
 
-          // System section
-          const SettingsSectionHeader(title: 'SISTEMA'),
-          SettingsGroup(
-            children: [
-              SettingsInfoTile(
-                title: 'Versión',
-                icon: Icons.info_outline_rounded,
-                iconColor: Colors.grey,
-                value: _appVersion,
+              // Module Management section
+              const SettingsSectionHeader(title: 'Sistema de Módulos'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Administrar Módulos',
+                    subtitle: 'Activar o desactivar funciones de la app',
+                    icon: Icons.settings_suggest_rounded,
+                    iconColor: const Color(0xFF5856D6),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ModulesManagementScreen(settings: _settings!),
+                        ),
+                      ).then((_) => _loadSettings());
+                    },
+                  ),
+                ],
               ),
-              SettingsNavigationTile(
-                title: 'Soporte',
-                icon: Icons.help_outline_rounded,
-                iconColor: Colors.teal,
-                onTap: _showSupportDialog,
-              ),
-            ],
-          ),
 
-          // Logout button
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: ElevatedButton(
-              onPressed: () => _confirmLogout(auth),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark
-                    ? const Color(0xFF1C1C1E)
-                    : Colors.white,
-                foregroundColor: Colors.red,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              // Frequency section
+              if (_settings!.enabledProgressFrequencies) ...[
+                const SettingsSectionHeader(title: 'Frecuencia de Seguimiento'),
+                SettingsGroup(
+                  children: [
+                    _buildFreqTile(
+                      'Peso',
+                      Icons.monitor_weight_rounded,
+                      Colors.blueAccent,
+                      _settings!.weightFrequency,
+                      (val) => _updateSettings(
+                        _settings!.copyWith(weightFrequency: val),
+                      ),
+                    ),
+                    _buildFreqTile(
+                      'Porcentaje Graso',
+                      Icons.percent_rounded,
+                      Colors.orangeAccent,
+                      _settings!.fatFrequency,
+                      (val) => _updateSettings(
+                        _settings!.copyWith(fatFrequency: val),
+                      ),
+                    ),
+                    _buildFreqTile(
+                      'Medidas',
+                      Icons.straighten_rounded,
+                      Colors.greenAccent,
+                      _settings!.measuresFrequency,
+                      (val) => _updateSettings(
+                        _settings!.copyWith(measuresFrequency: val),
+                      ),
+                    ),
+                    _buildFreqTile(
+                      'Músculo',
+                      Icons.fitness_center_rounded,
+                      Colors.redAccent,
+                      _settings!.muscleFrequency,
+                      (val) => _updateSettings(
+                        _settings!.copyWith(muscleFrequency: val),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Admin section
+              if (auth.isAdmin) ...[
+                const SettingsSectionHeader(title: 'Administración'),
+                SettingsGroup(
+                  children: [
+                    SettingsNavigationTile(
+                      title: 'Perfil de Negocio',
+                      subtitle: 'Firma, logos y email corporativo',
+                      icon: Icons.business_center_rounded,
+                      iconColor: const Color(0xFF5856D6),
+                      onTap: _showBusinessSettingsDialog,
+                    ),
+                  ],
+                ),
+              ],
+
+              // Account section
+              const SettingsSectionHeader(title: 'Datos y Cuenta'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Exportar Datos',
+                    subtitle: 'Descarga tu información completa',
+                    icon: Icons.cloud_download_rounded,
+                    iconColor: Colors.blue,
+                    onTap: _exportData,
+                  ),
+                  SettingsNavigationTile(
+                    title: 'Eliminar Cuenta',
+                    subtitle: 'Baja definitiva del servicio',
+                    icon: Icons.no_accounts_rounded,
+                    iconColor: Colors.redAccent,
+                    titleColor: Colors.redAccent,
+                    onTap: _confirmDeleteAccount,
+                  ),
+                ],
+              ),
+
+              // Information section
+              const SettingsSectionHeader(title: 'Centro de Ayuda'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Soporte Técnico',
+                    subtitle: 'Contactar con el equipo de ayuda',
+                    icon: Icons.live_help_rounded,
+                    iconColor: Colors.teal,
+                    onTap: _showSupportDialog,
+                  ),
+                  SettingsInfoTile(
+                    title: 'Versión de la App',
+                    icon: Icons.info_outline_rounded,
+                    iconColor: Colors.grey,
+                    value: _appVersion,
+                  ),
+                ],
+              ),
+
+              // Logout button
+              const SizedBox(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: InkWell(
+                  onTap: () => _confirmLogout(auth),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.red.withOpacity(0.2)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Cerrar Sesión Segura',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: const Text(
-                'Cerrar Sesión',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
+
+              const SizedBox(height: 60),
+            ]),
           ),
-          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _buildFreqTile(
+    String title,
+    IconData icon,
+    Color color,
+    String value,
+    ValueChanged<String> onSelected,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SettingsNavigationTile(
+      title: title,
+      icon: icon,
+      iconColor: color,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white10 : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          _getFrequencyLabel(value),
+          style: TextStyle(
+            color: isDark ? Colors.white70 : Colors.grey[800],
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      onTap: () => _showFrequencyPicker(title, value, onSelected),
     );
   }
 
@@ -343,14 +526,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return 'Oscuro';
       default:
         return 'Sistema';
-    }
-  }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return Colors.blue;
     }
   }
 
@@ -471,87 +646,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         themeProvider.setTheme(value);
         _updateSettings(_settings!.copyWith(theme: value));
       },
-    );
-  }
-
-  void _showColorPicker() {
-    final colors = [
-      {'name': 'Azul', 'color': Colors.blue},
-      {'name': 'Rojo', 'color': Colors.red},
-      {'name': 'Verde', 'color': Colors.green},
-      {'name': 'Naranja', 'color': Colors.orange},
-      {'name': 'Morado', 'color': Colors.purple},
-      {'name': 'Rosa', 'color': Colors.pink},
-      {'name': 'Teal', 'color': Colors.teal},
-      {'name': 'Indigo', 'color': Colors.indigo},
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Text(
-                'Color de Acento',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-              ),
-            ),
-            GridView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-              ),
-              itemCount: colors.length,
-              itemBuilder: (context, index) {
-                final color = colors[index]['color'] as Color;
-                final hex =
-                    '#${(color.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-                final isSelected = _settings!.accentColor.toUpperCase() == hex;
-
-                return GestureDetector(
-                  onTap: () {
-                    final themeProvider = Provider.of<ThemeProvider>(
-                      context,
-                      listen: false,
-                    );
-                    Navigator.pop(context);
-                    themeProvider.setAccentColor(hex);
-                    _updateSettings(_settings!.copyWith(accentColor: hex));
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(
-                              color: Theme.of(context).primaryColor,
-                              width: 3,
-                            )
-                          : null,
-                    ),
-                    child: isSelected
-                        ? const Icon(Icons.check, color: Colors.white)
-                        : null,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
     );
   }
 

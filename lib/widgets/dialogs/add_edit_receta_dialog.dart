@@ -93,10 +93,11 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
       widget.onSuccess();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -152,8 +153,9 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
                           child: Autocomplete<Ingrediente>(
                             displayStringForOption: (i) => i.nombre,
                             optionsBuilder: (textEdit) {
-                              if (textEdit.text.isEmpty)
+                              if (textEdit.text.isEmpty) {
                                 return const Iterable<Ingrediente>.empty();
+                              }
                               return widget.ingredientesDisponibles.where(
                                 (i) => i.nombre.toLowerCase().contains(
                                   textEdit.text.toLowerCase(),

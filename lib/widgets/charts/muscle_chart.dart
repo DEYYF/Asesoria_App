@@ -17,8 +17,9 @@ class _MuscleChartState extends State<MuscleChart> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.historial.isEmpty)
+    if (widget.historial.isEmpty) {
       return const Center(child: Text('Sin datos musculares'));
+    }
 
     // Extract all diverse muscle measurements
     final Map<String, List<FlSpot>> muscleSpots = {};
@@ -37,8 +38,9 @@ class _MuscleChartState extends State<MuscleChart> {
       }
     }
 
-    if (muscleSpots.isEmpty)
+    if (muscleSpots.isEmpty) {
       return const Center(child: Text('Sin registros musculares'));
+    }
 
     // Filter by selected muscle if one is chosen
     final Map<String, List<FlSpot>> filteredMuscleSpots =

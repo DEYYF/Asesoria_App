@@ -10,16 +10,18 @@ class MuscleMassChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (historial.isEmpty)
+    if (historial.isEmpty) {
       return const Center(child: Text('Sin datos de masa muscular'));
+    }
 
     // Filter and Sort
     final data =
         historial.where((h) => h.masaMusculoEsqueletica != null).toList()
           ..sort((a, b) => a.fecha.compareTo(b.fecha));
 
-    if (data.isEmpty)
+    if (data.isEmpty) {
       return const Center(child: Text('Sin registros de masa muscular'));
+    }
 
     final spots = data.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value.masaMusculoEsqueletica!);
