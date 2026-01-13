@@ -493,8 +493,11 @@ class _ClienteCardState extends State<ClienteCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -516,8 +519,7 @@ class _ClienteCardState extends State<ClienteCard> {
                           ),
                         ),
                       ),
-                      if (_isProgressOverdue || _isProgressDueToday) ...[
-                        const SizedBox(width: 8),
+                      if (_isProgressOverdue || _isProgressDueToday)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
@@ -555,38 +557,32 @@ class _ClienteCardState extends State<ClienteCard> {
                                       ? Colors.red
                                       : Colors.orange,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
-                      ],
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.restaurant_menu,
-                              size: 12,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.restaurant_menu,
+                            size: 12,
+                            color: theme.hintColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _ultimaDietaDias == null
+                                ? 'Sin dieta reciente'
+                                : 'Hace $_ultimaDietaDias días',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
                               color: theme.hintColor,
                             ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                _ultimaDietaDias == null
-                                    ? 'Sin dieta reciente'
-                                    : 'Hace $_ultimaDietaDias días',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                softWrap: false,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.hintColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

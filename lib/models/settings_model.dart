@@ -17,6 +17,7 @@ class UserSettings {
   final bool enabledTrainingLog;
   final bool enabledFoodScanner;
   final bool enabledAutomation;
+  final bool enabledFinanzas;
 
   UserSettings({
     this.pushNotifications = true,
@@ -37,6 +38,7 @@ class UserSettings {
     this.enabledTrainingLog = true,
     this.enabledFoodScanner = true,
     this.enabledAutomation = true,
+    this.enabledFinanzas = true,
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class UserSettings {
       enabledTrainingLog: json['enabledTrainingLog'] ?? true,
       enabledFoodScanner: json['enabledFoodScanner'] ?? true,
       enabledAutomation: json['enabledAutomation'] ?? true,
+      enabledFinanzas: json['enabledFinanzas'] ?? true,
     );
   }
 
@@ -82,6 +85,7 @@ class UserSettings {
       'enabledTrainingLog': enabledTrainingLog,
       'enabledFoodScanner': enabledFoodScanner,
       'enabledAutomation': enabledAutomation,
+      'enabledFinanzas': enabledFinanzas,
     };
   }
 
@@ -104,6 +108,7 @@ class UserSettings {
     bool? enabledTrainingLog,
     bool? enabledFoodScanner,
     bool? enabledAutomation,
+    bool? enabledFinanzas,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -126,6 +131,7 @@ class UserSettings {
       enabledTrainingLog: enabledTrainingLog ?? this.enabledTrainingLog,
       enabledFoodScanner: enabledFoodScanner ?? this.enabledFoodScanner,
       enabledAutomation: enabledAutomation ?? this.enabledAutomation,
+      enabledFinanzas: enabledFinanzas ?? this.enabledFinanzas,
     );
   }
 }

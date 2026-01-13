@@ -91,25 +91,27 @@ class ProgressStatusWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: IntrinsicWidth(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 18),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 10),
-            Column(
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -118,6 +120,8 @@ class ProgressStatusWidget extends StatelessWidget {
                 ),
                 Text(
                   status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
@@ -127,6 +131,8 @@ class ProgressStatusWidget extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 9,
                     color: theme.hintColor.withOpacity(0.7),
@@ -135,9 +141,9 @@ class ProgressStatusWidget extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 8),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
     );
   }

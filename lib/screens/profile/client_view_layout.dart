@@ -150,6 +150,7 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
       body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
         },

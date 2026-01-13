@@ -30,6 +30,7 @@ import 'screens/advisor_calendar_screen.dart'; // Add
 import 'screens/presupuestos_screen.dart';
 import 'screens/settings/automation_screen.dart';
 import 'services/template_service.dart';
+import 'screens/settings/finanzas_screen.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -243,6 +244,15 @@ class MyApp extends StatelessWidget {
                 GoRoute(
                   path: '/automation',
                   builder: (context, state) => const AutomationScreen(),
+                ),
+              ],
+            ),
+            // Branch 8: Finanzas
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/finanzas',
+                  builder: (context, state) => const FinanzasScreen(),
                 ),
               ],
             ),

@@ -328,6 +328,21 @@ class _ModulesManagementScreenState extends State<ModulesManagementScreen> {
                       'Reglas para enviar mensajes y correos automáticamente ante eventos del sistema.',
                     ),
                   ),
+                  SettingsSwitchTile(
+                    title: 'Panel Financiero',
+                    icon: Icons.account_balance_wallet_rounded,
+                    iconColor: Colors.amber,
+                    value: _settings.enabledFinanzas,
+                    onChanged: _isUnlocked
+                        ? (val) => _updateSettings(
+                            _settings.copyWith(enabledFinanzas: val),
+                          )
+                        : null,
+                    onInfoTap: () => _showModuleInfo(
+                      'Panel Financiero',
+                      'Control de ingresos, gastos y vinculación automática con presupuestos pagados.',
+                    ),
+                  ),
                 ],
               ),
               Padding(

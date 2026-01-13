@@ -9,7 +9,7 @@ import '../../utils/isolate_utils.dart';
 import '../../services/settings_service.dart';
 import '../../models/settings_model.dart';
 import 'widgets/add_food_options_sheet.dart';
-import 'widgets/add_product_source_dialog.dart';
+import 'widgets/barcode_scanner_screen.dart';
 
 class ComidasScreen extends StatefulWidget {
   const ComidasScreen({super.key});
@@ -194,16 +194,14 @@ class _ComidasScreenState extends State<ComidasScreen>
         },
         onScanProduct: () {
           Navigator.pop(context);
-          _showScannerSource();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BarcodeScannerScreen(onSuccess: _loadData),
+            ),
+          );
         },
       ),
-    );
-  }
-
-  void _showScannerSource() {
-    showDialog(
-      context: context,
-      builder: (context) => AddProductSourceDialog(onSuccess: _loadData),
     );
   }
 

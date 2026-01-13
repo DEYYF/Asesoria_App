@@ -1489,7 +1489,10 @@ class _AutomationScreenState extends State<AutomationScreen> {
         spans.add(
           TextSpan(
             text: remaining,
-            style: const TextStyle(color: Colors.black87, fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontSize: 12,
+            ),
           ),
         );
         break;
@@ -1499,7 +1502,10 @@ class _AutomationScreenState extends State<AutomationScreen> {
         spans.add(
           TextSpan(
             text: remaining.substring(0, firstIdx),
-            style: const TextStyle(color: Colors.black87, fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontSize: 12,
+            ),
           ),
         );
       }

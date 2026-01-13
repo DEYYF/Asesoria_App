@@ -41,13 +41,28 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     if (_isNavigating) return;
 
     final newIndex = _controller.selectedIndex;
-    if (newIndex != widget.navigationShell.currentIndex) {
-      _isNavigating = true;
-      widget.navigationShell.goBranch(
-        newIndex,
-        initialLocation: newIndex == widget.navigationShell.currentIndex,
-      );
-      _isNavigating = false;
+    // Map UI Index to Branch Index
+    final settings = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).settings;
+    final showAutomation = settings?.enabledAutomation ?? false;
+    final showFinanzas = settings?.enabledFinanzas ?? false;
+
+    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6];
+    if (showAutomation) visibleBranches.add(7);
+    if (showFinanzas) visibleBranches.add(8);
+
+    if (newIndex < visibleBranches.length) {
+      final targetBranch = visibleBranches[newIndex];
+      if (targetBranch != widget.navigationShell.currentIndex) {
+        _isNavigating = true;
+        widget.navigationShell.goBranch(
+          targetBranch,
+          initialLocation: targetBranch == widget.navigationShell.currentIndex,
+        );
+        _isNavigating = false;
+      }
     }
   }
 
@@ -73,6 +88,8 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     final auth = Provider.of<AuthService>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
+    final isMobile = size.width < 800;
 
     final showNavBar = !auth.isClient;
 
@@ -80,20 +97,111 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
       return Scaffold(body: widget.navigationShell);
     }
 
-    return Scaffold(
-      body: Row(
-        children: [
-          StreamBuilder<int>(
-            stream: Provider.of<ChatService>(context).unreadCountStream,
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              print(
-                'Sidebar unread count snapshot: $count (Has data: ${snapshot.hasData})',
-              );
+    final settings = Provider.of<SettingsProvider>(context).settings;
+    final showAutomation = settings?.enabledAutomation ?? false;
+    final showFinanzas = settings?.enabledFinanzas ?? false;
 
-              return AnimatedBuilder(
+    // Map UI indices to Branch indices
+    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6];
+    if (showAutomation) visibleBranches.add(7);
+    if (showFinanzas) visibleBranches.add(8);
+
+    int getUIIndex(int branchIndex) {
+      final uiIdx = visibleBranches.indexOf(branchIndex);
+      return uiIdx != -1 ? uiIdx : 0;
+    }
+
+    return StreamBuilder<int>(
+      stream: Provider.of<ChatService>(context).unreadCountStream,
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+
+        if (isMobile) {
+          return Scaffold(
+            body: widget.navigationShell,
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: getUIIndex(widget.navigationShell.currentIndex),
+              onTap: (index) {
+                if (index < visibleBranches.length) {
+                  widget.navigationShell.goBranch(
+                    visibleBranches[index],
+                    initialLocation:
+                        visibleBranches[index] ==
+                        widget.navigationShell.currentIndex,
+                  );
+                }
+              },
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: theme.primaryColor,
+              unselectedItemColor: theme.hintColor.withOpacity(0.5),
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+              items: [
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard_outlined),
+                  activeIcon: Icon(Icons.dashboard),
+                  label: 'Dashboard',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.fitness_center_outlined),
+                  activeIcon: Icon(Icons.fitness_center),
+                  label: 'Ejercicios',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.restaurant_menu_outlined),
+                  activeIcon: Icon(Icons.restaurant_menu),
+                  label: 'Comidas',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: 'Ajustes',
+                ),
+                BottomNavigationBarItem(
+                  icon: _buildChatIcon(count, false, theme),
+                  activeIcon: _buildChatIcon(count, true, theme),
+                  label: 'Chat',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  activeIcon: Icon(Icons.calendar_month),
+                  label: 'Calendario',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  activeIcon: Icon(Icons.receipt_long),
+                  label: 'Cuentas',
+                ),
+                if (showAutomation)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.auto_mode_rounded),
+                    label: 'Auto',
+                  ),
+                if (showFinanzas)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.account_balance_wallet_outlined),
+                    activeIcon: Icon(Icons.account_balance_wallet),
+                    label: 'Finanzas',
+                  ),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          body: Row(
+            children: [
+              AnimatedBuilder(
                 animation: _controller,
                 builder: (context, _) {
+                  // Update sidebar selection to match mapped index
+                  final uiIdx = getUIIndex(widget.navigationShell.currentIndex);
+                  if (_controller.selectedIndex != uiIdx) {
+                    _isNavigating = true;
+                    _controller.selectIndex(uiIdx);
+                    _isNavigating = false;
+                  }
+
                   return SidebarX(
                     controller: _controller,
                     theme: SidebarXTheme(
@@ -186,31 +294,11 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                       SidebarXItem(
                         icon: Icons.chat_outlined,
                         label: 'Chat',
-                        iconWidget: count > 0
-                            ? Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Icon(
-                                    Icons.chat_outlined,
-                                    color: _controller.selectedIndex == 4
-                                        ? Colors.white
-                                        : theme.hintColor.withOpacity(0.5),
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : null,
+                        iconWidget: _buildChatIcon(
+                          count,
+                          getUIIndex(widget.navigationShell.currentIndex) == 4,
+                          theme,
+                        ),
                       ),
                       const SidebarXItem(
                         icon: Icons.calendar_month_outlined,
@@ -220,23 +308,65 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                         icon: Icons.receipt_long_outlined,
                         label: 'Presupuestos',
                       ),
-                      if (Provider.of<SettingsProvider>(
-                            context,
-                          ).settings?.enabledAutomation ??
-                          false)
+                      if (showAutomation)
                         const SidebarXItem(
                           icon: Icons.auto_mode_rounded,
                           label: 'Automatización',
                         ),
+                      if (showFinanzas)
+                        const SidebarXItem(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: 'Finanzas',
+                        ),
                     ],
                   );
                 },
-              );
-            },
+              ),
+              Expanded(child: widget.navigationShell),
+            ],
           ),
-          Expanded(child: widget.navigationShell),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChatIcon(int count, bool isActive, ThemeData theme) {
+    if (count <= 0) {
+      return Icon(
+        Icons.chat_outlined,
+        color: isActive ? Colors.white : theme.hintColor.withOpacity(0.5),
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          Icons.chat_outlined,
+          color: isActive ? Colors.white : theme.hintColor.withOpacity(0.5),
+        ),
+        Positioned(
+          right: -2,
+          top: -2,
+          child: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+            constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
+            child: Center(
+              child: Text(
+                count > 9 ? '9+' : '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
