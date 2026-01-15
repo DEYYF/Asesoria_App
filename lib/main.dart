@@ -72,56 +72,57 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final auth = Provider.of<AuthService>(context);
+  State<MyApp> createState() => _MyAppState();
+}
 
-    final router = GoRouter(
-      refreshListenable: auth,
+class _MyAppState extends State<MyApp> {
+  late GoRouter _router;
+  late AuthService _auth;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth = Provider.of<AuthService>(context, listen: false);
+    _router = _buildRouter();
+  }
+
+  GoRouter _buildRouter() {
+    return GoRouter(
+      refreshListenable: _auth,
       initialLocation: '/',
       redirect: (context, state) {
-        final loggedIn = auth.isAuthenticated;
+        final loggedIn = _auth.isAuthenticated;
         final onLogin = state.matchedLocation == '/login';
         final onFirstLogin = state.matchedLocation == '/first-login';
 
-        print(
-          'Router Redirect: path=${state.matchedLocation}, loggedIn=$loggedIn, onLogin=$onLogin, onFirstLogin=$onFirstLogin',
-        );
-
         // Not logged in - redirect to login (allow first-login screen)
         if (!loggedIn && !onLogin && !onFirstLogin) {
-          print('Redirecting to /login (auth required)');
           return '/login';
         }
 
         // Logged in on login page - redirect to appropriate home
         if (loggedIn && (onLogin || onFirstLogin)) {
-          final target = auth.isClient ? '/clientes/${auth.userId}' : '/';
-          print('Already logged in, redirecting to $target');
-          return target;
+          return _auth.isClient ? '/clientes/${_auth.userId}' : '/';
         }
 
         // Client access restrictions
-        if (loggedIn && auth.isClient) {
+        if (loggedIn && _auth.isClient) {
           final currentPath = state.matchedLocation;
 
           // Prevent clients from accessing dashboard
           if (currentPath == '/') {
-            print('Client tried to access dashboard, redirecting to profile');
-            return '/clientes/${auth.userId}';
+            return '/clientes/${_auth.userId}';
           }
 
           // Prevent clients from accessing other client profiles
           if (currentPath.startsWith('/clientes/')) {
             final pathClientId = state.pathParameters['id'];
-            if (pathClientId != null && pathClientId != auth.userId) {
-              print(
-                'Client tried to access another profile, redirecting to own',
-              );
-              return '/clientes/${auth.userId}';
+            if (pathClientId != null && pathClientId != _auth.userId) {
+              return '/clientes/${_auth.userId}';
             }
           }
         }
@@ -196,16 +197,7 @@ class MyApp extends StatelessWidget {
                 ),
               ],
             ),
-            // Branch 3: Settings
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
-                  path: '/settings',
-                  builder: (context, state) => const SettingsScreen(),
-                ),
-              ],
-            ),
-            // Branch 4: Chat
+            // Branch 3: Chat
             StatefulShellBranch(
               routes: [
                 GoRoute(
@@ -217,6 +209,15 @@ class MyApp extends StatelessWidget {
                       builder: (context, state) => const ChatContactsScreen(),
                     ),
                   ],
+                ),
+              ],
+            ),
+            // Branch 4: Settings
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/settings',
+                  builder: (context, state) => const SettingsScreen(),
                 ),
               ],
             ),
@@ -288,7 +289,10 @@ class MyApp extends StatelessWidget {
         ),
       ],
     );
+  }
 
+  @override
+  Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp.router(
@@ -297,7 +301,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.getTheme(themeProvider.accentColor, isDark: false),
       darkTheme: AppTheme.getTheme(themeProvider.accentColor, isDark: true),
       themeMode: themeProvider.themeMode,
-      routerConfig: router,
+      routerConfig: _router,
     );
   }
 }

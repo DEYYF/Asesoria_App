@@ -265,249 +265,420 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return AlertDialog(
-      backgroundColor: theme.colorScheme.surface,
-      title: Text(
-        'Añadir Progreso',
-        style: TextStyle(color: theme.textTheme.titleLarge?.color),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: _isLoading
-            ? const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            : SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_error != null)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        color: isDark
-                            ? Colors.red.withOpacity(0.2)
-                            : Colors.red.shade50,
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: isDark
-                                ? Colors.redAccent
-                                : Colors.red.shade700,
-                          ),
+    final size = MediaQuery.of(context).size;
+
+    return Dialog(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        // Remove fixed width/height, use constraints
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: size.height * 0.9, // 90% of screen height
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Shrink wrap content
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment
+                  .spaceBetween, // Use spaceBetween instead of Expanded/Icon
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nuevo Progreso',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _pesoController,
-                            style: TextStyle(
-                              color: _isWeightEnabled
-                                  ? theme.textTheme.bodyMedium?.color
-                                  : theme.disabledColor,
-                            ),
-                            enabled: _isWeightEnabled,
-                            decoration: InputDecoration(
-                              labelText: 'Peso (kg)',
-                              hintText: _isWeightEnabled
-                                  ? null
-                                  : 'Disponible ${_getNextDate(_lastWeight, _settings?.weightFrequency ?? "weekly")}',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              disabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor.withOpacity(0.1),
-                                ),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Registra las nuevas medidas y peso del cliente',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextField(
-                            controller: _grasaController,
-                            style: TextStyle(
-                              color: _isFatEnabled
-                                  ? theme.textTheme.bodyMedium?.color
-                                  : theme.disabledColor,
-                            ),
-                            enabled: _isFatEnabled,
-                            decoration: InputDecoration(
-                              labelText: 'Grasa (%)',
-                              hintText: _isFatEnabled
-                                  ? null
-                                  : 'Disp. ${_getNextDate(_lastFat, _settings?.fatFrequency ?? "weekly")}',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                              disabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor.withOpacity(0.1),
-                                ),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                  color: theme.hintColor,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else ...[
+              if (_error != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _masaMusculoController,
-                      enabled: _isMuscleEnabled,
-                      style: TextStyle(
-                        color: _isMuscleEnabled
-                            ? theme.textTheme.bodyMedium?.color
-                            : theme.disabledColor,
+                  ),
+                ),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle(theme, "GENERALES"),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _pesoController,
+                              label: "Peso (kg)",
+                              icon: Icons.monitor_weight_outlined,
+                              enabled: _isWeightEnabled,
+                              hint: _isWeightEnabled
+                                  ? null
+                                  : _getNextDate(
+                                      _lastWeight,
+                                      _settings?.weightFrequency ?? "weekly",
+                                    ),
+                              theme: theme,
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _grasaController,
+                              label: "Grasa (%)",
+                              icon: Icons.opacity_outlined,
+                              enabled: _isFatEnabled,
+                              hint: _isFatEnabled
+                                  ? null
+                                  : _getNextDate(
+                                      _lastFat,
+                                      _settings?.fatFrequency ?? "weekly",
+                                    ),
+                              theme: theme,
+                              isDark: isDark,
+                            ),
+                          ),
+                        ],
                       ),
-                      decoration: InputDecoration(
-                        labelText: 'Masa Músculo-Esquelética (kg)',
-                        hintText: _isMuscleEnabled
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _masaMusculoController,
+                        label: "Masa Músculo-Esq. (kg)",
+                        icon: Icons.fitness_center_outlined,
+                        enabled: _isMuscleEnabled,
+                        hint: _isMuscleEnabled
                             ? null
-                            : 'Disponible ${_getNextDate(_lastMuscle, _settings?.muscleFrequency ?? "monthly")}',
-                        labelStyle: TextStyle(color: theme.hintColor),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.dividerColor),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: theme.dividerColor.withOpacity(0.1),
+                            : _getNextDate(
+                                _lastMuscle,
+                                _settings?.muscleFrequency ?? "monthly",
+                              ),
+                        theme: theme,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      MuscleMassBar(
+                        weight: double.tryParse(_pesoController.text) ?? 0,
+                        muscleMass:
+                            double.tryParse(_masaMusculoController.text) ?? 0,
+                        height: _clientHeight,
+                        gender: _clientGender,
+                      ),
+
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionTitle(theme, "MEDIDAS CORPORALES"),
+                          TextButton(
+                            onPressed: _isMeasuresEnabled
+                                ? () {
+                                    for (var c in _muscleControllers.values) {
+                                      c.clear();
+                                    }
+                                  }
+                                : null,
+                            child: Text(
+                              "Limpiar",
+                              style: TextStyle(
+                                color: theme.primaryColor,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Arms
+                      _buildMeasureGroup(
+                        theme,
+                        isDark,
+                        "BRAZOS",
+                        "Brazo derecho",
+                        "Brazo izquierdo",
+                      ),
+                      const SizedBox(height: 12),
+                      // Legs
+                      _buildMeasureGroup(
+                        theme,
+                        isDark,
+                        "PIERNAS",
+                        "Pierna derecha",
+                        "Pierna izquierda",
+                      ),
+                      const SizedBox(height: 12),
+                      // Calves
+                      _buildMeasureGroup(
+                        theme,
+                        isDark,
+                        "GEMELOS",
+                        "Gemelo derecho",
+                        "Gemelo izquierdo",
+                      ),
+                      const SizedBox(height: 12),
+                      // Forearms
+                      _buildMeasureGroup(
+                        theme,
+                        isDark,
+                        "ANTEBRAZOS",
+                        "Antebrazo derecho",
+                        "Antebrazo izquierdo",
+                      ),
+                      const SizedBox(height: 12),
+                      // Shoulders
+                      _buildMeasureGroup(
+                        theme,
+                        isDark,
+                        "HOMBROS",
+                        "Hombro derecho",
+                        "Hombro izquierdo",
+                      ),
+
+                      const SizedBox(height: 24),
+                      Text(
+                        "OTRAS ZONAS",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: theme.hintColor,
                         ),
                       ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    MuscleMassBar(
-                      weight: double.tryParse(_pesoController.text) ?? 0,
-                      muscleMass:
-                          double.tryParse(_masaMusculoController.text) ?? 0,
-                      height: _clientHeight,
-                      gender: _clientGender,
-                    ),
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () {
-                          for (var c in _muscleControllers.values) {
-                            c.clear();
-                          }
+                      const SizedBox(height: 12),
+                      LayoutBuilder(
+                        builder: (ctx, constraints) {
+                          final width = (constraints.maxWidth - 16) / 2;
+                          return Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: [
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Espalda",
+                                  "Espalda",
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Pecho",
+                                  "Pecho",
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Trapecio",
+                                  "Trapecio",
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Glúteo",
+                                  "Glúteo",
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Cint. Ancha",
+                                  "CINTURA ANCHA",
+                                ),
+                              ),
+                              SizedBox(
+                                width: width,
+                                child: _buildSmallField(
+                                  theme,
+                                  isDark,
+                                  "Cint. Estrecha",
+                                  "CINTURA ESTRECHA",
+                                ),
+                              ),
+                            ],
+                          );
                         },
-                        child: const Text('Limpiar medidas'),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMeasureRow(
-                      theme,
-                      "BRAZOS",
-                      "Brazo derecho",
-                      "Brazo izquierdo",
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMeasureRow(
-                      theme,
-                      "PIERNAS",
-                      "Pierna derecha",
-                      "Pierna izquierda",
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMeasureRow(
-                      theme,
-                      "GEMELOS",
-                      "Gemelo derecho",
-                      "Gemelo izquierdo",
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMeasureRow(
-                      theme,
-                      "ANTEBRAZOS",
-                      "Antebrazo derecho",
-                      "Antebrazo izquierdo",
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMeasureRow(
-                      theme,
-                      "HOMBROS",
-                      "Hombro derecho",
-                      "Hombro izquierdo",
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "OTRAS MEDIDAS",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: theme.primaryColor.withOpacity(0.8),
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        _buildSingleMeasure(theme, "Espalda", "Espalda"),
-                        _buildSingleMeasure(theme, "Pecho", "Pecho"),
-                        _buildSingleMeasure(theme, "Trapecio", "Trapecio"),
-                        _buildSingleMeasure(theme, "Glúteo", "Glúteo"),
-                        _buildSingleMeasure(
-                          theme,
-                          "Cint. Ancha",
-                          "CINTURA ANCHA",
-                        ),
-                        _buildSingleMeasure(
-                          theme,
-                          "Cint. Estrecha",
-                          "CINTURA ESTRECHA",
-                        ),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _handleSave,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.primaryColor,
-            foregroundColor: Colors.white,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Cancelar',
+                      style: TextStyle(
+                        color: theme.hintColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                )
-              : const Text('Guardar'),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: _handleSave,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Guardar Progreso',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildMeasureRow(
+  Widget _buildSectionTitle(ThemeData theme, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w900,
+        color: theme.hintColor,
+        letterSpacing: 1.5,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required ThemeData theme,
+    required bool isDark,
+    bool enabled = true,
+    String? hint,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: TextStyle(
+        fontWeight: FontWeight.w500,
+        color: enabled
+            ? theme.textTheme.bodyMedium?.color
+            : theme.disabledColor,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: theme.hintColor.withOpacity(0.5),
+          fontSize: 12,
+        ),
+        labelStyle: TextStyle(
+          color: enabled ? theme.hintColor : theme.disabledColor,
+        ),
+        prefixIcon: Icon(
+          icon,
+          color: enabled
+              ? theme.primaryColor.withOpacity(0.7)
+              : theme.disabledColor.withOpacity(0.5),
+          size: 20,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.05)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.primaryColor),
+        ),
+        filled: true,
+        fillColor: isDark
+            ? Colors.white.withOpacity(0.05)
+            : Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMeasureGroup(
     ThemeData theme,
+    bool isDark,
     String title,
-    String derKey,
-    String izqKey,
+    String keyRight,
+    String keyLeft,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,49 +686,54 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
             color: theme.hintColor.withOpacity(0.7),
-            letterSpacing: 1.1,
+            letterSpacing: 1,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _buildSmallField(theme, "Der.", derKey)),
+            Expanded(
+              child: _buildSmallField(theme, isDark, "Derecho", keyRight),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildSmallField(theme, "Izq.", izqKey)),
+            Expanded(
+              child: _buildSmallField(theme, isDark, "Izquierdo", keyLeft),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildSingleMeasure(ThemeData theme, String label, String key) {
-    // For mobile, we want 2 items per row in the Wrap.
-    // Taking the screen width, subtracting dialog padding (~48) and wrap spacing (12).
-    final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth =
-        (screenWidth - 80) / 2; // Conservative estimate for mobile dialogs
-
-    return SizedBox(
-      width: itemWidth > 150 ? 150 : itemWidth,
-      child: _buildSmallField(theme, label, key),
-    );
-  }
-
-  Widget _buildSmallField(ThemeData theme, String label, String key) {
-    return TextField(
+  Widget _buildSmallField(
+    ThemeData theme,
+    bool isDark,
+    String label,
+    String key,
+  ) {
+    bool enabled = _isMeasuresEnabled;
+    return TextFormField(
       controller: _muscleControllers[key],
-      enabled: _isMeasuresEnabled,
+      enabled: enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.normal,
+        color: enabled
+            ? theme.textTheme.bodyMedium?.color
+            : theme.disabledColor,
+      ),
       decoration: InputDecoration(
         labelText: label,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 14,
+        labelStyle: TextStyle(
+          color: enabled ? theme.hintColor : theme.disabledColor,
+          fontSize: 13,
         ),
-        labelStyle: TextStyle(color: theme.hintColor, fontSize: 13),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.2)),
@@ -568,15 +744,14 @@ class _AddProgressDialogState extends State<AddProgressDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: theme.primaryColor, width: 1.5),
+          borderSide: BorderSide(color: theme.primaryColor),
         ),
-      ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: TextStyle(
-        fontSize: 14,
-        color: _isMeasuresEnabled
-            ? theme.textTheme.bodyMedium?.color
-            : theme.disabledColor,
+        filled: true,
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
       ),
     );
   }

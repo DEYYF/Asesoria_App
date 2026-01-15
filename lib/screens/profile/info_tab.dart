@@ -93,41 +93,66 @@ class _InfoTabState extends State<InfoTab> {
         children: [
           _buildPersonalHeader(theme),
           _buildGroup([
-            _appleRow('Nombre', widget.cliente.nombre),
-            _appleRow('Email', widget.cliente.email),
-            _appleRow('Teléfono', widget.cliente.telefono ?? '-'),
-            _appleRow('Sexo', widget.cliente.sexo ?? '-'),
-            _appleRow('Altura', '${widget.cliente.altura ?? '-'} cm'),
+            _appleRow(
+              'Nombre',
+              widget.cliente.nombre,
+              icon: Icons.person_outline_rounded,
+            ),
+            _appleRow(
+              'Email',
+              widget.cliente.email,
+              icon: Icons.email_outlined,
+            ),
+            _appleRow(
+              'Teléfono',
+              widget.cliente.telefono ?? '-',
+              icon: Icons.phone_android_rounded,
+            ),
+            _appleRow(
+              'Sexo',
+              widget.cliente.sexo ?? '-',
+              icon: Icons.wc_rounded,
+            ),
+            _appleRow(
+              'Altura',
+              '${widget.cliente.altura ?? '-'} cm',
+              icon: Icons.height_rounded,
+            ),
           ]),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _sectionTitle('TARIFA Y VIGENCIA'),
           _buildGroup([
             _appleRow(
               'Tarifa',
               '${widget.cliente.tipoServicio?.toUpperCase() ?? ''} (${_getDuration(widget.cliente.fechaInicio, widget.cliente.fechaFin)})',
               valueColor: theme.primaryColor,
-              icon: Icons.assignment_rounded,
+              icon: Icons.auto_awesome_mosaic_rounded,
             ),
             _appleRow(
               'Vigencia',
-              '${_formatDate(widget.cliente.fechaInicio)} - ${_formatDateShort(widget.cliente.fechaFin)}',
-              icon: Icons.calendar_today_rounded,
+              '${_formatDateShort(widget.cliente.fechaInicio)} - ${_formatDateShort(widget.cliente.fechaFin)}',
+              icon: Icons.calendar_month_rounded,
+              valueColor: _isTariffExpired() ? Colors.red : null,
             ),
           ]),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _sectionTitle('OBJETIVOS'),
           SizedBox(
             width: double.infinity,
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                _ObjectiveChip(label: 'Ganar masa muscular', theme: theme),
-                _ObjectiveChip(label: 'Definición', theme: theme),
-                _ObjectiveChip(label: 'Aumentar fuerza', theme: theme),
-              ],
+              children:
+                  (widget.cliente.objetivos ??
+                          [
+                            'Ganar masa muscular',
+                            'Definición',
+                            'Aumentar fuerza',
+                          ])
+                      .map((obj) => _ObjectiveChip(label: obj, theme: theme))
+                      .toList(),
             ),
           ),
 
@@ -265,13 +290,6 @@ class _InfoTabState extends State<InfoTab> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return '-';
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    return '$d/$m/${date.year}';
   }
 
   String _formatDateShort(DateTime? date) {
@@ -530,16 +548,37 @@ class _ObjectiveChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: isDark
+            ? theme.primaryColor.withOpacity(0.1)
+            : theme.primaryColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        border: Border.all(
+          color: theme.primaryColor.withOpacity(0.2),
+          width: 1,
+        ),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle_outline_rounded,
+            size: 14,
+            color: theme.primaryColor,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: theme.primaryColor,
+            ),
+          ),
+        ],
       ),
     );
   }

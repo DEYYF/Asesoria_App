@@ -47,6 +47,8 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final size = MediaQuery.of(context).size;
+
     // Filter by type
     // Filter by type
     final typeFiltered = service.templates
@@ -75,8 +77,11 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 550,
-        height: 700,
+        // Use constraints for responsiveness
+        constraints: BoxConstraints(
+          maxWidth: 550,
+          maxHeight: size.height * 0.85,
+        ),
         decoration: BoxDecoration(
           color: theme.scaffoldBackgroundColor,
           borderRadius: BorderRadius.circular(28),
@@ -126,15 +131,18 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      const Text(
-                        'Seleccionar Plantilla',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          'Seleccionar Plantilla',
+                          style: const TextStyle(
+                            fontSize: 20, // Slightly reduced font size
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(

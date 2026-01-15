@@ -7,9 +7,20 @@ import '../../models/tarifa_model.dart';
 import '../../models/extra_model.dart';
 
 class AddClientDialog extends StatefulWidget {
-  final VoidCallback onSuccess;
+  final ValueChanged<String?> onSuccess;
+  final String? initialName;
+  final String? initialEmail;
+  final String? initialTarifaId;
+  final List<String>? initialExtras;
 
-  const AddClientDialog({super.key, required this.onSuccess});
+  const AddClientDialog({
+    super.key,
+    required this.onSuccess,
+    this.initialName,
+    this.initialEmail,
+    this.initialTarifaId,
+    this.initialExtras,
+  });
 
   @override
   State<AddClientDialog> createState() => _AddClientDialogState();
@@ -25,7 +36,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
   final _edadCtrl = TextEditingController();
   String _sexo = 'Hombre';
 
-  // Objectivesr
+  // Objectives
   final _objCtrl = TextEditingController();
   final List<String> _objetivos = [];
   final List<String> _sugerencias = [
@@ -50,7 +61,24 @@ class _AddClientDialogState extends State<AddClientDialog> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialName != null) _nombreCtrl.text = widget.initialName!;
+    if (widget.initialEmail != null) _emailCtrl.text = widget.initialEmail!;
+    if (widget.initialTarifaId != null)
+      _selectedTarifaId = widget.initialTarifaId;
+    if (widget.initialExtras != null)
+      _selectedExtrasIds.addAll(widget.initialExtras!);
+
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _emailCtrl.dispose();
+    _telefonoCtrl.dispose();
+    _edadCtrl.dispose();
+    _objCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -188,7 +216,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
 
       await api.post('/presupuestos', budgetBody);
 
-      widget.onSuccess();
+      widget.onSuccess(clientId);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -202,452 +230,599 @@ class _AddClientDialogState extends State<AddClientDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loadingData) return const Center(child: CircularProgressIndicator());
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    if (_loadingData) return const Center(child: CircularProgressIndicator());
+
+    final size = MediaQuery.of(context).size;
+
     return Dialog(
-      backgroundColor: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 500,
-        height: 700,
+        // Remove fixed width/height, use constraints
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: size.height * 0.9,
+        ),
         padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Shrink wrap height
           children: [
+            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Nuevo Cliente',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: theme.textTheme.titleLarge?.color,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  color: theme.iconTheme.color,
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const Divider(),
-            if (_error != null)
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: isDark
-                    ? Colors.red.withOpacity(0.2)
-                    : Colors.red.shade100,
-                child: Text(
-                  _error!,
-                  style: TextStyle(
-                    color: isDark ? Colors.redAccent : Colors.red.shade900,
-                  ),
-                ),
-              ),
-
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  children: [
-                    // --- Basic Info ---
-                    Text(
-                      'Datos Básicos',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: theme.textTheme.titleMedium?.color,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _nombreCtrl,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Nombre',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              border: const OutlineInputBorder(),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ),
-                            validator: (v) => v!.isEmpty ? 'Requerido' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _emailCtrl,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              border: const OutlineInputBorder(),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ),
-                            validator: (v) =>
-                                !v!.contains('@') ? 'Inválido' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _telefonoCtrl,
-                      style: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Teléfono',
-                        labelStyle: TextStyle(color: theme.hintColor),
-                        border: const OutlineInputBorder(),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.dividerColor),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nuevo Cliente',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _edadCtrl,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Edad',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              border: const OutlineInputBorder(),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _sexo,
-                            dropdownColor: theme.colorScheme.surface,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Sexo',
-                              labelStyle: TextStyle(color: theme.hintColor),
-                              border: const OutlineInputBorder(),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ),
-                            items: ['Hombre', 'Mujer', 'Otro']
-                                .map(
-                                  (s) => DropdownMenuItem(
-                                    value: s,
-                                    child: Text(s),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) => setState(() => _sexo = v!),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // --- Objectives ---
-                    Text(
-                      'Objetivos',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: theme.textTheme.titleMedium?.color,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _objCtrl,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Escribe y pulsa +',
-                              hintStyle: TextStyle(color: theme.hintColor),
-                              isDense: true,
-                              border: const OutlineInputBorder(),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: theme.dividerColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.add_circle,
-                            color: theme.primaryColor,
-                          ),
-                          onPressed: _addObjetivo,
-                        ),
-                      ],
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      children: _objetivos
-                          .map(
-                            (o) => Chip(
-                              label: Text(o),
-                              backgroundColor: isDark
-                                  ? theme.scaffoldBackgroundColor
-                                  : null,
-                              labelStyle: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
-                              ),
-                              deleteIcon: Icon(
-                                Icons.close,
-                                size: 16,
-                                color: theme.iconTheme.color,
-                              ),
-                              onDeleted: () =>
-                                  setState(() => _objetivos.remove(o)),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: _sugerencias
-                          .map(
-                            (s) => ActionChip(
-                              label: Text(
-                                s,
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                              backgroundColor: isDark
-                                  ? theme.scaffoldBackgroundColor
-                                  : null,
-                              labelStyle: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
-                              ),
-                              onPressed: () {
-                                if (!_objetivos.contains(s)) {
-                                  setState(() => _objetivos.add(s));
-                                }
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // --- Plan & Extras ---
-                    Text(
-                      'Plan y Extras',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: theme.textTheme.titleMedium?.color,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedTarifaId,
-                      dropdownColor: theme.colorScheme.surface,
-                      style: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Tarifa',
-                        labelStyle: TextStyle(color: theme.hintColor),
-                        border: const OutlineInputBorder(),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: theme.dividerColor),
-                        ),
-                      ),
-                      items: _tarifas
-                          .map(
-                            (t) => DropdownMenuItem(
-                              value: t.id,
-                              child: Text(
-                                '${t.nombre} - ${t.precio}€ (${t.duracionDias}d)',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedTarifaId = v),
-                      validator: (v) => v == null ? 'Selecciona tarifa' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Extras Mensuales:',
-                      style: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color,
-                      ),
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      children: _extras.map((e) {
-                        final isSel = _selectedExtrasIds.contains(e.id);
-                        return FilterChip(
-                          label: Text('${e.nombre} (+${e.precio}€)'),
-                          selected: isSel,
-                          checkmarkColor: theme.colorScheme.surface,
-                          labelStyle: TextStyle(
-                            color: isSel
-                                ? Colors.white
-                                : theme.textTheme.bodyMedium?.color,
-                          ),
-                          selectedColor: theme.primaryColor,
-                          backgroundColor: isDark
-                              ? theme.scaffoldBackgroundColor
-                              : null,
-                          onSelected: (sel) {
-                            setState(() {
-                              if (sel) {
-                                _selectedExtrasIds.add(e.id);
-                              } else {
-                                _selectedExtrasIds.remove(e.id);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-
-                    if (_selectedTarifaId != null) ...[
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? theme.scaffoldBackgroundColor
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.dividerColor),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Resumen',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.titleMedium?.color,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Tarifa Base:',
-                                  style: TextStyle(
-                                    color: theme.textTheme.bodyMedium?.color,
-                                  ),
-                                ),
-                                Text(
-                                  '${_totalBase.toStringAsFixed(2)} €',
-                                  style: TextStyle(
-                                    color: theme.textTheme.bodyMedium?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Extras ($_meses meses):',
-                                  style: TextStyle(
-                                    color: theme.textTheme.bodyMedium?.color,
-                                  ),
-                                ),
-                                Text(
-                                  '${_totalExtras.toStringAsFixed(2)} €',
-                                  style: TextStyle(
-                                    color: theme.textTheme.bodyMedium?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Divider(color: theme.dividerColor),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total:',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.textTheme.titleMedium?.color,
-                                  ),
-                                ),
-                                Text(
-                                  '${_totalFinal.toStringAsFixed(2)} €',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: theme.primaryColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'Ingresa la información básica y plan financiero',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
                         ),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                  color: theme.hintColor,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            if (_error != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _handleSubmit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle(theme, "DATOS BÁSICOS"),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _nombreCtrl,
+                        label: "Nombre completo",
+                        icon: Icons.person_outline_rounded,
+                        theme: theme,
+                        isDark: isDark,
+                        validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _emailCtrl,
+                              label: "Email",
+                              icon: Icons.email_outlined,
+                              theme: theme,
+                              isDark: isDark,
+                              inputType: TextInputType.emailAddress,
+                              validator: (v) =>
+                                  !v!.contains('@') ? 'Inválido' : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _telefonoCtrl,
+                              label: "Teléfono",
+                              icon: Icons.phone_outlined,
+                              theme: theme,
+                              isDark: isDark,
+                              inputType: TextInputType.phone,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: _buildTextField(
+                              controller: _edadCtrl,
+                              label: "Edad",
+                              icon: Icons.cake_outlined,
+                              theme: theme,
+                              isDark: isDark,
+                              inputType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 4,
+                                    bottom: 8,
+                                  ),
+                                  child: Text(
+                                    "Sexo",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.hintColor,
+                                    ),
+                                  ),
+                                ),
+                                SegmentedButton<String>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: 'Hombre',
+                                      label: Text('Hombre'),
+                                      icon: Icon(Icons.male_rounded),
+                                    ),
+                                    ButtonSegment(
+                                      value: 'Mujer',
+                                      label: Text('Mujer'),
+                                      icon: Icon(Icons.female_rounded),
+                                    ),
+                                    ButtonSegment(
+                                      value: 'Otro',
+                                      label: Text('Otro'),
+                                    ),
+                                  ],
+                                  selected: {_sexo},
+                                  onSelectionChanged:
+                                      (Set<String> newSelection) {
+                                        setState(() {
+                                          _sexo = newSelection.first;
+                                        });
+                                      },
+                                  style: ButtonStyle(
+                                    visualDensity: VisualDensity.compact,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    side: MaterialStateProperty.all(
+                                      BorderSide(
+                                        color: theme.dividerColor.withOpacity(
+                                          0.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      _buildSectionTitle(theme, "OBJETIVOS"),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _objCtrl,
+                              label: "Nuevo objetivo",
+                              icon: Icons.flag_outlined,
+                              theme: theme,
+                              isDark: isDark,
+                              hint: "Escribe y pulsa +",
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton.filled(
+                            onPressed: _addObjetivo,
+                            icon: const Icon(Icons.add_rounded),
+                            style: IconButton.styleFrom(
+                              backgroundColor: theme.primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _objetivos
+                            .map(
+                              (o) => Chip(
+                                label: Text(o),
+                                backgroundColor: theme.primaryColor.withOpacity(
+                                  0.1,
+                                ),
+                                labelStyle: TextStyle(
+                                  color: theme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                                deleteIcon: Icon(
+                                  Icons.close_rounded,
+                                  size: 16,
+                                  color: theme.primaryColor,
+                                ),
+                                onDeleted: () =>
+                                    setState(() => _objetivos.remove(o)),
+                                side: BorderSide.none,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      if (_objetivos.isNotEmpty) const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _sugerencias
+                            .where((s) => !_objetivos.contains(s))
+                            .map(
+                              (s) => ActionChip(
+                                label: Text(s),
+                                labelStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.hintColor,
+                                ),
+                                backgroundColor: isDark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.grey.shade100,
+                                side: BorderSide.none,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                onPressed: () =>
+                                    setState(() => _objetivos.add(s)),
+                              ),
+                            )
+                            .toList(),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      _buildSectionTitle(theme, "PLAN Y FACTURACIÓN"),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedTarifaId,
+                        isExpanded: true, // Prevent overflow for long items
+                        decoration: InputDecoration(
+                          labelText: "Seleccionar Tarifa",
+                          labelStyle: TextStyle(color: theme.hintColor),
+                          prefixIcon: Icon(
+                            Icons.calendar_today_rounded,
+                            color: theme.primaryColor.withOpacity(0.7),
+                            size: 20,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: theme.dividerColor.withOpacity(0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: theme.primaryColor),
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        dropdownColor: theme.cardColor,
+                        items: _tarifas
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t.id,
+                                child: Text(
+                                  '${t.nombre} - ${t.precio}€ (${t.duracionDias} días)',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedTarifaId = v),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        "Extras Mensuales",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.hintColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _extras.map((e) {
+                          final isSel = _selectedExtrasIds.contains(e.id);
+                          return FilterChip(
+                            label: Text('${e.nombre} (+${e.precio}€)'),
+                            selected: isSel,
+                            showCheckmark: false,
+                            selectedColor: theme.primaryColor,
+                            labelStyle: TextStyle(
+                              color: isSel
+                                  ? Colors.white
+                                  : theme.textTheme.bodyMedium?.color,
+                              fontWeight: isSel
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            backgroundColor: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.grey.shade100,
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            onSelected: (sel) {
+                              setState(() {
+                                sel
+                                    ? _selectedExtrasIds.add(e.id)
+                                    : _selectedExtrasIds.remove(e.id);
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+
+                      if (_selectedTarifaId != null) ...[
+                        const SizedBox(height: 32),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF1E1E1E)
+                                : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: theme.dividerColor.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Tarifa Base",
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${_totalBase.toStringAsFixed(2)} €",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Extras ($_meses meses)",
+                                    style: TextStyle(
+                                      color: theme.textTheme.bodyMedium?.color,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${_totalExtras.toStringAsFixed(2)} €",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                child: Divider(
+                                  color: theme.dividerColor.withOpacity(0.1),
+                                  height: 1,
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "TOTAL ESTIMADO",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.hintColor,
+                                      fontSize: 12,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${_totalFinal.toStringAsFixed(2)} €",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 24,
+                                      color: theme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Crear Cliente'),
               ),
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(
+                      color: theme.hintColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Crear Cliente',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(ThemeData theme, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w900,
+        color: theme.hintColor,
+        letterSpacing: 1.5,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required ThemeData theme,
+    required bool isDark,
+    TextInputType inputType = TextInputType.text,
+    String? hint,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: inputType,
+      style: TextStyle(
+        fontWeight: FontWeight.w500,
+        color: theme.textTheme.bodyMedium?.color,
+      ),
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(color: theme.hintColor.withOpacity(0.4)),
+        labelStyle: TextStyle(color: theme.hintColor),
+        prefixIcon: Icon(
+          icon,
+          color: theme.primaryColor.withOpacity(0.7),
+          size: 20,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.primaryColor),
+        ),
+        filled: true,
+        fillColor: isDark
+            ? Colors.white.withOpacity(0.05)
+            : Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
         ),
       ),
     );

@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/cliente_model.dart';
 import '../services/api_service.dart';
-import '../services/auth_service.dart'; // Added
+import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 
 class DialogCita extends StatefulWidget {
   final Cliente cliente;
@@ -19,20 +22,166 @@ class _DialogCitaState extends State<DialogCita> {
   final _titleCtrl = TextEditingController();
   final _dateCtrl = TextEditingController();
   final _timeCtrl = TextEditingController(text: '10:00');
-  final _timeEndCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   bool _sending = false;
+  bool _loadingAvailability = false;
+
+  Map<String, dynamic> _calendarSettings = {};
+  List<dynamic> _blocks = [];
+  List<String> _vacations = [];
+  Map<String, List<dynamic>> _appointmentsMap = {}; // dateStr -> list of citas
+  List<String> _availableSlots = [];
+  String? _selectedSlot;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl.text = "Cita con ${widget.cliente.nombre}";
     final now = DateTime.now();
-    _dateCtrl.text =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-    _timeCtrl.text =
-        "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+    _dateCtrl.text = DateFormat('yyyy-MM-dd').format(now);
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    setState(() => _loadingAvailability = true);
+    await _loadSettings();
+    await _loadCitasRange();
+    _updateAvailableSlots();
+    setState(() => _loadingAvailability = false);
+  }
+
+  Future<void> _loadSettings() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    try {
+      final res = await api.get('/users/${auth.userId}/calendar-settings');
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        _calendarSettings = data;
+        _blocks = List.from(data['bloques'] ?? []);
+        _vacations = List<String>.from(data['vacationDays'] ?? []);
+      }
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+    }
+  }
+
+  Future<void> _loadCitasRange() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final now = DateTime.now();
+    final start = DateFormat(
+      'yyyy-MM-dd',
+    ).format(now.subtract(const Duration(days: 30)));
+    final end = DateFormat(
+      'yyyy-MM-dd',
+    ).format(now.add(const Duration(days: 90)));
+
+    try {
+      final res = await api.get(
+        '/citas?asesorId=${auth.userId}&start=$start&end=$end',
+      );
+      if (res.statusCode == 200) {
+        final List<dynamic> list = jsonDecode(res.body);
+        final Map<String, List<dynamic>> newMap = {};
+        for (var c in list) {
+          final d = c['date'] as String;
+          if (newMap[d] == null) newMap[d] = [];
+          newMap[d]!.add(c);
+        }
+        if (mounted) setState(() => _appointmentsMap = newMap);
+      }
+    } catch (e) {
+      debugPrint('Error loading range: $e');
+    }
+  }
+
+  void _updateAvailableSlots() {
+    final dateStr = _dateCtrl.text;
+    final slots = _calculateSlotsForDate(DateTime.parse(dateStr));
+    setState(() {
+      _availableSlots = slots;
+      if (_availableSlots.isNotEmpty) {
+        _selectedSlot = _availableSlots.first;
+        _timeCtrl.text = _selectedSlot!;
+      } else {
+        _selectedSlot = null;
+        _timeCtrl.text = '';
+      }
+    });
+  }
+
+  List<String> _calculateSlotsForDate(DateTime date) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    if (_vacations.contains(dateStr)) return [];
+
+    final List<String> allPotentialSlots = [];
+    final weekday = date.weekday % 7;
+
+    if (_blocks.isNotEmpty) {
+      final blocksToday = _blocks
+          .where((b) => b['weekday'] == weekday)
+          .toList();
+      for (var b in blocksToday) {
+        final startParts = (b['start'] as String).split(':');
+        final endParts = (b['end'] as String).split(':');
+        int startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+        int endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+
+        for (int m = startMin; m < endMin; m += 30) {
+          final h = m ~/ 60;
+          final min = m % 60;
+          allPotentialSlots.add(
+            '${h.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')}',
+          );
+        }
+      }
+    } else {
+      final workHours =
+          _calendarSettings['workHours'] ?? {'startHour': 7, 'endHour': 22};
+      final sH = workHours['startHour'] as int;
+      final eH = workHours['endHour'] as int;
+      for (int h = sH; h < eH; h++) {
+        allPotentialSlots.add('${h.toString().padLeft(2, '0')}:00');
+        allPotentialSlots.add('${h.toString().padLeft(2, '0')}:30');
+      }
+    }
+
+    final existingCitas = _appointmentsMap[dateStr] ?? [];
+    final takenHours = existingCitas.map((c) => c['hora'] as String).toList();
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+
+    return allPotentialSlots.where((slot) {
+      if (takenHours.contains(slot)) return false;
+      if (isToday) {
+        final parts = slot.split(':');
+        final slotTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+        if (slotTime.isBefore(now)) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  List<DateTime> _calculateUpcomingAvailableDays() {
+    List<DateTime> list = [];
+    DateTime now = DateTime.now();
+    for (int i = 0; i < 60; i++) {
+      DateTime d = now.add(Duration(days: i));
+      if (_calculateSlotsForDate(d).isNotEmpty) {
+        list.add(d);
+        if (list.length >= 10) break;
+      }
+    }
+    return list;
   }
 
   @override
@@ -40,7 +189,6 @@ class _DialogCitaState extends State<DialogCita> {
     _titleCtrl.dispose();
     _dateCtrl.dispose();
     _timeCtrl.dispose();
-    _timeEndCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -126,7 +274,7 @@ class _DialogCitaState extends State<DialogCita> {
       title: _titleCtrl.text,
       date: _dateCtrl.text,
       hora: _timeCtrl.text,
-      horaFin: _timeEndCtrl.text,
+      horaFin: null,
       notas: _notesCtrl.text,
     );
 
@@ -151,38 +299,31 @@ class _DialogCitaState extends State<DialogCita> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final initial = DateTime.parse(_dateCtrl.text);
+    final theme = Theme.of(context);
     final picked = await showDatePicker(
       context: context,
-      initialDate: now,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      setState(() {
-        _dateCtrl.text =
-            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-      });
-    }
-  }
-
-  Future<void> _pickTime(TextEditingController ctrl) async {
-    final now = TimeOfDay.now();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: now,
+      initialDate: initial,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      selectableDayPredicate: (DateTime day) {
+        // Must have at least one slot available
+        return _calculateSlotsForDate(day).isNotEmpty;
+      },
       builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.primaryColor,
+            ),
+          ),
           child: child!,
         );
       },
     );
     if (picked != null) {
-      final hour = picked.hour.toString().padLeft(2, '0');
-      final minute = picked.minute.toString().padLeft(2, '0');
-      setState(() {
-        ctrl.text = "$hour:$minute";
-      });
+      _dateCtrl.text = DateFormat('yyyy-MM-dd').format(picked);
+      _updateAvailableSlots();
     }
   }
 
@@ -210,11 +351,25 @@ class _DialogCitaState extends State<DialogCita> {
         'title': _titleCtrl.text,
         'date': _dateCtrl.text, // YYYY-MM-DD
         'hora': _timeCtrl.text,
-        'horaFin': _timeEndCtrl.text,
+        'horaFin': null,
         'clienteId': widget.cliente.id,
         'color': '#1976d2',
         'notas': _notesCtrl.text,
       });
+
+      // Send chat message
+      try {
+        final chat = Provider.of<ChatService>(context, listen: false);
+        final convId = await chat.getOrCreateConversation(widget.cliente.id);
+        if (convId != null) {
+          chat.sendMessage(
+            convId,
+            '📅 Nueva cita agendada: ${_titleCtrl.text} para el ${_dateCtrl.text} a las ${_timeCtrl.text}',
+          );
+        }
+      } catch (e) {
+        debugPrint('Error sending auto-message: $e');
+      }
 
       // Try WA
       await _openWhatsApp();
@@ -259,45 +414,124 @@ class _DialogCitaState extends State<DialogCita> {
               ),
             ),
             const SizedBox(height: 12),
+            // Horizontal Date Strip
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Días Disponibles',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.calendar_month, size: 20),
+                      onPressed: _pickDate,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 70,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _calculateUpcomingAvailableDays().map((d) {
+                        final dateStr = DateFormat('yyyy-MM-dd').format(d);
+                        final isSelected = _dateCtrl.text == dateStr;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _dateCtrl.text = dateStr;
+                              _updateAvailableSlots();
+                            });
+                          },
+                          child: Container(
+                            width: 65,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Theme.of(context).primaryColor
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  DateFormat(
+                                    'EEE',
+                                    'es',
+                                  ).format(d).toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  d.day.toString(),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _dateCtrl,
-                    readOnly: true,
-                    onTap: _pickDate,
-                    decoration: const InputDecoration(
-                      labelText: 'Fecha (YYYY-MM-DD)',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    controller: _timeCtrl,
-                    readOnly: true,
-                    onTap: () => _pickTime(_timeCtrl),
-                    decoration: const InputDecoration(
-                      labelText: 'Hora',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    controller: _timeEndCtrl,
-                    readOnly: true,
-                    onTap: () => _pickTime(_timeEndCtrl),
-                    decoration: const InputDecoration(
-                      labelText: 'Fin',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                  child: _loadingAvailability
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : DropdownButtonFormField<String>(
+                          value: _selectedSlot,
+                          decoration: const InputDecoration(
+                            labelText: 'Hora',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _availableSlots.map((s) {
+                            return DropdownMenuItem(
+                              value: s,
+                              child: Text(
+                                s,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedSlot = val;
+                              _timeCtrl.text = val ?? '';
+                            });
+                          },
+                        ),
                 ),
               ],
             ),
@@ -319,14 +553,18 @@ class _DialogCitaState extends State<DialogCita> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: _sending ? null : _save,
+                  onPressed: (_sending || _availableSlots.isEmpty)
+                      ? null
+                      : _save,
                   child: _sending
                       ? const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Guardar'),
+                      : Text(
+                          _availableSlots.isEmpty ? 'Sin Huecos' : 'Guardar',
+                        ),
                 ),
               ],
             ),

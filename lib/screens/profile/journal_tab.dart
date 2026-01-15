@@ -95,6 +95,19 @@ class _JournalTabState extends State<JournalTab> {
     });
   }
 
+  // Set of dates whose notes are hidden
+  final Set<DateTime> _hiddenNotes = {};
+
+  void _toggleNote(DateTime date) {
+    setState(() {
+      if (_hiddenNotes.contains(date)) {
+        _hiddenNotes.remove(date);
+      } else {
+        _hiddenNotes.add(date);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -325,7 +338,14 @@ class _JournalTabState extends State<JournalTab> {
               Positioned(
                 bottom: 40,
                 right: 20,
-                child: _buildPostIt(_getSessionNote(date)!),
+                child: GestureDetector(
+                  onTap: () => _toggleNote(date),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _hiddenNotes.contains(date) ? 0.2 : 1.0,
+                    child: _buildPostIt(_getSessionNote(date)!),
+                  ),
+                ),
               ),
           ],
         ),

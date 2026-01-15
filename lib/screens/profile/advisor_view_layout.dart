@@ -48,9 +48,8 @@ class AdvisorViewLayout extends StatelessWidget {
                 expandedHeight: 240,
                 pinned: true,
                 stretch: true,
-                backgroundColor: Colors.transparent,
+                backgroundColor: theme.primaryColor,
                 elevation: 0,
-                // Advisors ALWAYS see the back arrow
                 automaticallyImplyLeading: true,
                 leading: IconButton(
                   icon: const Icon(
@@ -150,76 +149,74 @@ class AdvisorViewLayout extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    children: [
-                      if (budgetEstado == 'pendiente')
-                        _buildBudgetWarning(isDark),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            // Advisor logic for buttons
-                            // Advisors don't see Chat button here usually (previous code: if (auth.isClient) show chat button)
-                            if (hasEntrenamiento && canEditFeatures) ...[
+                bottom: PreferredSize(
+                  preferredSize: Size.fromHeight(
+                    120.0 + (budgetEstado == 'pendiente' ? 60.0 : 0.0) + 50.0,
+                  ),
+                  child: Container(
+                    color: theme.scaffoldBackgroundColor,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (budgetEstado == 'pendiente')
+                          _buildBudgetWarning(isDark),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            children: [
+                              if (hasEntrenamiento && canEditFeatures) ...[
+                                Expanded(
+                                  child: _QuickActionButton(
+                                    icon: Icons.play_arrow_rounded,
+                                    label: 'Entrenar',
+                                    color: Colors.green,
+                                    onPressed: onNavigateToLiveSession,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
                               Expanded(
                                 child: _QuickActionButton(
-                                  icon: Icons.play_arrow_rounded,
-                                  label: 'Entrenar',
-                                  color: Colors.green,
-                                  onPressed: onNavigateToLiveSession,
+                                  icon: Icons.add_chart_rounded,
+                                  label: 'Progreso',
+                                  color: Colors.orange,
+                                  onPressed: onAddProgress,
                                 ),
                               ),
-                              const SizedBox(width: 12),
                             ],
-                            Expanded(
-                              child: _QuickActionButton(
-                                icon: Icons.add_chart_rounded,
-                                label: 'Progreso',
-                                color: Colors.orange,
-                                onPressed: onAddProgress,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                        TabBar(
+                          tabs: tabs,
+                          labelColor: theme.primaryColor,
+                          unselectedLabelColor: theme.hintColor,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicator: UnderlineTabIndicator(
+                            borderSide: BorderSide(
+                              width: 3,
+                              color: theme.primaryColor,
+                            ),
+                            insets: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: theme.dividerColor.withOpacity(0.1),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              SliverPersistentHeader(
-                delegate: _SliverAppBarDelegate(
-                  TabBar(
-                    tabs: tabs,
-                    labelColor: theme.primaryColor,
-                    unselectedLabelColor: theme.hintColor,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    indicator: UnderlineTabIndicator(
-                      borderSide: BorderSide(
-                        width: 3,
-                        color: theme.primaryColor,
-                      ),
-                      insets: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    dividerColor: Colors.transparent,
-                  ),
-                  theme.colorScheme.surface,
-                  theme.dividerColor,
-                ),
-                pinned: true,
               ),
             ];
           },
@@ -274,45 +271,6 @@ class AdvisorViewLayout extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabBar _tabBar;
-  final Color _backgroundColor;
-  final Color _dividerColor;
-
-  _SliverAppBarDelegate(
-    this._tabBar,
-    this._backgroundColor,
-    this._dividerColor,
-  );
-
-  @override
-  double get minExtent => _tabBar.preferredSize.height + 1; // +1 for divider
-  @override
-  double get maxExtent => _tabBar.preferredSize.height + 1;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Container(
-      color: _backgroundColor,
-      child: Column(
-        children: [
-          _tabBar,
-          Divider(height: 1, color: _dividerColor),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return false;
   }
 }
 

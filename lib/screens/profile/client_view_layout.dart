@@ -116,38 +116,56 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        automaticallyImplyLeading: false, // NO BACK ARROW
-        leadingWidth: 0,
-        leading: null,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hola,',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              backgroundColor: theme.scaffoldBackgroundColor,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              leadingWidth: 0,
+              pinned: true,
+              floating: true,
+              snap: true,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Hola,',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  Text(
+                    widget.cliente.nombre,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: () =>
+                      Provider.of<AuthService>(context, listen: false).logout(),
+                ),
+              ],
             ),
-            Text(
-              widget.cliente.nombre,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: theme.textTheme.bodyLarge?.color,
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ActionHeaderDelegate(
+                child: Container(
+                  padding: const EdgeInsets.only(top: 8, bottom: 16),
+                  color: theme.scaffoldBackgroundColor,
+                  child: _buildQuickActions(context),
+                ),
               ),
             ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () =>
-                Provider.of<AuthService>(context, listen: false).logout(),
-          ),
-        ],
+          ];
+        },
+        body: content,
       ),
-      body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
@@ -181,34 +199,8 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
             label: 'Progreso',
           ),
           NavigationDestination(
-            icon: StreamBuilder<int>(
-              stream: Provider.of<ChatService>(
-                context,
-                listen: false,
-              ).unreadCountStream,
-              builder: (context, snapshot) {
-                final count = snapshot.data ?? 0;
-                return Badge(
-                  label: Text('$count'),
-                  isLabelVisible: count > 0,
-                  child: const Icon(Icons.chat_bubble_outline_rounded),
-                );
-              },
-            ),
-            selectedIcon: StreamBuilder<int>(
-              stream: Provider.of<ChatService>(
-                context,
-                listen: false,
-              ).unreadCountStream,
-              builder: (context, snapshot) {
-                final count = snapshot.data ?? 0;
-                return Badge(
-                  label: Text('$count'),
-                  isLabelVisible: count > 0,
-                  child: const Icon(Icons.chat_bubble_rounded),
-                );
-              },
-            ),
+            icon: _buildChatIcon(context, isSelected: false),
+            selectedIcon: _buildChatIcon(context, isSelected: true),
             label: 'Chat',
           ),
         ],
@@ -217,25 +209,15 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
   }
 
   Widget _buildHomeTab(BuildContext context) {
-    // InfoTab + Quick Buttons on top
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildQuickActions(context),
-          InfoTab(
-            cliente: widget.cliente,
-            onRenovar: widget.onRenovar,
-            onDelete: widget.onDelete,
-            onAddProgress: widget.onAddProgress,
-            onManageExtras: widget.onManageExtras,
-            onChangeTariff: widget.onChangeTariff,
-            onEditInfo: widget.onEditInfo,
-            onSessionAction: widget.onSessionAction,
-          ),
-          // Add extra padding at bottom if needed
-          const SizedBox(height: 80),
-        ],
-      ),
+    return InfoTab(
+      cliente: widget.cliente,
+      onRenovar: widget.onRenovar,
+      onDelete: widget.onDelete,
+      onAddProgress: widget.onAddProgress,
+      onManageExtras: widget.onManageExtras,
+      onChangeTariff: widget.onChangeTariff,
+      onEditInfo: widget.onEditInfo,
+      onSessionAction: widget.onSessionAction,
     );
   }
 
@@ -294,6 +276,32 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChatIcon(BuildContext context, {required bool isSelected}) {
+    final theme = Theme.of(context);
+    return StreamBuilder<int>(
+      stream: Provider.of<ChatService>(
+        context,
+        listen: false,
+      ).unreadCountStream,
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        return Badge(
+          label: Text('$count'),
+          isLabelVisible: count > 0,
+          backgroundColor: Colors.redAccent,
+          textColor: Colors.white,
+          child: Icon(
+            isSelected
+                ? Icons.chat_bubble_rounded
+                : Icons.chat_bubble_outline_rounded,
+            // Explicitly set color if it's "turning white" incorrectly
+            color: isSelected ? theme.primaryColor : theme.dividerColor,
+          ),
+        );
+      },
     );
   }
 
@@ -486,6 +494,30 @@ class _LockedView extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ActionHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _ActionHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 115; // Increased to avoid overflow (90 was too small)
+
+  @override
+  double get maxExtent => minExtent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(_ActionHeaderDelegate oldDelegate) => true;
 }
 
 class _QuickActionButton extends StatelessWidget {

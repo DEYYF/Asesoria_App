@@ -108,186 +108,379 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
     final theme = Theme.of(context);
     final totales = _totales;
 
-    return AlertDialog(
-      title: Text(widget.receta == null ? 'Nueva Receta' : 'Editar Receta'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nombreController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre de la receta *',
-                  ),
-                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.05),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
                 ),
-                TextFormField(
-                  controller: _linkController,
-                  decoration: const InputDecoration(
-                    labelText: 'Link de preparación',
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      widget.receta == null
+                          ? Icons.menu_book_rounded
+                          : Icons.edit_note_rounded,
+                      color: theme.primaryColor,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Ingredientes',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const Divider(),
-                ..._ingredientes.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final ing = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 3,
-                          child: Autocomplete<Ingrediente>(
-                            displayStringForOption: (i) => i.nombre,
-                            optionsBuilder: (textEdit) {
-                              if (textEdit.text.isEmpty) {
-                                return const Iterable<Ingrediente>.empty();
-                              }
-                              return widget.ingredientesDisponibles.where(
-                                (i) => i.nombre.toLowerCase().contains(
-                                  textEdit.text.toLowerCase(),
-                                ),
-                              );
-                            },
-                            onSelected: (selected) {
-                              setState(() {
-                                _ingredientes[idx] = RecetaIngrediente(
-                                  ingredienteId: selected.id,
-                                  nombre: selected.nombre,
-                                  gramos: _ingredientes[idx].gramos,
-                                );
-                              });
-                            },
-                            fieldViewBuilder:
-                                (ctx, ctrl, focus, onFieldSubmitted) {
-                                  if (ctrl.text.isEmpty && ing.nombre != null) {
-                                    ctrl.text = ing.nombre!;
-                                  }
-                                  return TextFormField(
-                                    controller: ctrl,
-                                    focusNode: focus,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Buscar o libre',
-                                    ),
-                                    onChanged: (val) {
-                                      // If not matches any, treat as nombreLibre
-                                      setState(() {
-                                        _ingredientes[idx] = RecetaIngrediente(
-                                          nombreLibre: val,
-                                          gramos: _ingredientes[idx].gramos,
-                                        );
-                                      });
-                                    },
-                                  );
-                                },
+                        Text(
+                          widget.receta == null
+                              ? 'Nueva Receta'
+                              : 'Editar Receta',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            initialValue: ing.gramos.round().toString(),
-                            decoration: const InputDecoration(labelText: 'g'),
-                            keyboardType: TextInputType.number,
-                            onChanged: (val) {
-                              setState(() {
-                                _ingredientes[idx] = RecetaIngrediente(
-                                  ingredienteId:
-                                      _ingredientes[idx].ingredienteId,
-                                  nombre: _ingredientes[idx].nombre,
-                                  nombreLibre: _ingredientes[idx].nombreLibre,
-                                  gramos: double.tryParse(val) ?? 0,
-                                );
-                              });
-                            },
+                        Text(
+                          'Combina ingredientes para crear platos',
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 12,
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.remove_circle,
-                            color: Colors.grey,
-                          ),
-                          onPressed: () =>
-                              setState(() => _ingredientes.removeAt(idx)),
                         ),
                       ],
                     ),
-                  );
-                }),
-                TextButton.icon(
-                  onPressed: () => setState(
-                    () => _ingredientes.add(RecetaIngrediente(gramos: 100)),
                   ),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Añadir ingrediente'),
-                ),
-                const Divider(),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                    visualDensity: VisualDensity.compact,
                   ),
+                ],
+              ),
+            ),
+
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Form(
+                  key: _formKey,
                   child: Column(
                     children: [
-                      const Text(
-                        'Totales Estimados (Ingredientes con ID)',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      const SizedBox(height: 24),
+                      _buildHeaderField(
+                        controller: _nombreController,
+                        label: 'Nombre de la receta',
+                        icon: Icons.restaurant_rounded,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Requerido' : null,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 16),
+                      _buildHeaderField(
+                        controller: _linkController,
+                        label: 'Link de preparación / Youtube',
+                        icon: Icons.link_rounded,
+                      ),
+
+                      const SizedBox(height: 32),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildMacroInfo('Kcal', totales.kcal),
-                          _buildMacroInfo('P', totales.proteinas),
-                          _buildMacroInfo('C', totales.carbohidratos),
-                          _buildMacroInfo('G', totales.grasas),
+                          const Text(
+                            'INGREDIENTES',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => setState(
+                              () => _ingredientes.add(
+                                RecetaIngrediente(gramos: 100),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Añadir',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+
+                      ..._ingredientes.asMap().entries.map(
+                        (entry) => _buildIngredientRow(entry.key, entry.value),
+                      ),
+
+                      const SizedBox(height: 24),
+                      _buildSummaryCard(totales),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+
+            // Footer Actions
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          widget.receta == null
+                              ? 'Crear Receta'
+                              : 'Guardar Cambios',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _save,
-          child: const Text('Guardar'),
-        ),
-      ],
     );
   }
 
-  Widget _buildMacroInfo(String label, double value) {
+  Widget _buildHeaderField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    final theme = Theme.of(context);
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20, color: theme.primaryColor),
+        filled: true,
+        fillColor: theme.primaryColor.withOpacity(0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIngredientRow(int idx, RecetaIngrediente ing) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Autocomplete<Ingrediente>(
+              displayStringForOption: (i) => i.nombre,
+              optionsBuilder: (textEdit) {
+                if (textEdit.text.isEmpty)
+                  return const Iterable<Ingrediente>.empty();
+                return widget.ingredientesDisponibles.where(
+                  (i) => i.nombre.toLowerCase().contains(
+                    textEdit.text.toLowerCase(),
+                  ),
+                );
+              },
+              onSelected: (selected) {
+                setState(() {
+                  _ingredientes[idx] = RecetaIngrediente(
+                    ingredienteId: selected.id,
+                    nombre: selected.nombre,
+                    gramos: _ingredientes[idx].gramos,
+                  );
+                });
+              },
+              fieldViewBuilder: (ctx, ctrl, focus, onFieldSubmitted) {
+                if (ctrl.text.isEmpty && ing.nombre != null)
+                  ctrl.text = ing.nombre!;
+                return TextField(
+                  controller: ctrl,
+                  focusNode: focus,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar o nombre libre',
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _ingredientes[idx] = RecetaIngrediente(
+                        nombreLibre: val,
+                        gramos: _ingredientes[idx].gramos,
+                      );
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 24,
+            color: theme.dividerColor.withOpacity(0.1),
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: ing.gramos.round().toString(),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              decoration: const InputDecoration(
+                suffixText: 'g',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              onChanged: (val) {
+                setState(() {
+                  _ingredientes[idx] = RecetaIngrediente(
+                    ingredienteId: _ingredientes[idx].ingredienteId,
+                    nombre: _ingredientes[idx].nombre,
+                    nombreLibre: _ingredientes[idx].nombreLibre,
+                    gramos: double.tryParse(val) ?? 0,
+                  );
+                });
+              },
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _ingredientes.removeAt(idx)),
+            icon: const Icon(
+              Icons.remove_circle_outline_rounded,
+              color: Colors.grey,
+              size: 20,
+            ),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(Macros totales) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.analytics_rounded,
+                size: 16,
+                color: theme.primaryColor,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'TOTAL ESTIMADO',
+                style: TextStyle(
+                  color: theme.primaryColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildMacroBadge(
+                'Kcal',
+                totales.kcal.round().toDouble(),
+                Colors.orange,
+              ),
+              _buildMacroBadge('Prot', totales.proteinas, Colors.redAccent),
+              _buildMacroBadge(
+                'Carbs',
+                totales.carbohidratos,
+                Colors.blueAccent,
+              ),
+              _buildMacroBadge('Grasas', totales.grasas, Colors.orangeAccent),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMacroBadge(String label, double value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         Text(
           value.toStringAsFixed(1),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );

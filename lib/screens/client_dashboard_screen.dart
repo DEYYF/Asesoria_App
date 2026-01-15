@@ -21,6 +21,9 @@ class ClientDashboardScreen extends StatefulWidget {
 class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     with SingleTickerProviderStateMixin {
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  bool _isSearchExpanded = false;
+  bool _showFilters = false;
 
   List<Cliente> _clientes = [];
   List<Tarifa> _tarifas = [];
@@ -29,7 +32,9 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
 
   // Filters
   String _searchQuery = '';
-  String? _filterTarifa;
+  final Set<String> _selectedTarifas = {};
+  final Set<String> _selectedObjetivos = {};
+  final Set<String> _selectedGenders = {};
 
   late TabController _tabController;
 
@@ -44,6 +49,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocusNode.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -90,7 +96,7 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     showDialog(
       context: context,
       builder: (_) => AddClientDialog(
-        onSuccess: () {
+        onSuccess: (_) {
           _loadData(); // Refresh
           ScaffoldMessenger.of(
             context,
@@ -169,20 +175,31 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
 
   List<Cliente> _applyFilters(List<Cliente> source, {bool? onlyBaja}) {
     return source.where((c) {
-      // Tab Filter (if specified)
-      if (onlyBaja == true && c.estado != 'Baja') return false;
-      if (onlyBaja == false && c.estado == 'Baja') return false;
-
-      // Text Filter
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchName = c.nombre.toLowerCase().contains(q);
-        final matchEmail = c.email.toLowerCase().contains(q);
-        if (!matchName && !matchEmail) return false;
+      if (onlyBaja != null) {
+        if (onlyBaja && c.estado != 'Baja') return false;
+        if (!onlyBaja && c.estado == 'Baja') return false;
       }
 
-      // Tarifa Filter
-      if (_filterTarifa != null && c.tipoServicio != _filterTarifa) {
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        if (!c.nombre.toLowerCase().contains(q) &&
+            !c.email.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
+
+      if (_selectedTarifas.isNotEmpty &&
+          !_selectedTarifas.contains(c.tipoServicio)) {
+        return false;
+      }
+
+      if (_selectedObjetivos.isNotEmpty) {
+        final hasAnyObjetivo =
+            c.objetivos?.any((o) => _selectedObjetivos.contains(o)) ?? false;
+        if (!hasAnyObjetivo) return false;
+      }
+
+      if (_selectedGenders.isNotEmpty && !_selectedGenders.contains(c.sexo)) {
         return false;
       }
 
@@ -214,258 +231,258 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
           children: [
             // Custom Header Section
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                border: Border(bottom: BorderSide(color: theme.dividerColor)),
+                color: theme.scaffoldBackgroundColor, // Ensure solid background
+                border: Border(
+                  bottom: BorderSide(color: theme.dividerColor, width: 0.5),
+                ),
+                boxShadow: [
+                  if (isDark)
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title Row and Logout
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.75,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Clientes',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              height: 1.0,
-                              color: theme.textTheme.titleLarge?.color,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              _SummaryChip(label: 'Total: $total'),
-                              const SizedBox(width: 8),
-                              _SummaryChip(
-                                label: 'Activos: $totalActivos',
-                                color: isDark
-                                    ? Colors.green.withOpacity(0.2)
-                                    : Colors.green.shade50,
-                                textColor: isDark
-                                    ? Colors.greenAccent
-                                    : Colors.green.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              _SummaryChip(
-                                label: 'Baja: $totalBajas',
-                                color: isDark
-                                    ? Colors.red.withOpacity(0.2)
-                                    : Colors.red.shade50,
-                                textColor: isDark
-                                    ? Colors.redAccent
-                                    : Colors.red.shade700,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Filters Layout
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Search Field
-                        Container(
-                          width: 320,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: theme.scaffoldBackgroundColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: theme.dividerColor),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Center(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              decoration: InputDecoration(
-                                hintText:
-                                    'Buscar por nombre, email o teléfono...',
-                                border: InputBorder.none,
-                                icon: Icon(
-                                  Icons.search,
-                                  size: 20,
-                                  color: theme.hintColor,
-                                ),
-                                isDense: true,
-                                hintStyle: TextStyle(color: theme.hintColor),
-                              ),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: theme.textTheme.bodyMedium?.color,
-                              ),
-                              onChanged: (val) =>
-                                  setState(() => _searchQuery = val),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Tarifa Dropdown
-                        Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: theme.scaffoldBackgroundColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: theme.dividerColor),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String?>(
-                              value: _filterTarifa,
-                              hint: Text(
-                                'Tarifa',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: theme.hintColor,
-                                ),
-                              ),
-                              icon: Icon(
-                                Icons.arrow_drop_down,
-                                color: theme.iconTheme.color,
-                              ),
-                              dropdownColor: theme.colorScheme.surface,
-                              onChanged: (val) =>
-                                  setState(() => _filterTarifa = val),
-                              items: [
-                                DropdownMenuItem(
-                                  value: null,
-                                  child: Text(
-                                    'Todas',
-                                    style: TextStyle(
-                                      color: theme.textTheme.bodyMedium?.color,
-                                    ),
+                          Expanded(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position:
+                                        Tween<Offset>(
+                                          begin: const Offset(0.1, 0),
+                                          end: Offset.zero,
+                                        ).animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutCubic,
+                                          ),
+                                        ),
+                                    child: child,
                                   ),
-                                ),
-                                ..._tarifas.map(
-                                  (t) => DropdownMenuItem(
-                                    value: t.nombre,
-                                    child: Text(
-                                      t.nombre,
-                                      style: TextStyle(
-                                        color:
-                                            theme.textTheme.bodyMedium?.color,
+                                );
+                              },
+                              child: _isSearchExpanded
+                                  ? Container(
+                                      key: const ValueKey('search_active'),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? Colors.white.withOpacity(0.05)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          if (!isDark)
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(
+                                                0.05,
+                                              ),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.arrow_back_rounded,
+                                            ),
+                                            color: theme.primaryColor,
+                                            onPressed: () => setState(() {
+                                              _isSearchExpanded = false;
+                                              _searchCtrl.clear();
+                                              _searchQuery = '';
+                                            }),
+                                          ),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _searchCtrl,
+                                              focusNode: _searchFocusNode,
+                                              autofocus: true,
+                                              onChanged: (val) => setState(
+                                                () => _searchQuery = val,
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                              decoration: InputDecoration(
+                                                hintText: 'Buscar clientes...',
+                                                hintStyle: TextStyle(
+                                                  color: theme.hintColor
+                                                      .withOpacity(0.4),
+                                                ),
+                                                border: InputBorder.none,
+                                                contentPadding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 16,
+                                                    ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (_searchQuery.isNotEmpty)
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.close_rounded,
+                                                size: 20,
+                                              ),
+                                              onPressed: () {
+                                                _searchCtrl.clear();
+                                                setState(
+                                                  () => _searchQuery = '',
+                                                );
+                                              },
+                                            ),
+                                        ],
+                                      ),
+                                    )
+                                  : Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Clientes',
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.5,
+                                          color:
+                                              theme.textTheme.titleLarge?.color,
+                                        ),
                                       ),
                                     ),
+                            ),
+                          ),
+                          if (!_isSearchExpanded)
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.search_rounded,
+                                    color: theme.primaryColor,
                                   ),
+                                  onPressed: () =>
+                                      setState(() => _isSearchExpanded = true),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildFilterButton(theme, isDark),
+                                const SizedBox(width: 8),
+                                _SummaryChip(
+                                  label: 'Total: $total',
+                                  color: isDark
+                                      ? Colors.grey.shade900
+                                      : Colors.grey.shade100,
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
+                        ],
+                      ),
 
-                        // Action Buttons
-                        OutlinedButton.icon(
-                          onPressed: displayedList.isEmpty
-                              ? null
-                              : () async {
-                                  final method = await showDialog<String>(
+                      if (!_isSearchExpanded) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _SummaryChip(
+                              label: 'Activos: $totalActivos',
+                              color: isDark
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.green.shade50,
+                              textColor: Colors.green,
+                            ),
+                            const SizedBox(width: 8),
+                            _SummaryChip(
+                              label: 'Baja: $totalBajas',
+                              color: isDark
+                                  ? Colors.red.withOpacity(0.15)
+                                  : Colors.red.shade50,
+                              textColor: Colors.red,
+                            ),
+                            const Spacer(),
+                            _HeaderActionButton(
+                              icon: Icons.send_rounded,
+                              label: 'Masivo',
+                              onPressed: () async {
+                                final method = await showDialog<String>(
+                                  context: context,
+                                  builder: (_) =>
+                                      const CommunicationChoiceDialog(),
+                                );
+                                if (!context.mounted) return;
+                                if (method == 'email') {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => BulkEmailDialog(
+                                      clientes: displayedList,
+                                    ),
+                                  );
+                                } else if (method == 'chat') {
+                                  showDialog(
                                     context: context,
                                     builder: (_) =>
-                                        const CommunicationChoiceDialog(),
+                                        BulkChatDialog(clientes: displayedList),
                                   );
-                                  if (!context.mounted) return;
-
-                                  if (method == 'email') {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => BulkEmailDialog(
-                                        clientes: displayedList,
-                                      ),
-                                    );
-                                  } else if (method == 'chat') {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => BulkChatDialog(
-                                        clientes: displayedList,
-                                      ),
-                                    );
-                                  }
-                                },
-                          icon: const Icon(Icons.send_outlined, size: 18),
-                          label: const Text('Enviar Mensaje Masivo'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark
-                                ? Colors.white
-                                : theme.primaryColor,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                                }
+                              },
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            const SizedBox(width: 8),
+                            _HeaderActionButton(
+                              icon: Icons.add_circle_outline_rounded,
+                              label: 'Nuevo',
+                              isPrimary: true,
+                              onPressed: _showAddClient,
                             ),
-                            side: BorderSide(
-                              color: isDark
-                                  ? Colors.white54
-                                  : theme.primaryColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        ElevatedButton.icon(
-                          onPressed: _showAddClient,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Nuevo cliente'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 24),
+                      if (_showFilters) _buildAdvancedFilters(theme, isDark),
 
-                  // Tabs
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: theme.dividerColor),
+                      const SizedBox(height: 12),
+
+                      // Tabs
+                      SizedBox(
+                        height: 38,
+                        child: TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          labelColor: theme.primaryColor,
+                          unselectedLabelColor: theme.hintColor,
+                          indicatorColor: theme.primaryColor,
+                          indicatorWeight: 3,
+                          dividerColor: Colors.transparent,
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          tabs: [
+                            Tab(text: 'Activos (${filteredActivos.length})'),
+                            Tab(text: 'Baja (${filteredBajas.length})'),
+                          ],
+                          tabAlignment: TabAlignment.start,
+                        ),
                       ),
-                    ),
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      labelColor: isDark ? Colors.white : theme.primaryColor,
-                      unselectedLabelColor: theme.hintColor,
-                      indicatorColor: theme.primaryColor,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.normal,
-                      ),
-                      tabs: [
-                        Tab(text: 'Activos (${filteredActivos.length})'),
-                        Tab(text: 'Baja (${filteredBajas.length})'),
-                      ],
-                      // Override standard tab behavior to not stretch
-                      tabAlignment: TabAlignment.start,
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
 
@@ -508,6 +525,254 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
       ),
     );
   }
+
+  Widget _buildFilterButton(ThemeData theme, bool isDark) {
+    final hasActiveFilters =
+        _selectedTarifas.isNotEmpty ||
+        _selectedObjetivos.isNotEmpty ||
+        _selectedGenders.isNotEmpty;
+    return GestureDetector(
+      onTap: () => setState(() => _showFilters = !_showFilters),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 48,
+        width: 48,
+        decoration: BoxDecoration(
+          color: _showFilters
+              ? theme.primaryColor
+              : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              color: _showFilters ? Colors.white : theme.primaryColor,
+              size: 20,
+            ),
+            if (hasActiveFilters && !_showFilters)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancedFilters(ThemeData theme, bool isDark) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Container(
+        margin: const EdgeInsets.only(top: 16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: theme.primaryColor.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.style_rounded, size: 14, color: theme.primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'TARIFAS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: _tarifas.map((t) {
+                  final isSelected = _selectedTarifas.contains(t.nombre);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(t.nombre),
+                      selected: isSelected,
+                      onSelected: (val) {
+                        setState(() {
+                          if (val)
+                            _selectedTarifas.add(t.nombre);
+                          else
+                            _selectedTarifas.remove(t.nombre);
+                        });
+                      },
+                      selectedColor: theme.primaryColor.withOpacity(0.15),
+                      checkmarkColor: theme.primaryColor,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? theme.primaryColor
+                            : theme.hintColor,
+                        fontSize: 12,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                      ),
+                      backgroundColor: Colors.transparent,
+                      side: BorderSide(
+                        color: isSelected
+                            ? theme.primaryColor
+                            : theme.dividerColor.withOpacity(0.1),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(Icons.flag_rounded, size: 14, color: theme.primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'OBJETIVOS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: ['Ganar músculo', 'Perder grasa', 'Mantenimiento']
+                    .map((obj) {
+                      final isSelected = _selectedObjetivos.contains(obj);
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(obj),
+                          selected: isSelected,
+                          onSelected: (val) {
+                            setState(() {
+                              if (val)
+                                _selectedObjetivos.add(obj);
+                              else
+                                _selectedObjetivos.remove(obj);
+                            });
+                          },
+                          selectedColor: theme.primaryColor.withOpacity(0.15),
+                          checkmarkColor: theme.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? theme.primaryColor
+                                : theme.hintColor,
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                          ),
+                          backgroundColor: Colors.transparent,
+                          side: BorderSide(
+                            color: isSelected
+                                ? theme.primaryColor
+                                : theme.dividerColor.withOpacity(0.1),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Icon(Icons.person_rounded, size: 14, color: theme.primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'SEXO',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: ['Hombre', 'Mujer'].map((gx) {
+                final isSelected = _selectedGenders.contains(gx);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(gx),
+                    selected: isSelected,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val)
+                          _selectedGenders.add(gx);
+                        else
+                          _selectedGenders.remove(gx);
+                      });
+                    },
+                    selectedColor: theme.primaryColor.withOpacity(0.15),
+                    checkmarkColor: theme.primaryColor,
+                    labelStyle: TextStyle(
+                      color: isSelected ? theme.primaryColor : theme.hintColor,
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
+                    ),
+                    backgroundColor: Colors.transparent,
+                    side: BorderSide(
+                      color: isSelected
+                          ? theme.primaryColor
+                          : theme.dividerColor.withOpacity(0.1),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SummaryChip extends StatelessWidget {
@@ -522,24 +787,78 @@ class _SummaryChip extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Default colors based on theme
-    final defaultBg = isDark ? theme.colorScheme.surface : Colors.white;
-    final defaultText = isDark ? Colors.white70 : Colors.grey.shade700;
-    final border = theme.dividerColor;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color ?? defaultBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
+        color: color ?? (isDark ? Colors.white10 : Colors.white),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: textColor ?? defaultText,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
+          color: textColor ?? (isDark ? Colors.white70 : Colors.grey.shade700),
+          fontWeight: FontWeight.w800,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _HeaderActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? theme.primaryColor
+              : (isDark ? theme.cardColor : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(10),
+          border: isPrimary
+              ? null
+              : Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isPrimary ? Colors.white : theme.primaryColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isPrimary
+                    ? Colors.white
+                    : theme.textTheme.bodyMedium?.color,
+              ),
+            ),
+          ],
         ),
       ),
     );

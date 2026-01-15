@@ -13,6 +13,8 @@ import 'templates_screen.dart';
 import 'automation_screen.dart';
 import 'modules_management_screen.dart';
 import '../../providers/settings_provider.dart';
+import 'tarifas_screen.dart';
+import 'extras_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -199,6 +201,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SliverList(
             delegate: SliverChildListDelegate([
               const SizedBox(height: 12),
+
+              // Business Management section
+              const SettingsSectionHeader(title: 'Gestión del Negocio'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Gestionar Tarifas',
+                    subtitle: 'Precios y suscripciones',
+                    icon: Icons.monetization_on_outlined,
+                    iconColor: Colors.green,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TarifasScreen()),
+                    ),
+                  ),
+                  SettingsNavigationTile(
+                    title: 'Gestionar Extras',
+                    subtitle: 'Servicios adicionales',
+                    icon: Icons.extension_outlined,
+                    iconColor: Colors.purple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ExtrasScreen()),
+                    ),
+                  ),
+                ],
+              ),
 
               // Notifications section
               const SettingsSectionHeader(title: 'Notificaciones'),

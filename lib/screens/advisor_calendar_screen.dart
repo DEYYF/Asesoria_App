@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/chat_service.dart';
 import '../../models/cliente_model.dart';
 
 class AdvisorCalendarScreen extends StatefulWidget {
@@ -79,14 +80,25 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
   Future<void> _loadCitas() async {
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
-    final monthStr = DateFormat('yyyy-MM').format(_selectedDate);
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    // Load a range (previous month, current, and next 3 months)
+    final now = DateTime.now();
+    final start = DateFormat(
+      'yyyy-MM-dd',
+    ).format(now.subtract(const Duration(days: 35)));
+    final end = DateFormat(
+      'yyyy-MM-dd',
+    ).format(now.add(const Duration(days: 120)));
 
     try {
-      final res = await api.get('/citas?month=$monthStr');
+      final res = await api.get(
+        '/citas?asesorId=${auth.userId}&start=$start&end=$end',
+      );
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
 
-        Map<DateTime, List<dynamic>> newMap = {};
+        final Map<DateTime, List<dynamic>> newMap = {};
         for (var item in list) {
           final date = DateTime.parse(item['date']);
           final day = DateTime(date.year, date.month, date.day);
@@ -1015,7 +1027,6 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final List<String> allPotentialSlots = [];
     final weekday = date.weekday % 7;
 
-    // Use blocks if defined, otherwise general hours
     if (_blocks.isNotEmpty) {
       final blocksToday = _blocks
           .where((b) => b['weekday'] == weekday)
@@ -1035,21 +1046,19 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
         }
       }
     } else {
-      final workHours = _calendarSettings['workHours'];
-      final sH = workHours?['startHour'] ?? 7;
-      final eH = workHours?['endHour'] ?? 22;
+      final workHours =
+          _calendarSettings['workHours'] ?? {'startHour': 7, 'endHour': 22};
+      final sH = workHours['startHour'] ?? 7;
+      final eH = workHours['endHour'] ?? 22;
       for (int h = sH; h < eH; h++) {
         allPotentialSlots.add('${h.toString().padLeft(2, '0')}:00');
         allPotentialSlots.add('${h.toString().padLeft(2, '0')}:30');
       }
     }
 
-    // Filter appointments
     final dayKey = DateTime(date.year, date.month, date.day);
     final existingCitas = _citasMap[dayKey] ?? [];
     final takenHours = existingCitas.map((c) => c['hora'] as String).toList();
-
-    // Filter past if today
     final now = DateTime.now();
     final bool isToday = _isSameDay(date, now);
 
@@ -1070,13 +1079,25 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     }).toList();
   }
 
+  List<DateTime> _getUpcomingAvailableDays() {
+    List<DateTime> list = [];
+    DateTime now = DateTime.now();
+    for (int i = 0; i < 60; i++) {
+      DateTime d = now.add(Duration(days: i));
+      if (_getAvailableSlots(d).isNotEmpty) {
+        list.add(d);
+        if (list.length >= 10) break;
+      }
+    }
+    return list;
+  }
+
   Future<void> _showCreateCitaDialog() async {
     final _titleController = TextEditingController();
     final _notesController = TextEditingController();
-    final availableSlots = _getAvailableSlots(_selectedDate);
-    String? _selectedSlot = availableSlots.isNotEmpty
-        ? availableSlots.first
-        : null;
+    DateTime _tempDate = _selectedDate;
+    List<String> _tempSlots = _getAvailableSlots(_tempDate);
+    String? _selectedSlot = _tempSlots.isNotEmpty ? _tempSlots.first : null;
     String? _selectedClientId;
 
     await showDialog(
@@ -1088,49 +1109,191 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
           return AlertDialog(
             backgroundColor: theme.cardColor,
             title: Text('Nueva Cita', style: theme.textTheme.titleLarge),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _titleController,
-                    style: theme.textTheme.bodyMedium,
-                    decoration: const InputDecoration(
-                      labelText: 'Título',
-                      hintText: 'Revisión',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _notesController,
-                    maxLines: 2,
-                    style: theme.textTheme.bodyMedium,
-                    decoration: const InputDecoration(labelText: 'Notas'),
-                  ),
-                  const SizedBox(height: 12),
-                  if (availableSlots.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Text(
-                        'No hay horarios disponibles para este día.',
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else
-                    DropdownButtonFormField<String>(
-                      value: _selectedSlot,
-                      dropdownColor: theme.cardColor,
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _titleController,
                       style: theme.textTheme.bodyMedium,
                       decoration: const InputDecoration(
-                        labelText: 'Horario Disponible',
+                        labelText: 'Título',
+                        hintText: 'Revisión',
                       ),
-                      items: availableSlots
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _notesController,
+                      maxLines: 2,
+                      style: theme.textTheme.bodyMedium,
+                      decoration: const InputDecoration(labelText: 'Notas'),
+                    ),
+                    const SizedBox(height: 12),
+                    // Date Selection Strip
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Días Disponibles',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.hintColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.calendar_month, size: 20),
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _tempDate,
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now().add(
+                                    const Duration(days: 90),
+                                  ),
+                                  selectableDayPredicate: (DateTime day) {
+                                    return _getAvailableSlots(day).isNotEmpty;
+                                  },
+                                );
+                                if (picked != null) {
+                                  setStateDialog(() {
+                                    _tempDate = picked;
+                                    _tempSlots = _getAvailableSlots(_tempDate);
+                                    _selectedSlot = _tempSlots.isNotEmpty
+                                        ? _tempSlots.first
+                                        : null;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 70,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: _getUpcomingAvailableDays().map((d) {
+                                final isSelected = _isSameDay(d, _tempDate);
+                                return GestureDetector(
+                                  onTap: () {
+                                    setStateDialog(() {
+                                      _tempDate = d;
+                                      _tempSlots = _getAvailableSlots(
+                                        _tempDate,
+                                      );
+                                      _selectedSlot = _tempSlots.isNotEmpty
+                                          ? _tempSlots.first
+                                          : null;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    margin: const EdgeInsets.only(right: 10),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? theme.primaryColor
+                                          : theme.cardColor.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? theme.primaryColor
+                                            : theme.dividerColor,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          DateFormat(
+                                            'EEE',
+                                            'es',
+                                          ).format(d).toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : theme.hintColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          d.day.toString(),
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : theme
+                                                      .textTheme
+                                                      .bodyLarge
+                                                      ?.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (_tempSlots.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          'No hay horarios disponibles para este día.',
+                          style: TextStyle(color: Colors.red, fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      DropdownButtonFormField<String>(
+                        value: _selectedSlot,
+                        dropdownColor: theme.cardColor,
+                        style: theme.textTheme.bodyMedium,
+                        decoration: const InputDecoration(
+                          labelText: 'Horario Disponible',
+                        ),
+                        items: _tempSlots
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(
+                                  s,
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setStateDialog(() => _selectedSlot = val),
+                      ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedClientId,
+                      dropdownColor: theme.cardColor,
+                      style: theme.textTheme.bodyMedium,
+                      decoration: const InputDecoration(labelText: 'Cliente'),
+                      items: _clients
                           .map(
-                            (s) => DropdownMenuItem(
-                              value: s,
+                            (c) => DropdownMenuItem(
+                              value: c.id,
                               child: Text(
-                                s,
+                                c.nombre,
                                 style: TextStyle(
                                   color: theme.colorScheme.onSurface,
                                 ),
@@ -1139,31 +1302,10 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                           )
                           .toList(),
                       onChanged: (val) =>
-                          setStateDialog(() => _selectedSlot = val),
+                          setStateDialog(() => _selectedClientId = val),
                     ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedClientId,
-                    dropdownColor: theme.cardColor,
-                    style: theme.textTheme.bodyMedium,
-                    decoration: const InputDecoration(labelText: 'Cliente'),
-                    items: _clients
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(
-                              c.nombre,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) =>
-                        setStateDialog(() => _selectedClientId = val),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -1180,7 +1322,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.colorScheme.primary,
                 ),
-                onPressed: availableSlots.isEmpty
+                onPressed: _tempSlots.isEmpty
                     ? null
                     : () async {
                         if (_titleController.text.isEmpty ||
@@ -1190,7 +1332,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
 
                         final dateStr = DateFormat(
                           'yyyy-MM-dd',
-                        ).format(_selectedDate);
+                        ).format(_tempDate);
 
                         final api = Provider.of<ApiService>(
                           context,
@@ -1210,6 +1352,26 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                             'clienteId': _selectedClientId,
                             'asesorId': auth.userId,
                           });
+
+                          // Send chat message
+                          try {
+                            final chat = Provider.of<ChatService>(
+                              context,
+                              listen: false,
+                            );
+                            final convId = await chat.getOrCreateConversation(
+                              _selectedClientId!,
+                            );
+                            if (convId != null) {
+                              chat.sendMessage(
+                                convId,
+                                '📅 Nueva cita agendada: ${_titleController.text} para el $dateStr a las $_selectedSlot',
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint('Error sending auto-message: $e');
+                          }
+
                           Navigator.pop(context);
                           _loadCitas();
                         } catch (e) {

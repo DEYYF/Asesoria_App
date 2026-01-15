@@ -63,7 +63,7 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
     // Phone regex (7-15 digits)
     final phoneRegex = RegExp(r"^\d{7,15}$");
     if (!phoneRegex.hasMatch(_phoneController.text)) {
-      errors['telefono'] = "Teléfono no válido (7 a 15 dígitos)";
+      errors['telefono'] = "Teléfono no válido";
     }
 
     if (_selectedSex == null) {
@@ -94,8 +94,7 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
         'email': _emailController.text,
         'telefono': _phoneController.text,
         'sexo': _selectedSex,
-        'altura': _heightController
-            .text, // Backend handles string to number usually or we parse
+        'altura': _heightController.text,
       };
 
       await api.put('/clientes/${widget.cliente.id}', body);
@@ -103,7 +102,6 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() {
-        // Can add general error handling
         _isLoading = false;
       });
       if (mounted) {
@@ -117,112 +115,233 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return AlertDialog(
-      backgroundColor: theme.colorScheme.surface,
-      title: Text(
-        'Editar información',
-        style: TextStyle(color: theme.textTheme.titleLarge?.color),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _emailController,
-                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: TextStyle(color: theme.hintColor),
-                  errorText: _errors['email'],
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.dividerColor),
+    final isDark = theme.brightness == Brightness.dark;
+
+    final size = MediaQuery.of(context).size;
+
+    return Dialog(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        // Use constraints instead of fixed width
+        constraints: BoxConstraints(
+          maxWidth: 450,
+          maxHeight: size.height * 0.8,
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Editar Información',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                keyboardType: TextInputType.emailAddress,
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  color: theme.hintColor,
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Actualiza los datos básicos del cliente.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.hintColor,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _phoneController,
-                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                decoration: InputDecoration(
-                  labelText: 'Teléfono',
-                  labelStyle: TextStyle(color: theme.hintColor),
-                  errorText: _errors['telefono'],
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.dividerColor),
+            ),
+            const SizedBox(height: 24),
+            _buildTextField(
+              controller: _emailController,
+              label: "Email",
+              icon: Icons.email_outlined,
+              theme: theme,
+              isDark: isDark,
+              error: _errors['email'],
+              inputType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _phoneController,
+              label: "Teléfono",
+              icon: Icons.phone_outlined,
+              theme: theme,
+              isDark: isDark,
+              error: _errors['telefono'],
+              inputType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _heightController,
+              label: "Altura (cm)",
+              icon: Icons.height_rounded,
+              theme: theme,
+              isDark: isDark,
+              error: _errors['altura'],
+              inputType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    "Sexo",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.hintColor,
+                    ),
                   ),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedSex,
-                dropdownColor: theme.colorScheme.surface,
-                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                items: ['Hombre', 'Mujer', 'Otro']
-                    .map(
-                      (val) => DropdownMenuItem(
-                        value: val,
-                        child: Text(
-                          val,
-                          style: TextStyle(
-                            color: theme.textTheme.bodyMedium?.color,
-                          ),
-                        ),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'Hombre',
+                      label: Text('Hombre'),
+                      icon: Icon(Icons.male_rounded),
+                    ),
+                    ButtonSegment(
+                      value: 'Mujer',
+                      label: Text('Mujer'),
+                      icon: Icon(Icons.female_rounded),
+                    ),
+                    ButtonSegment(value: 'Otro', label: Text('Otro')),
+                  ],
+                  selected: {_selectedSex ?? 'Hombre'},
+                  onSelectionChanged: (Set<String> newSelection) {
+                    setState(() {
+                      _selectedSex = newSelection.first;
+                    });
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    side: MaterialStateProperty.all(
+                      BorderSide(
+                        color: _errors['sexo'] != null
+                            ? Colors.red
+                            : theme.dividerColor.withOpacity(0.2),
                       ),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedSex = val),
-                decoration: InputDecoration(
-                  labelText: 'Sexo',
-                  labelStyle: TextStyle(color: theme.hintColor),
-                  errorText: _errors['sexo'],
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.dividerColor),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _heightController,
-                style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-                decoration: InputDecoration(
-                  labelText: 'Altura (cm)',
-                  labelStyle: TextStyle(color: theme.hintColor),
-                  errorText: _errors['altura'],
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: theme.dividerColor),
+                if (_errors['sexo'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 12),
+                    child: Text(
+                      _errors['sexo']!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(
+                      color: theme.hintColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Guardar',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _handleSave,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: theme.primaryColor,
-            foregroundColor: Colors.white,
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required ThemeData theme,
+    required bool isDark,
+    String? error,
+    TextInputType inputType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: controller,
+          keyboardType: inputType,
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: theme.textTheme.bodyMedium?.color,
           ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Guardar'),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(color: theme.hintColor),
+            prefixIcon: Icon(
+              icon,
+              color: theme.primaryColor.withOpacity(0.7),
+              size: 20,
+            ),
+            errorText: error,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: theme.dividerColor.withOpacity(0.2),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.primaryColor),
+            ),
+            filled: true,
+            fillColor: isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
         ),
       ],
     );

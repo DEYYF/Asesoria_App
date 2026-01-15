@@ -91,8 +91,6 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
       builder: (context) => AddEditEjercicioDialog(
         ejercicio: _ejercicio,
         onSuccess: () async {
-          // Re-fetch exercise details or simply update state if dialog returns updated object
-          // For now, let's re-fetch from API to be sure
           final api = Provider.of<ApiService>(context, listen: false);
           try {
             final res = await api.get('/ejercicios/${_ejercicio.id}');
@@ -120,206 +118,231 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(_ejercicio.nombre),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: theme.iconTheme.color),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: Icon(Icons.edit_rounded, color: theme.primaryColor),
             onPressed: _editEjercicio,
             tooltip: 'Editar',
           ),
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: theme.colorScheme.error,
+            ),
             onPressed: _deleteEjercicio,
             tooltip: 'Eliminar',
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with chips
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                border: Border(bottom: BorderSide(color: theme.dividerColor)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Tags
+              Text(
+                _ejercicio.nombre,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                  letterSpacing: -0.5,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: theme.primaryColor.withOpacity(0.1),
-                        child: Icon(
-                          Icons.fitness_center,
-                          color: theme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _ejercicio.nombre,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (_ejercicio.grupo != null)
-                        Chip(
-                          label: Text(_ejercicio.grupo!),
-                          backgroundColor: theme.colorScheme.primaryContainer
-                              .withOpacity(0.5),
-                          labelStyle: TextStyle(
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                          side: BorderSide.none,
-                        ),
-                      if (_ejercicio.equipo != null)
-                        Chip(
-                          label: Text(_ejercicio.equipo!),
-                          backgroundColor: theme.colorScheme.secondaryContainer
-                              .withOpacity(0.5),
-                          labelStyle: TextStyle(
-                            color: theme.colorScheme.onSecondaryContainer,
-                          ),
-                          side: BorderSide.none,
-                        ),
-                      if (_ejercicio.nivel != null)
-                        Chip(
-                          label: Text(_ejercicio.nivel!),
-                          backgroundColor: theme.colorScheme.tertiaryContainer
-                              .withOpacity(0.5),
-                          labelStyle: TextStyle(
-                            color: theme.colorScheme.onTertiaryContainer,
-                          ),
-                          side: BorderSide.none,
-                        ),
-                    ],
-                  ),
+                  if (_ejercicio.grupo != null)
+                    _buildTag(
+                      theme,
+                      isDark,
+                      _ejercicio.grupo!,
+                      Icons.fitness_center_rounded,
+                    ),
+                  if (_ejercicio.equipo != null)
+                    _buildTag(
+                      theme,
+                      isDark,
+                      _ejercicio.equipo!,
+                      Icons.construction_rounded,
+                    ),
+                  if (_ejercicio.nivel != null)
+                    _buildTag(
+                      theme,
+                      isDark,
+                      _ejercicio.nivel!,
+                      Icons.signal_cellular_alt_rounded,
+                    ),
                 ],
               ),
-            ),
+              const SizedBox(height: 24),
 
-            // Video player
-            if (_youtubeController != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: YoutubePlayer(
-                    controller: _youtubeController!,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: theme.primaryColor,
+              // Video Player
+              if (_youtubeController != null) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: YoutubePlayer(
+                      controller: _youtubeController!,
+                      showVideoProgressIndicator: true,
+                      progressIndicatorColor: theme.primaryColor,
+                      bottomActions: [
+                        CurrentPosition(),
+                        ProgressBar(isExpanded: true),
+                        RemainingDuration(),
+                        FullScreenButton(),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+
+              // Instructions Section
+              _buildSectionHeader(theme, "INSTRUCCIONES"),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: _cardDecoration(theme, isDark),
+                child: Text(
+                  _ejercicio.instrucciones ?? 'Sin instrucciones detalladas.',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    height: 1.6,
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.9),
                   ),
                 ),
               ),
 
-            // Instructions
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Instrucciones',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      border: Border.all(color: theme.dividerColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _ejercicio.instrucciones ?? '—',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              const SizedBox(height: 32),
 
-            // Details section
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Detalles',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.primaryColor,
+              // Details Card
+              _buildSectionHeader(theme, "DETALLES TÉCNICOS"),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: _cardDecoration(theme, isDark),
+                child: Column(
+                  children: [
+                    _buildDetailRow(
+                      context,
+                      'Grupo Muscular',
+                      _ejercicio.grupo ?? '—',
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: theme.dividerColor),
+                    Divider(
+                      height: 24,
+                      color: theme.dividerColor.withOpacity(0.1),
                     ),
-                    child: Column(
-                      children: [
-                        _buildDetailRow(
-                          context,
-                          'Grupo muscular',
-                          _ejercicio.grupo ?? '—',
-                        ),
-                        Divider(height: 24, color: theme.dividerColor),
-                        _buildDetailRow(
-                          context,
-                          'Equipo necesario',
-                          _ejercicio.equipo ?? '—',
-                        ),
-                        Divider(height: 24, color: theme.dividerColor),
-                        _buildDetailRow(
-                          context,
-                          'Nivel',
-                          _ejercicio.nivel ?? '—',
-                        ),
-                      ],
+                    _buildDetailRow(
+                      context,
+                      'Material',
+                      _ejercicio.equipo ?? '—',
                     ),
-                  ),
-                ],
+                    Divider(
+                      height: 24,
+                      color: theme.dividerColor.withOpacity(0.1),
+                    ),
+                    _buildDetailRow(
+                      context,
+                      'Dificultad',
+                      _ejercicio.nivel ?? '—',
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 48),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTag(ThemeData theme, bool isDark, String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.primaryColor),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: theme.textTheme.bodyMedium?.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(ThemeData theme, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 1.5,
+        color: theme.hintColor,
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration(ThemeData theme, bool isDark) {
+    return BoxDecoration(
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+      boxShadow: [
+        if (!isDark)
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+      ],
     );
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {
     final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 140,
+        Expanded(
+          flex: 2,
           child: Text(
             label,
             style: TextStyle(
@@ -328,7 +351,14 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
             ),
           ),
         ),
-        Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
   }

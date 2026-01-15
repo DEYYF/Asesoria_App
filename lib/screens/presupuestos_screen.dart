@@ -7,6 +7,9 @@ import '../services/auth_service.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../widgets/budget_detail_dialog.dart';
+import '../widgets/add_draft_dialog.dart';
+import '../widgets/add_client_dialog.dart';
 
 class PresupuestosScreen extends StatefulWidget {
   const PresupuestosScreen({super.key});
@@ -316,47 +319,98 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
       ),
       trailing: PopupMenuButton<String>(
         onSelected: (value) => _handleAction(value, p),
-        itemBuilder: (context) => [
-          const PopupMenuItem(
-            value: 'detail',
-            child: ListTile(
-              leading: Icon(Icons.visibility),
-              title: Text('Ver Detalle'),
+        itemBuilder: (context) {
+          final isBorrador =
+              (p['estado'] == 'borrador' || p['clienteId'] == null);
+
+          if (isBorrador) {
+            return [
+              const PopupMenuItem(
+                value: 'accept_create',
+                child: ListTile(
+                  leading: Icon(Icons.person_add, color: Colors.green),
+                  title: Text('Aceptar y Crear Cliente'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'add_discount',
+                child: ListTile(
+                  leading: Icon(Icons.discount, color: Colors.orange),
+                  title: Text('Añadir Descuento'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  leading: Icon(Icons.delete, color: Colors.red),
+                  title: Text('Eliminar', style: TextStyle(color: Colors.red)),
+                ),
+              ),
+            ];
+          }
+
+          return [
+            const PopupMenuItem(
+              value: 'detail',
+              child: ListTile(
+                leading: Icon(Icons.visibility),
+                title: Text('Ver Detalle'),
+              ),
             ),
-          ),
-          const PopupMenuItem(
-            value: 'edit',
-            child: ListTile(leading: Icon(Icons.edit), title: Text('Editar')),
-          ),
-          const PopupMenuItem(
-            value: 'pdf',
-            child: ListTile(
-              leading: Icon(Icons.picture_as_pdf, color: Colors.blue),
-              title: Text('Descargar PDF'),
+            const PopupMenuItem(
+              value: 'edit_status',
+              child: ListTile(
+                leading: Icon(Icons.swap_horiz, color: Colors.teal),
+                title: Text('Cambiar Estado'),
+              ),
             ),
-          ),
-          const PopupMenuItem(
-            value: 'email',
-            child: ListTile(
-              leading: Icon(Icons.email, color: Colors.purple),
-              title: Text('Enviar Email'),
+            const PopupMenuItem(
+              value: 'add_discount',
+              child: ListTile(
+                leading: Icon(Icons.discount, color: Colors.orange),
+                title: Text('Añadir Descuento'),
+              ),
             ),
-          ),
-          const PopupMenuDivider(),
-          const PopupMenuItem(
-            value: 'delete',
-            child: ListTile(
-              leading: Icon(Icons.delete, color: Colors.red),
-              title: Text('Eliminar', style: TextStyle(color: Colors.red)),
+            const PopupMenuItem(
+              value: 'pdf',
+              child: ListTile(
+                leading: Icon(Icons.picture_as_pdf, color: Colors.blue),
+                title: Text('Descargar PDF'),
+              ),
             ),
-          ),
-        ],
+            const PopupMenuItem(
+              value: 'email',
+              child: ListTile(
+                leading: Icon(Icons.email, color: Colors.purple),
+                title: Text('Enviar Email'),
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text('Eliminar', style: TextStyle(color: Colors.red)),
+              ),
+            ),
+          ];
+        },
       ),
     );
   }
 
   void _handleAction(String action, dynamic p) {
     switch (action) {
+      case 'accept_create':
+        _handleAcceptAndCreate(p);
+        break;
+      case 'add_discount':
+        _showDiscountDialog(p);
+        break;
+      case 'edit_status':
+        _showStatusDialog(p);
+        break;
       case 'detail':
         _showDetail(p);
         break;
@@ -603,7 +657,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
-                            '${e['precioTotal']} €',
+                            '${e['precioTotal'] ?? 0} €',
                             textAlign: pw.TextAlign.right,
                           ),
                         ),
@@ -749,14 +803,15 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
               DropdownButtonFormField<String>(
                 value: status,
                 decoration: const InputDecoration(labelText: 'Estado'),
-                items: ['pendiente', 'aceptado', 'rechazado', 'pagado']
-                    .map(
-                      (s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s.toUpperCase()),
-                      ),
-                    )
-                    .toList(),
+                items:
+                    ['borrador', 'pendiente', 'aceptado', 'rechazado', 'pagado']
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(s.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (val) => setS(() => status = val!),
               ),
             ],
@@ -776,6 +831,37 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                   });
                   Navigator.pop(ctx);
                   _fetchData();
+
+                  if (status == 'aceptado') {
+                    // Check if it already has a client linked
+                    final hasClient = p['clienteId'] != null;
+                    if (hasClient)
+                      return; // Don't show create dialog if already linked
+
+                    // Extract IDs for pre-filling
+                    final tarifaId = p['tarifaId'] is Map
+                        ? p['tarifaId']['_id']
+                        : p['tarifaId'];
+                    final extrasList = (p['extras'] as List).map((e) {
+                      return e['extraId'] is Map
+                          ? e['extraId']['_id'] as String
+                          : e['extraId'] as String;
+                    }).toList();
+
+                    if (mounted) {
+                      _showCreateClientFromBudget(
+                        name:
+                            p['clienteId']?['nombre'] ??
+                            p['nombreCliente'] ??
+                            '',
+                        email:
+                            p['clienteId']?['email'] ?? p['emailCliente'] ?? '',
+                        tarifaId: tarifaId,
+                        extras: extrasList,
+                        budgetId: p['_id'],
+                      );
+                    }
+                  }
                 } catch (e) {
                   ScaffoldMessenger.of(
                     context,
@@ -791,264 +877,202 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
   }
 
   void _showDetail(dynamic p) {
-    // Professional detail view
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.85,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Detalle del Presupuesto',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const Divider(),
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildDetailSection(
-                    'CLIENTE',
-                    p['clienteId']?['nombre'] ?? p['nombreCliente'] ?? 'N/A',
-                  ),
-                  _buildDetailSection(
-                    'EMAIL',
-                    p['clienteId']?['email'] ?? p['emailCliente'] ?? 'N/A',
-                  ),
-                  _buildDetailSection(
-                    'FECHA',
-                    DateFormat(
-                      'dd/MM/yyyy HH:mm',
-                    ).format(DateTime.parse(p['createdAt'])),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'CONCEPTOS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  _buildConceptRow(
-                    p['tarifaId']?['nombre'] ?? 'Tarifa Base',
-                    '${p['tarifaId']?['precio'] ?? 0} €',
-                  ),
-                  ...(p['extras'] as List).map((e) {
-                    // Logic matches JSX: price * months
-                    return _buildConceptRow(
-                      'Extra: ${e['extraId']?['nombre'] ?? 'Extra'}',
-                      '${e['precioTotal']} €',
-                    );
-                  }),
-                  const Divider(),
-                  if ((p['descuento'] ?? 0) > 0)
-                    _buildConceptRow(
-                      'Descuento (${p['descuento']}%)',
-                      '- ${((p['total'] * 100 / (100 - p['descuento'])) - p['total']).toStringAsFixed(2)} €',
-                      color: Colors.green,
-                    ),
-                  _buildConceptRow('TOTAL', '${p['total']} €', isTotal: true),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailSection(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConceptRow(
-    String label,
-    String value, {
-    bool isTotal = false,
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              fontSize: isTotal ? 18 : 14,
-              color: color,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-              fontSize: isTotal ? 20 : 14,
-              color: isTotal ? Theme.of(context).primaryColor : color,
-            ),
-          ),
-        ],
-      ),
+      builder: (ctx) => BudgetDetailDialog(budget: p),
     );
   }
 
   void _showCreateBorradorDialog() {
-    final nameTitleController = TextEditingController();
-    final emailController = TextEditingController();
-    String? selectedTarifa;
-    List<String> selectedExtras = [];
-    DateTime selectedDate = DateTime.now();
-
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('Nuevo Borrador'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameTitleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre del Interesado',
-                  ),
-                ),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedTarifa,
-                  decoration: const InputDecoration(labelText: 'Tarifa'),
-                  items: _tarifas
-                      .map(
-                        (t) => DropdownMenuItem(
-                          value: t['_id'] as String,
-                          child: Text('${t['nombre']} (${t['precio']}€)'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) => setS(() => selectedTarifa = val),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Extras',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: _extras.map((e) {
-                    final isSelected = selectedExtras.contains(e['_id']);
-                    return FilterChip(
-                      label: Text(e['nombre']),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        setS(() {
-                          if (val)
-                            selectedExtras.add(e['_id']);
-                          else
-                            selectedExtras.remove(e['_id']);
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: ctx,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2030),
-                    );
-                    if (d != null) setS(() => selectedDate = d);
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Fecha Inicio Prevista',
-                    ),
-                    child: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameTitleController.text.isEmpty || selectedTarifa == null)
-                  return;
+      builder: (ctx) => AddDraftDialog(
+        tarifas: _tarifas,
+        extras: _extras,
+        onSuccess: _fetchData,
+      ),
+    );
+  }
 
-                final api = Provider.of<ApiService>(context, listen: false);
-                final auth = Provider.of<AuthService>(context, listen: false);
-                try {
-                  await api.post('/presupuestos', {
-                    'nombreCliente': nameTitleController.text,
-                    'emailCliente': emailController.text,
-                    'tarifaId': selectedTarifa,
-                    'extras': selectedExtras,
-                    'fechaInicio': selectedDate.toIsoFormatString().split(
-                      'T',
-                    )[0],
-                    'usuarioId': auth.userId,
-                  });
-                  Navigator.pop(ctx);
-                  _fetchData();
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                }
+  void _handleAcceptAndCreate(dynamic p) async {
+    // 1. Update status to 'pendiente' (User request: put as PENDING in registered clients)
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      await api.put('/presupuestos/${p['_id']}', {'estado': 'pendiente'});
+      // Don't call _fetchData here instantly to avoid potential UI jump, wait for client creation logic
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error al aceptar: $e")));
+      return;
+    }
+
+    // 2. Open Create Client Dialog
+    if (!mounted) return;
+
+    // Extract IDs
+    final tarifaId = p['tarifaId'] is Map
+        ? p['tarifaId']['_id']
+        : p['tarifaId'];
+    final extrasList = (p['extras'] as List).map((e) {
+      return e['extraId'] is Map
+          ? e['extraId']['_id'] as String
+          : e['extraId'] as String;
+    }).toList();
+
+    _showCreateClientFromBudget(
+      name: p['clienteId']?['nombre'] ?? p['nombreCliente'] ?? '',
+      email: p['clienteId']?['email'] ?? p['emailCliente'] ?? '',
+      tarifaId: tarifaId,
+      extras: extrasList,
+      budgetId: p['_id'],
+    );
+  }
+
+  void _showDiscountDialog(dynamic p) {
+    final discountController = TextEditingController(
+      text: (p['descuento'] ?? 0).toString(),
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Añadir Descuento'),
+        content: TextField(
+          controller: discountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Descuento (%)',
+            suffixText: '%',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final api = Provider.of<ApiService>(context, listen: false);
+              try {
+                await api.put('/presupuestos/${p['_id']}', {
+                  'descuento': double.tryParse(discountController.text) ?? 0,
+                });
+                Navigator.pop(ctx);
+                _fetchData();
+              } catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStatusDialog(dynamic p) {
+    String currentStatus = p['estado'] ?? 'pendiente';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cambiar Estado'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ['pendiente', 'aceptado', 'pagado', 'rechazado'].map((
+            status,
+          ) {
+            return RadioListTile<String>(
+              title: Text(status.toUpperCase()),
+              value: status,
+              groupValue: currentStatus,
+              onChanged: (val) {
+                Navigator.pop(ctx);
+                _updateStatus(p['_id'], val!);
               },
-              child: const Text('Crear Borrador'),
-            ),
-          ],
+            );
+          }).toList(),
         ),
       ),
     );
+  }
+
+  Future<void> _updateStatus(String id, String newStatus) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      await api.put('/presupuestos/$id', {'estado': newStatus});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Estado actualizado a $newStatus')),
+        );
+      }
+      _fetchData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  void _showCreateClientFromBudget({
+    required String name,
+    required String email,
+    required String? tarifaId,
+    required List<String> extras,
+    required String budgetId,
+  }) async {
+    // Use await to wait for dialog result
+    final newClientId = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AddClientDialog(
+        initialName: name,
+        initialEmail: email,
+        initialTarifaId: tarifaId,
+        initialExtras: extras,
+        onSuccess: (id) => Navigator.pop(ctx, id), // Return ID when closing
+      ),
+    );
+
+    if (newClientId != null && mounted) {
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        // Update budget with client ID
+        await api.put('/presupuestos/$budgetId', {
+          'clienteId': newClientId,
+          'nombreCliente': null,
+          'emailCliente': null,
+          'estado': 'pendiente', // Reinforce status as PENDING
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Cliente creado y presupuesto vinculado (Pendiente)',
+              ),
+            ),
+          );
+          // Refresh data safely
+          _fetchData();
+        }
+      } catch (e) {
+        debugPrint("Error linking budget: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error vinculando: $e')));
+        }
+      }
+    } else {
+      // If cancelled or failed, refresh to ensure UI is consistent
+      if (mounted) _fetchData();
+    }
   }
 }
 

@@ -185,9 +185,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
                   child: Row(
                     children: [
                       Icon(
-                        action['type'] == 'SEND_EMAIL'
-                            ? Icons.alternate_email_rounded
-                            : Icons.chat_bubble_outline_rounded,
+                        _getActionIcon(action['type']),
                         size: 16,
                         color: Colors.grey,
                       ),
@@ -223,13 +221,63 @@ class _AutomationScreenState extends State<AutomationScreen> {
         return 'Cita No Asistida';
       case 'BUDGET_ACCEPTED':
         return 'Presupuesto Aceptado';
+      case 'BUDGET_REJECTED':
+        return 'Presupuesto Rechazado';
+      case 'BUDGET_PAID':
+        return 'Presupuesto Pagado';
+      case 'DIET_ASSIGNED':
+        return 'Dieta Asignada';
+      case 'WORKOUT_ASSIGNED':
+        return 'Entrenamiento Asignado';
+      case 'APPOINTMENT_CONFIRMED':
+        return 'Cita Confirmada';
+      case 'APPOINTMENT_CANCELLED':
+        return 'Cita Cancelada';
+      case 'PROGRESS_RECORDED':
+        return 'Progreso Registrado';
+      case 'WORKOUT_COMPLETED':
+        return 'Sesión Completada';
       default:
         return trigger;
     }
   }
 
   String _getActionLabel(String type) {
-    return type == 'SEND_EMAIL' ? 'Enviar Email' : 'Enviar Mensaje Chat';
+    switch (type) {
+      case 'SEND_EMAIL':
+        return 'Enviar Email';
+      case 'SEND_CHAT':
+        return 'Enviar Mensaje Chat';
+      case 'CREATE_TASK':
+        return 'Crear Tarea';
+      case 'SEND_PUSH_NOTIFICATION':
+        return 'Notificación Push';
+      case 'ADD_TAG':
+        return 'Añadir Etiqueta';
+      case 'SEND_SMS':
+        return 'Enviar SMS';
+      default:
+        return type;
+    }
+  }
+
+  IconData _getActionIcon(String type) {
+    switch (type) {
+      case 'SEND_EMAIL':
+        return Icons.alternate_email_rounded;
+      case 'SEND_CHAT':
+        return Icons.chat_bubble_outline_rounded;
+      case 'CREATE_TASK':
+        return Icons.task_alt_rounded;
+      case 'SEND_PUSH_NOTIFICATION':
+        return Icons.notifications_active_rounded;
+      case 'ADD_TAG':
+        return Icons.label_rounded;
+      case 'SEND_SMS':
+        return Icons.sms_rounded;
+      default:
+        return Icons.settings_rounded;
+    }
   }
 
   String _getScheduledLabel(dynamic auto) {
@@ -393,24 +441,71 @@ class _AutomationScreenState extends State<AutomationScreen> {
                       color: Colors.grey,
                     ),
                   ),
-                  DropdownButtonFormField<String>(
-                    value: selectedTrigger,
-                    items:
-                        [
-                              'CLIENT_REGISTERED',
-                              'BUDGET_CREATED',
-                              'APPOINTMENT_CREATED',
-                              'APPOINTMENT_MISSED',
-                              'BUDGET_ACCEPTED',
-                            ]
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e,
-                                child: Text(_getTriggerLabel(e)),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (val) => setS(() => selectedTrigger = val!),
+                  const SizedBox(height: 8),
+                  // Grouped trigger selector
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        // Clientes
+                        _buildTriggerCategory(
+                          setS,
+                          selectedTrigger,
+                          (val) => setS(() => selectedTrigger = val),
+                          '👤 Clientes',
+                          ['CLIENT_REGISTERED'],
+                        ),
+                        Divider(height: 1, color: Colors.grey.shade300),
+                        // Presupuestos
+                        _buildTriggerCategory(
+                          setS,
+                          selectedTrigger,
+                          (val) => setS(() => selectedTrigger = val),
+                          '💰 Presupuestos',
+                          [
+                            'BUDGET_CREATED',
+                            'BUDGET_ACCEPTED',
+                            'BUDGET_REJECTED',
+                            'BUDGET_PAID',
+                          ],
+                        ),
+                        Divider(height: 1, color: Colors.grey.shade300),
+                        // Citas
+                        _buildTriggerCategory(
+                          setS,
+                          selectedTrigger,
+                          (val) => setS(() => selectedTrigger = val),
+                          '📅 Citas',
+                          [
+                            'APPOINTMENT_CREATED',
+                            'APPOINTMENT_CONFIRMED',
+                            'APPOINTMENT_CANCELLED',
+                            'APPOINTMENT_MISSED',
+                          ],
+                        ),
+                        Divider(height: 1, color: Colors.grey.shade300),
+                        // Planes
+                        _buildTriggerCategory(
+                          setS,
+                          selectedTrigger,
+                          (val) => setS(() => selectedTrigger = val),
+                          '📋 Planes',
+                          ['DIET_ASSIGNED', 'WORKOUT_ASSIGNED'],
+                        ),
+                        Divider(height: 1, color: Colors.grey.shade300),
+                        // Actividad
+                        _buildTriggerCategory(
+                          setS,
+                          selectedTrigger,
+                          (val) => setS(() => selectedTrigger = val),
+                          '⚡ Actividad del Cliente',
+                          ['PROGRESS_RECORDED', 'WORKOUT_COMPLETED'],
+                        ),
+                      ],
+                    ),
                   ),
                 ] else ...[
                   const Text(
@@ -568,40 +663,79 @@ class _AutomationScreenState extends State<AutomationScreen> {
                     color: Colors.grey,
                   ),
                 ),
-                Row(
+                const SizedBox(height: 12),
+                // Grid of action types (3 columns x 2 rows)
+                GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.2,
                   children: [
-                    Expanded(
-                      child: ActionChoiceChip(
-                        label: 'Chat',
-                        icon: Icons.chat_bubble_rounded,
-                        selected: selectedActionType == 'SEND_CHAT',
-                        onSelected: (val) => setS(() {
-                          selectedActionType = 'SEND_CHAT';
-                          final isStillValid = _templates.any(
-                            (t) =>
-                                t['_id'].toString() == selectedTemplateId &&
-                                t['type'] == 'chat',
-                          );
-                          if (!isStillValid) selectedTemplateId = null;
-                        }),
-                      ),
+                    ActionChoiceChip(
+                      label: 'Chat',
+                      icon: Icons.chat_bubble_rounded,
+                      selected: selectedActionType == 'SEND_CHAT',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'SEND_CHAT';
+                        final isStillValid = _templates.any(
+                          (t) =>
+                              t['_id'].toString() == selectedTemplateId &&
+                              t['type'] == 'chat',
+                        );
+                        if (!isStillValid) selectedTemplateId = null;
+                      }),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ActionChoiceChip(
-                        label: 'Email',
-                        icon: Icons.alternate_email_rounded,
-                        selected: selectedActionType == 'SEND_EMAIL',
-                        onSelected: (val) => setS(() {
-                          selectedActionType = 'SEND_EMAIL';
-                          final isStillValid = _templates.any(
-                            (t) =>
-                                t['_id'].toString() == selectedTemplateId &&
-                                t['type'] == 'email',
-                          );
-                          if (!isStillValid) selectedTemplateId = null;
-                        }),
-                      ),
+                    ActionChoiceChip(
+                      label: 'Email',
+                      icon: Icons.alternate_email_rounded,
+                      selected: selectedActionType == 'SEND_EMAIL',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'SEND_EMAIL';
+                        final isStillValid = _templates.any(
+                          (t) =>
+                              t['_id'].toString() == selectedTemplateId &&
+                              t['type'] == 'email',
+                        );
+                        if (!isStillValid) selectedTemplateId = null;
+                      }),
+                    ),
+                    ActionChoiceChip(
+                      label: 'Tarea',
+                      icon: Icons.task_alt_rounded,
+                      selected: selectedActionType == 'CREATE_TASK',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'CREATE_TASK';
+                        selectedTemplateId = null;
+                      }),
+                    ),
+                    ActionChoiceChip(
+                      label: 'Push',
+                      icon: Icons.notifications_active_rounded,
+                      selected: selectedActionType == 'SEND_PUSH_NOTIFICATION',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'SEND_PUSH_NOTIFICATION';
+                        selectedTemplateId = null;
+                      }),
+                    ),
+                    ActionChoiceChip(
+                      label: 'Etiqueta',
+                      icon: Icons.label_rounded,
+                      selected: selectedActionType == 'ADD_TAG',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'ADD_TAG';
+                        selectedTemplateId = null;
+                      }),
+                    ),
+                    ActionChoiceChip(
+                      label: 'SMS',
+                      icon: Icons.sms_rounded,
+                      selected: selectedActionType == 'SEND_SMS',
+                      onSelected: (val) => setS(() {
+                        selectedActionType = 'SEND_SMS';
+                        selectedTemplateId = null;
+                      }),
                     ),
                   ],
                 ),
@@ -1547,6 +1681,41 @@ class _AutomationScreenState extends State<AutomationScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTriggerCategory(
+    StateSetter setS,
+    String selectedTrigger,
+    Function(String) onSelect,
+    String categoryTitle,
+    List<String> triggers,
+  ) {
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      title: Text(
+        categoryTitle,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+      initiallyExpanded: triggers.contains(selectedTrigger),
+      children: triggers.map((trigger) {
+        final isSelected = selectedTrigger == trigger;
+        return RadioListTile<String>(
+          dense: true,
+          title: Text(
+            _getTriggerLabel(trigger),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          value: trigger,
+          groupValue: selectedTrigger,
+          onChanged: (val) {
+            if (val != null) onSelect(val);
+          },
+        );
+      }).toList(),
     );
   }
 }

@@ -103,99 +103,261 @@ class _AddEditIngredienteDialogState extends State<AddEditIngredienteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(
-        widget.ingrediente == null ? 'Nuevo Ingrediente' : 'Editar Ingrediente',
-      ),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+    final theme = Theme.of(context);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre *'),
-                validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _kcalController,
-                      decoration: const InputDecoration(labelText: 'Kcal'),
-                      keyboardType: TextInputType.number,
-                    ),
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 24,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.05),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _pController,
-                      decoration: const InputDecoration(labelText: 'Prot (g)'),
-                      keyboardType: TextInputType.number,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        widget.ingrediente == null
+                            ? Icons.add_circle_outline_rounded
+                            : Icons.edit_note_rounded,
+                        color: theme.primaryColor,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cController,
-                      decoration: const InputDecoration(labelText: 'Carb (g)'),
-                      keyboardType: TextInputType.number,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.ingrediente == null
+                                ? 'Nuevo Ingrediente'
+                                : 'Editar Ingrediente',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                            ),
+                          ),
+                          Text(
+                            'Define los macros por cada 100g',
+                            style: TextStyle(
+                              color: theme.hintColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _gController,
-                      decoration: const InputDecoration(labelText: 'Grasa (g)'),
-                      keyboardType: TextInputType.number,
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                      visualDensity: VisualDensity.compact,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _tipoController,
-                decoration: const InputDecoration(
-                  labelText: 'Tipo / Categoría',
-                  hintText: 'Ej: Proteínas, Verduras...',
+                  ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Macros calculados por cada 100g',
-                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _nombreController,
+                        label: 'Nombre del alimento',
+                        icon: Icons.title_rounded,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _tipoController,
+                        label: 'Categoría (Ej: Proteínas, Fruta...)',
+                        icon: Icons.category_rounded,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Macros Grid
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMacroField(
+                              controller: _kcalController,
+                              label: 'Calorías',
+                              suffix: 'kcal',
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildMacroField(
+                              controller: _pController,
+                              label: 'Proteínas',
+                              suffix: 'g',
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMacroField(
+                              controller: _cController,
+                              label: 'Carbos',
+                              suffix: 'g',
+                              color: Colors.blueAccent,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildMacroField(
+                              controller: _gController,
+                              label: 'Grasas',
+                              suffix: 'g',
+                              color: Colors.orangeAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Actions
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  widget.ingrediente == null
+                                      ? 'Crear Ingrediente'
+                                      : 'Guardar Cambios',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    final theme = Theme.of(context);
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20),
+        filled: true,
+        fillColor: theme.primaryColor.withOpacity(0.02),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
         ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _save,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Guardar'),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildMacroField({
+    required TextEditingController controller,
+    required String label,
+    required String suffix,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              hintText: '0',
+              suffixText: suffix,
+              suffixStyle: TextStyle(
+                color: theme.hintColor.withOpacity(0.5),
+                fontSize: 12,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

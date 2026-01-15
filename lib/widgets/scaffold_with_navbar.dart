@@ -31,6 +31,7 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
 
     // Load unread count and settings on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       Provider.of<ChatService>(context, listen: false).loadUnreadCount();
       Provider.of<ChatService>(context, listen: false).connect();
       Provider.of<SettingsProvider>(context, listen: false).loadSettings();
@@ -152,15 +153,15 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                   activeIcon: Icon(Icons.restaurant_menu),
                   label: 'Comidas',
                 ),
+                BottomNavigationBarItem(
+                  icon: _buildChatIcon(count, theme.hintColor.withOpacity(0.5)),
+                  activeIcon: _buildChatIcon(count, theme.primaryColor),
+                  label: 'Chat',
+                ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.settings_outlined),
                   activeIcon: Icon(Icons.settings),
                   label: 'Ajustes',
-                ),
-                BottomNavigationBarItem(
-                  icon: _buildChatIcon(count, false, theme),
-                  activeIcon: _buildChatIcon(count, true, theme),
-                  label: 'Chat',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.calendar_month_outlined),
@@ -202,123 +203,128 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                     _isNavigating = false;
                   }
 
-                  return SidebarX(
-                    controller: _controller,
-                    theme: SidebarXTheme(
-                      margin: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDark
-                                ? Colors.transparent
-                                : Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
+                  return SafeArea(
+                    child: SidebarX(
+                      controller: _controller,
+                      theme: SidebarXTheme(
+                        margin: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark
+                                  ? Colors.transparent
+                                  : Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        textStyle: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
                           ),
-                        ],
-                      ),
-                      textStyle: TextStyle(
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
-                          0.7,
+                        ),
+                        selectedTextStyle: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        itemTextPadding: const EdgeInsets.only(left: 30),
+                        selectedItemTextPadding: const EdgeInsets.only(
+                          left: 30,
+                        ),
+                        itemDecoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        selectedItemDecoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: theme.primaryColor,
+                        ),
+                        iconTheme: IconThemeData(
+                          color: theme.hintColor.withOpacity(0.5),
+                          size: 20,
+                        ),
+                        selectedIconTheme: const IconThemeData(
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
-                      selectedTextStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                      extendedTheme: const SidebarXTheme(
+                        width: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent, // Uses main decoration
+                        ),
                       ),
-                      itemTextPadding: const EdgeInsets.only(left: 30),
-                      selectedItemTextPadding: const EdgeInsets.only(left: 30),
-                      itemDecoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                      footerDivider: Divider(
+                        color: theme.dividerColor.withOpacity(0.2),
+                        height: 1,
                       ),
-                      selectedItemDecoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: theme.primaryColor,
-                      ),
-                      iconTheme: IconThemeData(
-                        color: theme.hintColor.withOpacity(0.5),
-                        size: 20,
-                      ),
-                      selectedIconTheme: const IconThemeData(
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    extendedTheme: const SidebarXTheme(
-                      width: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.transparent, // Uses main decoration
-                      ),
-                    ),
-                    footerDivider: Divider(
-                      color: theme.dividerColor.withOpacity(0.2),
-                      height: 1,
-                    ),
-                    headerBuilder: (context, extended) {
-                      return SizedBox(
-                        height: 100,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: () => _controller.toggleExtended(),
-                              child: Icon(
-                                Icons.fitness_center_rounded,
-                                size: 40,
-                                color: theme.primaryColor,
+                      headerBuilder: (context, extended) {
+                        return SizedBox(
+                          height: 100,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Center(
+                              child: GestureDetector(
+                                onTap: () => _controller.toggleExtended(),
+                                child: Icon(
+                                  Icons.fitness_center_rounded,
+                                  size: 40,
+                                  color: theme.primaryColor,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                    items: [
-                      const SidebarXItem(
-                        icon: Icons.dashboard_outlined,
-                        label: 'Dashboard',
-                      ),
-                      const SidebarXItem(
-                        icon: Icons.fitness_center_outlined,
-                        label: 'Ejercicios',
-                      ),
-                      const SidebarXItem(
-                        icon: Icons.restaurant_menu_outlined,
-                        label: 'Comidas',
-                      ),
-                      const SidebarXItem(
-                        icon: Icons.settings_outlined,
-                        label: 'Ajustes',
-                      ),
-                      SidebarXItem(
-                        icon: Icons.chat_outlined,
-                        label: 'Chat',
-                        iconWidget: _buildChatIcon(
-                          count,
-                          getUIIndex(widget.navigationShell.currentIndex) == 4,
-                          theme,
-                        ),
-                      ),
-                      const SidebarXItem(
-                        icon: Icons.calendar_month_outlined,
-                        label: 'Calendario',
-                      ),
-                      const SidebarXItem(
-                        icon: Icons.receipt_long_outlined,
-                        label: 'Presupuestos',
-                      ),
-                      if (showAutomation)
+                        );
+                      },
+                      items: [
                         const SidebarXItem(
-                          icon: Icons.auto_mode_rounded,
-                          label: 'Automatización',
+                          icon: Icons.dashboard_outlined,
+                          label: 'Dashboard',
                         ),
-                      if (showFinanzas)
                         const SidebarXItem(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: 'Finanzas',
+                          icon: Icons.fitness_center_outlined,
+                          label: 'Ejercicios',
                         ),
-                    ],
+                        const SidebarXItem(
+                          icon: Icons.restaurant_menu_outlined,
+                          label: 'Comidas',
+                        ),
+                        SidebarXItem(
+                          icon: Icons.chat_outlined,
+                          label: 'Chat',
+                          iconWidget: _buildChatIcon(
+                            count,
+                            getUIIndex(widget.navigationShell.currentIndex) == 3
+                                ? Colors.white
+                                : theme.hintColor.withOpacity(0.5),
+                          ),
+                        ),
+                        const SidebarXItem(
+                          icon: Icons.settings_outlined,
+                          label: 'Ajustes',
+                        ),
+                        const SidebarXItem(
+                          icon: Icons.calendar_month_outlined,
+                          label: 'Calendario',
+                        ),
+                        const SidebarXItem(
+                          icon: Icons.receipt_long_outlined,
+                          label: 'Presupuestos',
+                        ),
+                        if (showAutomation)
+                          const SidebarXItem(
+                            icon: Icons.auto_mode_rounded,
+                            label: 'Automatización',
+                          ),
+                        if (showFinanzas)
+                          const SidebarXItem(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: 'Finanzas',
+                          ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -330,36 +336,30 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     );
   }
 
-  Widget _buildChatIcon(int count, bool isActive, ThemeData theme) {
+  Widget _buildChatIcon(int count, Color color) {
     if (count <= 0) {
-      return Icon(
-        Icons.chat_outlined,
-        color: isActive ? Colors.white : theme.hintColor.withOpacity(0.5),
-      );
+      return Icon(Icons.chat_outlined, color: color);
     }
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(
-          Icons.chat_outlined,
-          color: isActive ? Colors.white : theme.hintColor.withOpacity(0.5),
-        ),
+        Icon(Icons.chat_outlined, color: color),
         Positioned(
-          right: -2,
-          top: -2,
+          right: -8,
+          top: -8,
           child: Container(
-            padding: const EdgeInsets.all(2),
+            padding: const EdgeInsets.all(4),
             decoration: const BoxDecoration(
-              color: Colors.red,
+              color: Colors.redAccent,
               shape: BoxShape.circle,
             ),
-            constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
+            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
             child: Center(
               child: Text(
                 count > 9 ? '9+' : '$count',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 8,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
