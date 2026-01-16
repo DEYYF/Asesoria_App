@@ -10,23 +10,26 @@ class Cliente {
   final DateTime? fechaInicio;
   final DateTime? fechaFin;
   final String? tipoServicio;
-  final String? tiempoTarifa; // Added
-  final List<dynamic>? extras; // Added, list of Strings or Objects
+  final String? tiempoTarifa;
+  final DateTime? fechaNacimiento; // Added
+  final List<dynamic>? extras;
   final int? sesionesCounter;
   final String? sesionesLastMonth;
-  final String? sexo; // Added
-  final double? altura; // Added
-  final List<dynamic>? historialProgreso; // Added missing field
-  String? estado; // Added (Mutable for optimistic updates)
-  final String? avatarUrl; // Added
-  final List<String>? objetivos; // Added
-  final String? asesorId; // Added
+  final String? sexo;
+  final double? altura;
+  final List<dynamic>? historialProgreso;
+  String? estado;
+  final String? avatarUrl;
+  final List<String>? objetivos;
+  final String? asesorId;
+  final List<String>? etiquetas;
 
   Cliente({
     required this.id,
     required this.nombre,
     required this.email,
     this.telefono,
+    this.fechaNacimiento,
     this.direccion,
     this.ciudad,
     this.provincia,
@@ -45,6 +48,7 @@ class Cliente {
     this.avatarUrl,
     this.objetivos,
     this.asesorId,
+    this.etiquetas,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
@@ -53,6 +57,9 @@ class Cliente {
       nombre: json['nombre'] ?? '',
       email: json['email'] ?? '',
       telefono: json['telefono'],
+      fechaNacimiento: json['fechaNacimiento'] != null
+          ? DateTime.parse(json['fechaNacimiento'])
+          : null,
       direccion: json['direccion'],
       ciudad: json['ciudad'],
       provincia: json['provincia'],
@@ -77,6 +84,9 @@ class Cliente {
           ?.map((e) => e.toString())
           .toList(),
       asesorId: json['asesorId']?.toString(),
+      etiquetas: (json['etiquetas'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
     );
   }
 
@@ -86,6 +96,7 @@ class Cliente {
       'nombre': nombre,
       'email': email,
       'telefono': telefono,
+      'fechaNacimiento': fechaNacimiento?.toIso8601String(),
       'direccion': direccion,
       'ciudad': ciudad,
       'provincia': provincia,
@@ -99,6 +110,7 @@ class Cliente {
       'sesionesLastMonth': sesionesLastMonth,
       'historialProgreso': historialProgreso,
       'asesorId': asesorId,
+      'etiquetas': etiquetas,
     };
   }
 
@@ -107,6 +119,7 @@ class Cliente {
     String? nombre,
     String? email,
     String? telefono,
+    DateTime? fechaNacimiento,
     String? direccion,
     String? ciudad,
     String? provincia,
@@ -124,12 +137,14 @@ class Cliente {
     String? estado,
     String? avatarUrl,
     List<String>? objetivos,
+    List<String>? etiquetas,
   }) {
     return Cliente(
       id: id ?? this.id,
       nombre: nombre ?? this.nombre,
       email: email ?? this.email,
       telefono: telefono ?? this.telefono,
+      fechaNacimiento: fechaNacimiento ?? this.fechaNacimiento,
       direccion: direccion ?? this.direccion,
       ciudad: ciudad ?? this.ciudad,
       provincia: provincia ?? this.provincia,
@@ -148,6 +163,7 @@ class Cliente {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       objetivos: objetivos ?? this.objetivos,
       asesorId: asesorId ?? asesorId,
+      etiquetas: etiquetas ?? this.etiquetas,
     );
   }
 }

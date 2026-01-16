@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
+import '../../widgets/video_player_dialog.dart';
 
 class NotebookScreen extends StatefulWidget {
   final String entrenamientoId;
@@ -701,7 +703,13 @@ class _ModernInput extends StatelessWidget {
       ),
       child: TextFormField(
         initialValue: value,
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          if (hint == 'kg')
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+          else
+            FilteringTextInputFormatter.digitsOnly,
+        ],
         textAlign: TextAlign.center,
         style: TextStyle(
           fontWeight: FontWeight.bold,

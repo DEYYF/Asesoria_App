@@ -34,6 +34,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
   final _emailCtrl = TextEditingController();
   final _telefonoCtrl = TextEditingController();
   final _edadCtrl = TextEditingController();
+  DateTime? _birthDate; // Added for Birthday automation
   String _sexo = 'Hombre';
 
   // Objectives
@@ -191,6 +192,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
         'edad': int.tryParse(_edadCtrl.text),
         'sexo': _sexo,
         'objetivos': _objetivos,
+        'fechaNacimiento': _birthDate?.toIso8601String(), // Added
         'fechaInicio': DateTime.now().toIso8601String(),
         'Tarifa': tarifa.nombre,
         'tipoServicio': tarifa.tipoServicio,
@@ -439,6 +441,84 @@ class _AddClientDialogState extends State<AddClientDialog> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      const SizedBox(height: 16),
+                      // BIRTHDAY FIELD
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _birthDate ?? DateTime(2000),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                            locale: const Locale('es', 'ES'),
+                            builder: (context, child) {
+                              return Theme(
+                                data: theme.copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: theme.primaryColor,
+                                    onPrimary: Colors.white,
+                                    surface: isDark
+                                        ? const Color(0xFF1E1E1E)
+                                        : Colors.white,
+                                    onSurface: isDark
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _birthDate = picked;
+                              // Optional: auto-calc age
+                              final age = DateTime.now().year - picked.year;
+                              _edadCtrl.text = age.toString();
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: theme.dividerColor.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today_rounded,
+                                color: theme.hintColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _birthDate == null
+                                      ? "Fecha de Nacimiento"
+                                      : "${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}",
+                                  style: TextStyle(
+                                    color: _birthDate == null
+                                        ? theme.hintColor
+                                        : theme.textTheme.bodyMedium?.color,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 32),
 

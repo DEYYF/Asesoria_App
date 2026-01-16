@@ -207,7 +207,10 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                     child: SidebarX(
                       controller: _controller,
                       theme: SidebarXTheme(
-                        margin: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),

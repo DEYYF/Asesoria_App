@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
+import '../../widgets/video_player_dialog.dart';
 
 class LiveSessionScreen extends StatefulWidget {
   final String entrenamientoId;
@@ -615,32 +617,66 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Widget _buildExerciseHeader(ItemEntrenamiento item, ThemeData theme) {
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: theme.primaryColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: theme.primaryColor.withOpacity(0.2),
-              width: 2,
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.primaryColor.withOpacity(0.2),
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.fitness_center_rounded,
+                    color: theme.primaryColor,
+                    size: 36,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-          ),
-          child: Icon(
-            Icons.fitness_center_rounded,
-            color: theme.primaryColor,
-            size: 36,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
-          style: const TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
-          textAlign: TextAlign.center,
+            if (item.ejercicio?.urlVideo != null &&
+                item.ejercicio!.urlVideo!.isNotEmpty)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton.filled(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => VideoPlayerDialog(
+                        videoUrl: item.ejercicio!.urlVideo!,
+                        title:
+                            item.ejercicioNombre ??
+                            item.ejercicio?.nombre ??
+                            'Ejercicio',
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.play_circle_filled_rounded, size: 32),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+          ],
         ),
         if (item.ejercicio?.grupo != null) ...[
           const SizedBox(height: 8),
@@ -767,7 +803,13 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         TextField(
           controller: controller,
           enabled: !_isResting,
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            if (label == 'PESO')
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+            else
+              FilteringTextInputFormatter.digitsOnly,
+          ],
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 36,

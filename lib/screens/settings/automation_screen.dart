@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-import 'templates_screen.dart';
+
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/automation_service.dart';
+import 'automation_form_sheet.dart';
 
 class AutomationScreen extends StatefulWidget {
   const AutomationScreen({super.key});
@@ -111,94 +112,260 @@ class _AutomationScreenState extends State<AutomationScreen> {
 
   Widget _buildAutomationCard(dynamic auto) {
     final theme = Theme.of(context);
-    final isActive = auto['active'] ?? true;
-    final trigger = auto['trigger'] ?? 'N/A';
+    final isActive = auto['active'] == true;
+    final trigger = auto['trigger'];
+    final autoType = auto['type'];
+    final actions = auto['actions'] as List;
+
+    // Get color based on action type
+    Color getActionColor(String actionType) {
+      switch (actionType) {
+        case 'SEND_CHAT':
+          return Colors.blue;
+        case 'SEND_EMAIL':
+          return Colors.green;
+        case 'CREATE_TASK':
+          return Colors.orange;
+        case 'SEND_PUSH_NOTIFICATION':
+          return Colors.purple;
+        case 'ADD_TAG':
+          return Colors.teal;
+        case 'SEND_SMS':
+          return Colors.red;
+        default:
+          return theme.primaryColor;
+      }
+    }
+
+    final primaryActionColor = actions.isNotEmpty
+        ? getActionColor(actions[0]['type'])
+        : theme.primaryColor;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 2,
-      child: InkWell(
-        onTap: () => _showEditDialog(auto),
-        borderRadius: BorderRadius.circular(20),
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isActive
+              ? primaryActionColor.withOpacity(0.3)
+              : Colors.grey.shade300,
+          width: 2,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: isActive
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [primaryActionColor.withOpacity(0.05), Colors.white],
+                )
+              : null,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header Row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      auto['name'] ?? 'Sin nombre',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                  // Status Indicator
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive ? Colors.green : Colors.grey,
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: Colors.green.withOpacity(0.5),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
                     ),
                   ),
-                  Switch.adaptive(
-                    value: isActive,
-                    onChanged: (val) async {
-                      try {
-                        await _service.updateAutomation(auto['_id'], {
-                          'active': val,
-                        });
-                        _loadData();
-                      } catch (e) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    },
+                  const SizedBox(width: 12),
+                  // Title
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          auto['name'] ?? 'Sin nombre',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (auto['description'] != null &&
+                            auto['description'].toString().isNotEmpty)
+                          Text(
+                            auto['description'],
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Active Switch
+                  Transform.scale(
+                    scale: 0.9,
+                    child: Switch.adaptive(
+                      value: isActive,
+                      activeColor: primaryActionColor,
+                      onChanged: (val) async {
+                        try {
+                          await _service.updateAutomation(auto['_id'], {
+                            'active': val,
+                          });
+                          _loadData();
+                        } catch (e) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+
+              // Trigger/Schedule Badge
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 12,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  auto['type'] == 'SCHEDULED'
-                      ? _getScheduledLabel(auto)
-                      : 'SI: ${_getTriggerLabel(trigger)}',
-                  style: TextStyle(
-                    color: theme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                  color: primaryActionColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: primaryActionColor.withOpacity(0.3),
+                    width: 1,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              ...(auto['actions'] as List).map(
-                (action) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _getActionIcon(action['type']),
-                        size: 16,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_getActionLabel(action['type'])} ${action['delay'] > 0 ? ' (en ${action['delay']}m)' : ''}',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 14,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      autoType == 'SCHEDULED'
+                          ? Icons.schedule_rounded
+                          : Icons.bolt_rounded,
+                      size: 16,
+                      color: primaryActionColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        autoType == 'SCHEDULED'
+                            ? _getScheduledLabel(auto)
+                            : 'SI: ${_getTriggerLabel(trigger)}',
+                        style: TextStyle(
+                          color: primaryActionColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Actions Section
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.play_arrow_rounded,
+                          size: 16,
+                          color: Colors.grey[700],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'ENTONCES:',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[700],
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...actions.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final action = entry.value;
+                      final actionColor = getActionColor(action['type']);
+
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < actions.length - 1 ? 10 : 0,
+                        ),
+                        child: Row(
+                          children: [
+                            // Action Icon with colored background
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: actionColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                _getActionIcon(action['type']),
+                                size: 18,
+                                color: actionColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Action Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _getActionLabel(action['type']),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (action['delay'] > 0)
+                                    Text(
+                                      'Retraso: ${action['delay']} minutos',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
                 ),
               ),
             ],
@@ -315,1554 +482,17 @@ class _AutomationScreenState extends State<AutomationScreen> {
     _showAutomationForm(auto: auto);
   }
 
-  void _showAutomationForm({dynamic auto}) {
-    String selectedType = auto?['type'] ?? 'EVENT';
-    String selectedTrigger = auto?['trigger'] ?? 'CLIENT_REGISTERED';
-    DateTime selectedDate = auto?['scheduledDate'] != null
-        ? DateTime.parse(auto['scheduledDate'])
-        : DateTime.now().add(const Duration(hours: 1));
-    bool allClients = auto?['allClients'] ?? true;
-    List<String> selectedClients = List<String>.from(
-      auto?['targetClientIds'] ?? [],
-    );
-    List<int> selectedDays = List<int>.from(auto?['daysOfWeek'] ?? []);
-    int selectedHour = auto?['hour'] ?? 10;
-    int selectedMinute = auto?['minute'] ?? 0;
-
-    final List<String> dayNames = [
-      'Dom',
-      'Lun',
-      'Mar',
-      'Mie',
-      'Jue',
-      'Vie',
-      'Sab',
-    ];
-
-    // We only support 1 action in the form for simplicity now, but model supports multiple
-    final existingAction =
-        (auto != null && (auto['actions'] as List).isNotEmpty)
-        ? auto['actions'][0]
-        : null;
-    String selectedActionType = existingAction?['type'] ?? 'SEND_CHAT';
-    String? selectedTemplateId =
-        existingAction?['templateId']?['_id'] ?? existingAction?['templateId'];
-    final nameController = TextEditingController(text: auto?['name'] ?? '');
-    final delayController = TextEditingController(
-      text: (existingAction?['delay'] ?? 0).toString(),
-    );
-    final contentOverrideController = TextEditingController(
-      text: existingAction?['contentOverride'] ?? '',
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          height: MediaQuery.of(ctx).size.height * 0.85,
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      auto == null
-                          ? 'Nueva Automatización'
-                          : 'Editar Automatización',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (auto != null)
-                      IconButton(
-                        color: Colors.red,
-                        onPressed: () async {
-                          final confirm = await _showDeleteConfirm();
-                          if (confirm == true) {
-                            await _service.deleteAutomation(auto['_id']);
-                            Navigator.pop(ctx);
-                            _loadData();
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre de la Regla',
-                    hintText: 'Ej: Mensaje Programado de Lunes',
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Tipo de Automatización:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'EVENT',
-                      label: Text('Por Evento'),
-                      icon: Icon(Icons.bolt_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'SCHEDULED',
-                      label: Text('Programada'),
-                      icon: Icon(Icons.calendar_month_rounded),
-                    ),
-                  ],
-                  selected: {selectedType},
-                  onSelectionChanged: (val) =>
-                      setS(() => selectedType = val.first),
-                ),
-                const SizedBox(height: 24),
-                if (selectedType == 'EVENT') ...[
-                  const Text(
-                    'SI ocurre este evento (Trigger):',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Grouped trigger selector
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        // Clientes
-                        _buildTriggerCategory(
-                          setS,
-                          selectedTrigger,
-                          (val) => setS(() => selectedTrigger = val),
-                          '👤 Clientes',
-                          ['CLIENT_REGISTERED'],
-                        ),
-                        Divider(height: 1, color: Colors.grey.shade300),
-                        // Presupuestos
-                        _buildTriggerCategory(
-                          setS,
-                          selectedTrigger,
-                          (val) => setS(() => selectedTrigger = val),
-                          '💰 Presupuestos',
-                          [
-                            'BUDGET_CREATED',
-                            'BUDGET_ACCEPTED',
-                            'BUDGET_REJECTED',
-                            'BUDGET_PAID',
-                          ],
-                        ),
-                        Divider(height: 1, color: Colors.grey.shade300),
-                        // Citas
-                        _buildTriggerCategory(
-                          setS,
-                          selectedTrigger,
-                          (val) => setS(() => selectedTrigger = val),
-                          '📅 Citas',
-                          [
-                            'APPOINTMENT_CREATED',
-                            'APPOINTMENT_CONFIRMED',
-                            'APPOINTMENT_CANCELLED',
-                            'APPOINTMENT_MISSED',
-                          ],
-                        ),
-                        Divider(height: 1, color: Colors.grey.shade300),
-                        // Planes
-                        _buildTriggerCategory(
-                          setS,
-                          selectedTrigger,
-                          (val) => setS(() => selectedTrigger = val),
-                          '📋 Planes',
-                          ['DIET_ASSIGNED', 'WORKOUT_ASSIGNED'],
-                        ),
-                        Divider(height: 1, color: Colors.grey.shade300),
-                        // Actividad
-                        _buildTriggerCategory(
-                          setS,
-                          selectedTrigger,
-                          (val) => setS(() => selectedTrigger = val),
-                          '⚡ Actividad del Cliente',
-                          ['PROGRESS_RECORDED', 'WORKOUT_COMPLETED'],
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  const Text(
-                    'Cuándo enviar:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Días de la semana (vacío para una sola vez):',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: List.generate(7, (i) {
-                      final isSelected = selectedDays.contains(i);
-                      return ChoiceChip(
-                        label: Text(dayNames[i]),
-                        selected: isSelected,
-                        onSelected: (val) {
-                          setS(() {
-                            if (val)
-                              selectedDays.add(i);
-                            else
-                              selectedDays.remove(i);
-                          });
-                        },
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  if (selectedDays.isEmpty)
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      title: Text('${selectedDate.toLocal()}'.substring(0, 16)),
-                      subtitle: const Text(
-                        'Fecha específica (Ejecución única)',
-                      ),
-                      trailing: const Icon(Icons.edit_calendar_rounded),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
-                          ),
-                        );
-                        if (date != null) {
-                          final time = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.fromDateTime(selectedDate),
-                          );
-                          if (time != null) {
-                            setS(
-                              () => selectedDate = DateTime(
-                                date.year,
-                                date.month,
-                                date.day,
-                                time.hour,
-                                time.minute,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    )
-                  else
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      title: Text(
-                        '${selectedHour.toString().padLeft(2, '0')}:${selectedMinute.toString().padLeft(2, '0')}',
-                      ),
-                      subtitle: const Text('Hora de ejecución (Recurrente)'),
-                      trailing: const Icon(Icons.access_time_rounded),
-                      onTap: () async {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                            hour: selectedHour,
-                            minute: selectedMinute,
-                          ),
-                        );
-                        if (time != null) {
-                          setS(() {
-                            selectedHour = time.hour;
-                            selectedMinute = time.minute;
-                          });
-                        }
-                      },
-                    ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Para quién:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  CheckboxListTile(
-                    title: const Text('Enviar a todos los clientes'),
-                    value: allClients,
-                    onChanged: (val) => setS(() => allClients = val!),
-                  ),
-                  if (!allClients) ...[
-                    const Text(
-                      'Seleccionar clientes:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListView.builder(
-                        itemCount: _clients.length,
-                        itemBuilder: (ctx, i) {
-                          final c = _clients[i];
-                          final isSelected = selectedClients.contains(c['_id']);
-                          return CheckboxListTile(
-                            dense: true,
-                            title: Text(c['nombre'] ?? 'Sin nombre'),
-                            value: isSelected,
-                            onChanged: (val) {
-                              setS(() {
-                                if (val == true)
-                                  selectedClients.add(c['_id']);
-                                else
-                                  selectedClients.remove(c['_id']);
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-                const SizedBox(height: 24),
-                const Text(
-                  'ENTONCES realizar esta acción:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Grid of action types (3 columns x 2 rows)
-                GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                  children: [
-                    ActionChoiceChip(
-                      label: 'Chat',
-                      icon: Icons.chat_bubble_rounded,
-                      selected: selectedActionType == 'SEND_CHAT',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'SEND_CHAT';
-                        final isStillValid = _templates.any(
-                          (t) =>
-                              t['_id'].toString() == selectedTemplateId &&
-                              t['type'] == 'chat',
-                        );
-                        if (!isStillValid) selectedTemplateId = null;
-                      }),
-                    ),
-                    ActionChoiceChip(
-                      label: 'Email',
-                      icon: Icons.alternate_email_rounded,
-                      selected: selectedActionType == 'SEND_EMAIL',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'SEND_EMAIL';
-                        final isStillValid = _templates.any(
-                          (t) =>
-                              t['_id'].toString() == selectedTemplateId &&
-                              t['type'] == 'email',
-                        );
-                        if (!isStillValid) selectedTemplateId = null;
-                      }),
-                    ),
-                    ActionChoiceChip(
-                      label: 'Tarea',
-                      icon: Icons.task_alt_rounded,
-                      selected: selectedActionType == 'CREATE_TASK',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'CREATE_TASK';
-                        selectedTemplateId = null;
-                      }),
-                    ),
-                    ActionChoiceChip(
-                      label: 'Push',
-                      icon: Icons.notifications_active_rounded,
-                      selected: selectedActionType == 'SEND_PUSH_NOTIFICATION',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'SEND_PUSH_NOTIFICATION';
-                        selectedTemplateId = null;
-                      }),
-                    ),
-                    ActionChoiceChip(
-                      label: 'Etiqueta',
-                      icon: Icons.label_rounded,
-                      selected: selectedActionType == 'ADD_TAG',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'ADD_TAG';
-                        selectedTemplateId = null;
-                      }),
-                    ),
-                    ActionChoiceChip(
-                      label: 'SMS',
-                      icon: Icons.sms_rounded,
-                      selected: selectedActionType == 'SEND_SMS',
-                      onSelected: (val) => setS(() {
-                        selectedActionType = 'SEND_SMS';
-                        selectedTemplateId = null;
-                      }),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Usar Plantilla:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _showTemplateSelector(
-                    setS,
-                    contentOverrideController,
-                    (val) {
-                      setS(() {
-                        selectedTemplateId = val;
-                        if (val != null) contentOverrideController.clear();
-                      });
-                    },
-                    selectedActionType,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          selectedTemplateId == null
-                              ? Icons.edit_note_rounded
-                              : Icons.description_rounded,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            selectedTemplateId == null
-                                ? 'Escribir mensaje manual...'
-                                : _templates.firstWhere(
-                                        (t) =>
-                                            t['_id'].toString() ==
-                                            selectedTemplateId,
-                                        orElse: () => {
-                                          'title': 'Plantilla seleccionada',
-                                        },
-                                      )['title'] ??
-                                      'Plantilla',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (ctx) => const TemplatesScreen(),
-                          ),
-                        );
-                        _loadData();
-                      },
-                      icon: const Icon(
-                        Icons.settings_suggest_rounded,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Gestionar Plantillas',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                if (selectedTemplateId != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Vista previa y Unión de variables:',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildHighlightedContent(
-                          _templates.firstWhere(
-                                (t) =>
-                                    t['_id'].toString() == selectedTemplateId,
-                                orElse: () => {'content': ''},
-                              )['content'] ??
-                              '',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                if (selectedTemplateId == null) ...[
-                  const Text(
-                    'O escribir mensaje personalizado:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  TextField(
-                    controller: contentOverrideController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: 'Introduce el mensaje...',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                ExpansionTile(
-                  title: const Text(
-                    'Variables disponibles',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 8.0,
-                      ),
-                      child: Column(
-                        children: [
-                          _VariableInfo(
-                            variable: '{{cliente_nombre}}',
-                            description: 'Nombre completo',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                          _VariableInfo(
-                            variable: '{{cliente_email}}',
-                            description: 'Correo electrónico',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                          _VariableInfo(
-                            variable: '{{cliente_telefono}}',
-                            description: 'Teléfono',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                          _VariableInfo(
-                            variable: '{{tarifa}}',
-                            description: 'Tarifa actual',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                          _VariableInfo(
-                            variable: '{{fecha}}',
-                            description: 'Fecha de envío',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                          _VariableInfo(
-                            variable: '{{hora}}',
-                            description: 'Hora de envío',
-                            onTap: (v) {
-                              final text = contentOverrideController.text;
-                              final selection =
-                                  contentOverrideController.selection;
-                              final newText = text.replaceRange(
-                                selection.start == -1
-                                    ? text.length
-                                    : selection.start,
-                                selection.end == -1
-                                    ? text.length
-                                    : selection.end,
-                                v,
-                              );
-                              contentOverrideController.text = newText;
-                              contentOverrideController.selection =
-                                  TextSelection.collapsed(
-                                    offset:
-                                        (selection.start == -1
-                                            ? text.length
-                                            : selection.start) +
-                                        v.length,
-                                  );
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: delayController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Retraso (minutos)',
-                    hintText: '0 para inmediato',
-                  ),
-                ),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (nameController.text.isEmpty) return;
-
-                      final auth = Provider.of<AuthService>(
-                        context,
-                        listen: false,
-                      );
-                      final action = {
-                        'type': selectedActionType,
-                        'templateId': selectedTemplateId,
-                        'contentOverride':
-                            contentOverrideController.text.isNotEmpty
-                            ? contentOverrideController.text
-                            : null,
-                        'delay': int.tryParse(delayController.text) ?? 0,
-                      };
-
-                      final Map<String, dynamic> data = {
-                        'name': nameController.text,
-                        'type': selectedType,
-                        'allClients': allClients,
-                        'targetClientIds': selectedClients,
-                        'actions': [action],
-                        'advisorId': auth.userId,
-                      };
-
-                      if (selectedType == 'EVENT') {
-                        data['trigger'] = selectedTrigger;
-                      } else {
-                        if (selectedDays.isEmpty) {
-                          data['scheduledDate'] = selectedDate
-                              .toIso8601String();
-                        } else {
-                          data['daysOfWeek'] = selectedDays;
-                          data['hour'] = selectedHour;
-                          data['minute'] = selectedMinute;
-                        }
-                      }
-
-                      try {
-                        if (auto == null) {
-                          await _service.createAutomation(data);
-                        } else {
-                          await _service.updateAutomation(auto['_id'], data);
-                        }
-                        Navigator.pop(ctx);
-                        _loadData();
-                      } catch (e) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    },
-                    child: const Text('Guardar Automatización'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showTemplateSelector(
-    StateSetter setS,
-    TextEditingController contentCtrl,
-    Function(String?) onSelect,
-    String actionType,
-  ) async {
-    final typeFilter = actionType == 'SEND_EMAIL' ? 'email' : 'chat';
-    final filtered = _templates.where((t) => t['type'] == typeFilter).toList();
-
-    // Group by category
-    final Map<String, List<dynamic>> grouped = {};
-    for (var t in filtered) {
-      final cats = List<String>.from(t['categories'] ?? ['General']);
-      for (var cat in cats) {
-        grouped.putIfAbsent(cat, () => []).add(t);
-      }
-    }
-
+  Future<void> _showAutomationForm({dynamic auto}) async {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.description_rounded, color: Colors.blue),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Seleccionar Plantilla',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      onTap: () {
-                        onSelect(null);
-                        Navigator.pop(ctx);
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white12
-                                : Colors.grey.shade200,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.edit_note_rounded,
-                                color: Colors.blue,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Escribir mensaje manual',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Sin plantilla predefinida',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(
-                              Icons.add_circle_outline_rounded,
-                              color: Colors.blue,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Divider(),
-                  ...grouped.entries.map((entry) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: 24,
-                            bottom: 12,
-                            left: 4,
-                          ),
-                          child: Text(
-                            entry.key.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ),
-                        ...entry.value.map((t) {
-                          final isDark =
-                              Theme.of(context).brightness == Brightness.dark;
-                          final theme = Theme.of(context);
-                          final List<String> cats = List<String>.from(
-                            t['categories'] ?? [],
-                          );
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: InkWell(
-                              onTap: () =>
-                                  _showTemplateFullPreview(t, onSelect),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? Colors.white.withOpacity(0.05)
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? Colors.white12
-                                        : Colors.grey.shade200,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color:
-                                            (t['type'] == 'email'
-                                                    ? Colors.blue
-                                                    : Colors.green)
-                                                .withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        t['type'] == 'email'
-                                            ? Icons.email_rounded
-                                            : Icons.chat_bubble_rounded,
-                                        color: t['type'] == 'email'
-                                            ? Colors.blue
-                                            : Colors.green,
-                                        size: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  (t['title'] != null &&
-                                                          t['title']
-                                                              .toString()
-                                                              .isNotEmpty)
-                                                      ? t['title'].toString()
-                                                      : (t['subject'] != null &&
-                                                            t['subject']
-                                                                .toString()
-                                                                .isNotEmpty)
-                                                      ? t['subject'].toString()
-                                                      : (t['content'] != null &&
-                                                            t['content']
-                                                                    .toString()
-                                                                    .length >
-                                                                20)
-                                                      ? '${t['content'].toString().substring(0, 20)}...'
-                                                      : 'Plantilla sin título',
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              ...cats.map(
-                                                (cat) => Container(
-                                                  margin: const EdgeInsets.only(
-                                                    right: 4,
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: theme.primaryColor
-                                                        .withOpacity(0.1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ),
-                                                  ),
-                                                  child: Text(
-                                                    cat.toUpperCase(),
-                                                    style: TextStyle(
-                                                      fontSize: 8,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: theme.primaryColor,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            t['content'] ?? '',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: theme.hintColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Icon(
-                                      Icons.remove_red_eye_outlined,
-                                      color: Colors.blue,
-                                      size: 20,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ],
-                    );
-                  }),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ],
-        ),
+      builder: (ctx) => AutomationFormSheet(
+        automation: auto,
+        templates: _templates,
+        clients: _clients,
+        onSave: () => _loadData(),
       ),
-    );
-  }
-
-  Future<void> _showTemplateFullPreview(
-    dynamic t,
-    Function(String?) onSelect,
-  ) async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.visibility_rounded, color: Colors.blue),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Vista Previa Completa',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      (t['title'] != null && t['title'].toString().isNotEmpty)
-                          ? t['title'].toString()
-                          : (t['subject'] != null &&
-                                t['subject'].toString().isNotEmpty)
-                          ? t['subject'].toString()
-                          : 'Plantilla sin título',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: List<String>.from(t['categories'] ?? [])
-                          .map(
-                            (cat) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                cat.toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'CONTENIDO DEL MENSAJE:',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                      ),
-                      child: _buildHighlightedContent(t['content'] ?? ''),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'VARIABLES DETECTADAS:',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _VariableLegend(),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: () {
-                    onSelect(t['_id'].toString());
-                    Navigator.pop(ctx); // Close preview
-                    Navigator.pop(context); // Close selector
-                  },
-                  child: const Text(
-                    'Confirmar Selección',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHighlightedContent(String content) {
-    final List<String> variables = [
-      '{{cliente_nombre}}',
-      '{{cliente_email}}',
-      '{{cliente_telefono}}',
-      '{{tarifa}}',
-      '{{fecha}}',
-      '{{hora}}',
-    ];
-    List<TextSpan> spans = [];
-
-    // Simple logic to find and highlight variables
-    String remaining = content;
-    while (remaining.isNotEmpty) {
-      int firstIdx = -1;
-      String? foundVar;
-      for (var v in variables) {
-        int idx = remaining.indexOf(v);
-        if (idx != -1 && (firstIdx == -1 || idx < firstIdx)) {
-          firstIdx = idx;
-          foundVar = v;
-        }
-      }
-
-      if (firstIdx == -1) {
-        spans.add(
-          TextSpan(
-            text: remaining,
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontSize: 12,
-            ),
-          ),
-        );
-        break;
-      }
-
-      if (firstIdx > 0) {
-        spans.add(
-          TextSpan(
-            text: remaining.substring(0, firstIdx),
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontSize: 12,
-            ),
-          ),
-        );
-      }
-
-      spans.add(
-        TextSpan(
-          text: foundVar,
-          style: const TextStyle(
-            color: Colors.blue,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-            backgroundColor: Color(0x1A2196F3),
-          ),
-        ),
-      );
-
-      remaining = remaining.substring(firstIdx + foundVar!.length);
-    }
-
-    return RichText(text: TextSpan(children: spans));
-  }
-
-  Future<bool?> _showDeleteConfirm() {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar regla?'),
-        content: const Text(
-          'Esta acción desactivará la automatización para siempre.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTriggerCategory(
-    StateSetter setS,
-    String selectedTrigger,
-    Function(String) onSelect,
-    String categoryTitle,
-    List<String> triggers,
-  ) {
-    return ExpansionTile(
-      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      title: Text(
-        categoryTitle,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-      ),
-      initiallyExpanded: triggers.contains(selectedTrigger),
-      children: triggers.map((trigger) {
-        final isSelected = selectedTrigger == trigger;
-        return RadioListTile<String>(
-          dense: true,
-          title: Text(
-            _getTriggerLabel(trigger),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          value: trigger,
-          groupValue: selectedTrigger,
-          onChanged: (val) {
-            if (val != null) onSelect(val);
-          },
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _VariableInfo extends StatelessWidget {
-  final String variable;
-  final String description;
-  final Function(String)? onTap;
-
-  const _VariableInfo({
-    required this.variable,
-    required this.description,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap != null ? () => onTap!(variable) : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                variable,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-            ),
-            Text(
-              description,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ActionChoiceChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final ValueChanged<bool> onSelected;
-
-  const ActionChoiceChip({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => onSelected(true),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.primaryColor
-              : (theme.brightness == Brightness.dark
-                    ? Colors.white10
-                    : Colors.grey[100]),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? theme.primaryColor : Colors.transparent,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: selected ? Colors.white : Colors.grey),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _VariableLegend extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final vars = [
-      {'v': '{{cliente_nombre}}', 'd': 'Nombre del cliente'},
-      {'v': '{{tarifa}}', 'd': 'Tarifa contratada'},
-      {'v': '{{fecha}}', 'd': 'Fecha actual'},
-      {'v': '{{hora}}', 'd': 'Hora actual'},
-    ];
-    return Column(
-      children: vars
-          .map(
-            (v) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      v['v']!,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    v['d']!,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }

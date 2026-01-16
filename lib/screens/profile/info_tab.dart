@@ -138,6 +138,51 @@ class _InfoTabState extends State<InfoTab> {
           ]),
 
           const SizedBox(height: 24),
+          _sectionTitle('ETIQUETAS'),
+          if (widget.cliente.etiquetas != null &&
+              widget.cliente.etiquetas!.isNotEmpty)
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.cliente.etiquetas!
+                    .map(
+                      (tag) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: theme.primaryColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(left: 4.0),
+              child: Text(
+                'Sin etiquetas asignadas',
+                style: TextStyle(color: theme.hintColor, fontSize: 13),
+              ),
+            ),
+
+          const SizedBox(height: 24),
           _sectionTitle('OBJETIVOS'),
           SizedBox(
             width: double.infinity,
@@ -401,6 +446,26 @@ class _InfoTabState extends State<InfoTab> {
     ThemeData theme,
     bool isDark,
   ) {
+    // Check if client has a Pack
+    final isPack4 = _clienteExtras.any((e) => e.nombre.contains('Pack 4'));
+    final isPack8 = _clienteExtras.any((e) => e.nombre.contains('Pack 8'));
+    final hasPack = isPack4 || isPack8;
+
+    int performed = widget.cliente.sesionesCounter ?? 0;
+    int packSize = isPack8 ? 8 : (isPack4 ? 4 : 0);
+
+    // Logic:
+    // Restantes: How many left in the pack (Pack - Performed). Min 0.
+    // Completadas (Extra): How many exceeding the pack (Performed - Pack). Min 0.
+
+    int remainingInPack = hasPack ? (packSize - performed) : 0;
+    if (remainingInPack < 0) remainingInPack = 0;
+
+    int extraCompleted = hasPack ? (performed - packSize) : performed;
+    if (extraCompleted < 0) extraCompleted = 0;
+
+    final primaryColor = hasPack ? const Color(0xFFFFD700) : theme.primaryColor;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -428,10 +493,10 @@ class _InfoTabState extends State<InfoTab> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
+                  color: primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.bolt_rounded, color: theme.primaryColor),
+                child: Icon(Icons.bolt_rounded, color: primaryColor),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -448,7 +513,7 @@ class _InfoTabState extends State<InfoTab> {
                       ),
                     ),
                     Text(
-                      'Sesiones completadas',
+                      hasPack ? 'Pack $packSize Sesiones' : 'Pago por uso',
                       style: TextStyle(
                         fontSize: 13,
                         color: theme.hintColor,
@@ -458,27 +523,37 @@ class _InfoTabState extends State<InfoTab> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      theme.primaryColor,
-                      theme.primaryColor.withBlue(255),
-                    ],
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              // 1. Counter: SESIONES RESTANTES (Solo si tiene Pack)
+              if (hasPack) ...[
+                Expanded(
+                  child: _buildStatBox(
+                    context,
+                    theme,
+                    label: 'Restantes',
+                    value: '$remainingInPack',
+                    color: const Color(0xFFFFD700), // Gold
+                    isHighlight: true,
                   ),
-                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(
-                  '${widget.cliente.sesionesCounter ?? 0}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                const SizedBox(width: 12),
+              ],
+
+              // 2. Counter: SESIONES COMPLETADAS (Para todos)
+              Expanded(
+                child: _buildStatBox(
+                  context,
+                  theme,
+                  label: hasPack ? 'Extras Completadas' : 'Completadas',
+                  value: '$extraCompleted',
+                  color: hasPack
+                      ? theme.hintColor.withOpacity(0.7)
+                      : theme.primaryColor,
+                  isHighlight: !hasPack,
                 ),
               ),
             ],
@@ -491,6 +566,8 @@ class _InfoTabState extends State<InfoTab> {
                   child: _CounterButton(
                     icon: Icons.remove_rounded,
                     color: Colors.redAccent,
+                    // If Pack: Decrement reduces remaining (uses session)
+                    // If No Pack: Decrement reduces completed (undo)
                     onPressed: () => widget.onSessionAction?.call('decrement'),
                   ),
                 ),
@@ -499,12 +576,56 @@ class _InfoTabState extends State<InfoTab> {
                   child: _CounterButton(
                     icon: Icons.add_rounded,
                     color: Colors.greenAccent.shade700,
+                    // If Pack: Increment adds remaining (undo usage)
+                    // If No Pack: Increment adds completed (do session)
                     onPressed: () => widget.onSessionAction?.call('increment'),
                   ),
                 ),
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBox(
+    BuildContext context,
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required Color color,
+    bool isHighlight = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isHighlight ? color.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHighlight ? color : theme.dividerColor.withOpacity(0.2),
+          width: isHighlight ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isHighlight ? color : theme.textTheme.bodyLarge?.color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isHighlight ? color.withOpacity(0.8) : theme.hintColor,
+            ),
+          ),
         ],
       ),
     );
