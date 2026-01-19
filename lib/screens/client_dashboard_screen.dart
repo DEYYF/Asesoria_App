@@ -10,6 +10,9 @@ import '../widgets/add_client_dialog.dart';
 import '../widgets/dialogs/bulk_email_dialog.dart';
 import '../widgets/dialogs/bulk_chat_dialog.dart';
 import '../widgets/dialogs/communication_choice_dialog.dart';
+import '../widgets/advisor_selector.dart';
+import '../providers/super_admin_provider.dart';
+import '../services/auth_service.dart';
 
 class ClientDashboardScreen extends StatefulWidget {
   const ClientDashboardScreen({super.key});
@@ -44,6 +47,19 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
     _loadData();
+
+    // Listen for advisor changes if superadmin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.addListener(_onAdvisorChanged);
+    });
+  }
+
+  void _onAdvisorChanged() {
+    if (mounted) _loadData();
   }
 
   @override
@@ -51,6 +67,16 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     _searchCtrl.dispose();
     _searchFocusNode.dispose();
     _tabController.dispose();
+
+    // Safely remove listener
+    try {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.removeListener(_onAdvisorChanged);
+    } catch (_) {}
+
     super.dispose();
   }
 
@@ -59,10 +85,17 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
+
     try {
-      final resClientes = await api.get('/clientes');
+      final params = saProvider.selectedAdvisorId != null
+          ? {'asesorId': saProvider.selectedAdvisorId}
+          : <String, dynamic>{};
+
+      final resClientes = await api.get('/clientes', params: params);
       final resTarifas = await api.get('/tarifas');
 
       if (resClientes.statusCode == 200) {
@@ -255,6 +288,11 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (Provider.of<AuthService>(
+                        context,
+                        listen: false,
+                      ).isSuperAdmin)
+                        const AdvisorSelector(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [

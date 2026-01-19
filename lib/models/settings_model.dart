@@ -1,3 +1,44 @@
+class KanbanColumn {
+  final String id;
+  final String title;
+  final String color;
+  final int order;
+
+  KanbanColumn({
+    required this.id,
+    required this.title,
+    required this.color,
+    required this.order,
+  });
+
+  factory KanbanColumn.fromJson(Map<String, dynamic> json) {
+    return KanbanColumn(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      color: json['color'] ?? 'blue',
+      order: json['order'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, 'title': title, 'color': color, 'order': order};
+  }
+
+  KanbanColumn copyWith({
+    String? id,
+    String? title,
+    String? color,
+    int? order,
+  }) {
+    return KanbanColumn(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      color: color ?? this.color,
+      order: order ?? this.order,
+    );
+  }
+}
+
 class UserSettings {
   final bool pushNotifications;
   final bool emailNotifications;
@@ -18,6 +59,7 @@ class UserSettings {
   final bool enabledFoodScanner;
   final bool enabledAutomation;
   final bool enabledFinanzas;
+  final List<KanbanColumn> kanbanColumns;
 
   UserSettings({
     this.pushNotifications = true,
@@ -39,6 +81,7 @@ class UserSettings {
     this.enabledFoodScanner = true,
     this.enabledAutomation = true,
     this.enabledFinanzas = true,
+    this.kanbanColumns = const [],
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -62,6 +105,11 @@ class UserSettings {
       enabledFoodScanner: json['enabledFoodScanner'] ?? true,
       enabledAutomation: json['enabledAutomation'] ?? true,
       enabledFinanzas: json['enabledFinanzas'] ?? true,
+      kanbanColumns:
+          (json['kanbanColumns'] as List?)
+              ?.map((c) => KanbanColumn.fromJson(c))
+              .toList() ??
+          [],
     );
   }
 
@@ -86,6 +134,7 @@ class UserSettings {
       'enabledFoodScanner': enabledFoodScanner,
       'enabledAutomation': enabledAutomation,
       'enabledFinanzas': enabledFinanzas,
+      'kanbanColumns': kanbanColumns.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -109,6 +158,7 @@ class UserSettings {
     bool? enabledFoodScanner,
     bool? enabledAutomation,
     bool? enabledFinanzas,
+    List<KanbanColumn>? kanbanColumns,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -132,6 +182,7 @@ class UserSettings {
       enabledFoodScanner: enabledFoodScanner ?? this.enabledFoodScanner,
       enabledAutomation: enabledAutomation ?? this.enabledAutomation,
       enabledFinanzas: enabledFinanzas ?? this.enabledFinanzas,
+      kanbanColumns: kanbanColumns ?? this.kanbanColumns,
     );
   }
 }

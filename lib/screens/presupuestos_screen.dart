@@ -10,6 +10,8 @@ import 'package:printing/printing.dart';
 import '../widgets/budget_detail_dialog.dart';
 import '../widgets/add_draft_dialog.dart';
 import '../widgets/add_client_dialog.dart';
+import '../widgets/advisor_selector.dart';
+import '../providers/super_admin_provider.dart';
 
 class PresupuestosScreen extends StatefulWidget {
   const PresupuestosScreen({super.key});
@@ -33,17 +35,35 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _fetchData();
+
+    // Listen for advisor changes if superadmin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.addListener(_onAdvisorChanged);
+    });
+  }
+
+  void _onAdvisorChanged() {
+    if (mounted) _fetchData();
   }
 
   Future<void> _fetchData() async {
+    if (!mounted) return;
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     try {
       setState(() => _isLoading = true);
 
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
+      final queryParam = 'asesorId=$effectiveAsesorId';
+
       final responses = await Future.wait([
-        api.get('/presupuestos?asesorId=${auth.userId}'),
+        api.get('/presupuestos?$queryParam'),
         api.get('/tarifas'),
         api.get('/extras'),
       ]);
@@ -168,9 +188,17 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(onRefresh: _fetchData, child: _buildBody()),
+      body: Column(
+        children: [
+          if (Provider.of<AuthService>(context, listen: false).isSuperAdmin)
+            const AdvisorSelector(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(onRefresh: _fetchData, child: _buildBody()),
+          ),
+        ],
+      ),
       floatingActionButton: _tabController.index == 1
           ? FloatingActionButton.extended(
               onPressed: _showCreateBorradorDialog,

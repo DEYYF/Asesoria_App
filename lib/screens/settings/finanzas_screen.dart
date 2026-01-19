@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/budget_detail_dialog.dart';
+import '../../providers/super_admin_provider.dart';
+import '../../widgets/advisor_selector.dart';
 
 class FinanzasScreen extends StatefulWidget {
   const FinanzasScreen({super.key});
@@ -30,25 +32,50 @@ class _FinanzasScreenState extends State<FinanzasScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
+
+    // Listen for advisor changes if superadmin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.addListener(_onAdvisorChanged);
+    });
+  }
+
+  void _onAdvisorChanged() {
+    if (mounted) _loadData();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    try {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.removeListener(_onAdvisorChanged);
+    } catch (_) {}
     super.dispose();
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     try {
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
+      final queryParam = 'asesorId=$effectiveAsesorId';
+
       final responses = await Future.wait([
-        api.get('/finanzas/resumen?asesorId=${auth.userId}'),
-        api.get('/finanzas/movimientos?asesorId=${auth.userId}'),
-        api.get('/finanzas/control-pagos?asesorId=${auth.userId}'),
-        api.get('/finanzas/historico-grafico?asesorId=${auth.userId}'),
+        api.get('/finanzas/resumen?$queryParam'),
+        api.get('/finanzas/movimientos?$queryParam'),
+        api.get('/finanzas/control-pagos?$queryParam'),
+        api.get('/finanzas/historico-grafico?$queryParam'),
       ]);
 
       if (mounted) {
@@ -96,16 +123,24 @@ class _FinanzasScreenState extends State<FinanzasScreen>
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildResumenTab(),
-                _buildPagosTab(),
-                _buildMovimientosTab(),
-              ],
-            ),
+      body: Column(
+        children: [
+          if (Provider.of<AuthService>(context, listen: false).isSuperAdmin)
+            const AdvisorSelector(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildResumenTab(),
+                      _buildPagosTab(),
+                      _buildMovimientosTab(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddMovimiento,
         icon: const Icon(Icons.add),

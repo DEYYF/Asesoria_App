@@ -6,6 +6,8 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/chat_service.dart';
 import '../../models/cliente_model.dart';
+import '../../providers/super_admin_provider.dart';
+import '../../widgets/advisor_selector.dart';
 
 class AdvisorCalendarScreen extends StatefulWidget {
   const AdvisorCalendarScreen({super.key});
@@ -31,13 +33,32 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     _loadCitas();
     _loadClients();
     _loadSettings();
+
+    // Listen for advisor changes if superadmin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.addListener(_onAdvisorChanged);
+    });
+  }
+
+  void _onAdvisorChanged() {
+    if (mounted) {
+      _loadCitas();
+      _loadClients();
+      _loadSettings();
+    }
   }
 
   Future<void> _loadSettings() async {
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
     try {
-      final res = await api.get('/users/${auth.userId}/calendar-settings');
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
+      final res = await api.get('/users/$effectiveAsesorId/calendar-settings');
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (mounted) {
@@ -62,8 +83,10 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
   Future<void> _loadClients() async {
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
     try {
-      final res = await api.get('/clientes?asesorId=${auth.userId}');
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
+      final res = await api.get('/clientes?asesorId=$effectiveAsesorId');
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
         if (mounted) {
@@ -81,6 +104,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     // Load a range (previous month, current, and next 3 months)
     final now = DateTime.now();
@@ -92,8 +116,9 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     ).format(now.add(const Duration(days: 120)));
 
     try {
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
       final res = await api.get(
-        '/citas?asesorId=${auth.userId}&start=$start&end=$end',
+        '/citas?asesorId=$effectiveAsesorId&start=$start&end=$end',
       );
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
@@ -140,6 +165,8 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (Provider.of<AuthService>(context, listen: false).isSuperAdmin)
+              const AdvisorSelector(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadCitas,
@@ -746,6 +773,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final theme = Theme.of(context);
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
+    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     // Load current settings
     Map<String, dynamic> settings = {};
@@ -753,7 +781,8 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     List<String> vacations = [];
 
     try {
-      final res = await api.get('/users/${auth.userId}/calendar-settings');
+      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
+      final res = await api.get('/users/$effectiveAsesorId/calendar-settings');
       if (res.statusCode == 200) {
         settings = jsonDecode(res.body);
         blocks = List.from(settings['bloques'] ?? []);

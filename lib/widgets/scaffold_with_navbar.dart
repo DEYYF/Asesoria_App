@@ -49,10 +49,12 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     ).settings;
     final showAutomation = settings?.enabledAutomation ?? false;
     final showFinanzas = settings?.enabledFinanzas ?? false;
+    final auth = Provider.of<AuthService>(context, listen: false);
 
-    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6];
+    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6, 9];
     if (showAutomation) visibleBranches.add(7);
     if (showFinanzas) visibleBranches.add(8);
+    if (auth.isSuperAdmin) visibleBranches.add(10);
 
     if (newIndex < visibleBranches.length) {
       final targetBranch = visibleBranches[newIndex];
@@ -103,9 +105,10 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     final showFinanzas = settings?.enabledFinanzas ?? false;
 
     // Map UI indices to Branch indices
-    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6];
+    final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6, 9];
     if (showAutomation) visibleBranches.add(7);
     if (showFinanzas) visibleBranches.add(8);
+    if (auth.isSuperAdmin) visibleBranches.add(10);
 
     int getUIIndex(int branchIndex) {
       final uiIdx = visibleBranches.indexOf(branchIndex);
@@ -171,7 +174,12 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.receipt_long_outlined),
                   activeIcon: Icon(Icons.receipt_long),
-                  label: 'Cuentas',
+                  label: 'Presupuestos',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.assignment_outlined),
+                  activeIcon: Icon(Icons.assignment),
+                  label: 'Tareas',
                 ),
                 if (showAutomation)
                   const BottomNavigationBarItem(
@@ -183,6 +191,12 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                     icon: Icon(Icons.account_balance_wallet_outlined),
                     activeIcon: Icon(Icons.account_balance_wallet),
                     label: 'Finanzas',
+                  ),
+                if (auth.isSuperAdmin)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.people_outline_rounded),
+                    activeIcon: Icon(Icons.people_rounded),
+                    label: 'Equipo',
                   ),
               ],
             ),
@@ -316,6 +330,10 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                           icon: Icons.receipt_long_outlined,
                           label: 'Presupuestos',
                         ),
+                        const SidebarXItem(
+                          icon: Icons.assignment_outlined,
+                          label: 'Tareas',
+                        ),
                         if (showAutomation)
                           const SidebarXItem(
                             icon: Icons.auto_mode_rounded,
@@ -325,6 +343,11 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
                           const SidebarXItem(
                             icon: Icons.account_balance_wallet_outlined,
                             label: 'Finanzas',
+                          ),
+                        if (auth.isSuperAdmin)
+                          const SidebarXItem(
+                            icon: Icons.people_outline_rounded,
+                            label: 'Equipo',
                           ),
                       ],
                     ),

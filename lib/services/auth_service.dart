@@ -14,12 +14,13 @@ class AuthService with ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
 
-  // User type detection
   String? get userType => _user?['userType'];
   bool get isAdmin =>
       userType == null ||
       userType == 'admin'; // null for backward compatibility
   bool get isClient => userType == 'client';
+  String? get role => _user?['role'];
+  bool get isSuperAdmin => role == 'superadmin';
   String? get userId => _user?['_id'];
   String? get userEmail => _user?['email'];
 

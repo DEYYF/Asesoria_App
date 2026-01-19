@@ -8,6 +8,7 @@ import 'services/api_service.dart';
 import 'services/settings_service.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/super_admin_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 // import 'screens/home_screen.dart';
@@ -31,6 +32,10 @@ import 'screens/presupuestos_screen.dart';
 import 'screens/settings/automation_screen.dart';
 import 'services/template_service.dart';
 import 'screens/settings/finanzas_screen.dart';
+import 'screens/tasks/kanban_screen.dart';
+import 'services/task_service.dart';
+import 'screens/settings/team_management_screen.dart';
+import 'screens/settings/advisor_detail_screen.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -65,6 +70,17 @@ void main() async {
           ),
           update: (_, api, previous) =>
               previous ?? SettingsProvider(SettingsService(api)),
+        ),
+        ChangeNotifierProxyProvider<ApiService, TaskService>(
+          create: (context) =>
+              TaskService(Provider.of<ApiService>(context, listen: false)),
+          update: (_, api, previous) => previous ?? TaskService(api),
+        ),
+        ChangeNotifierProxyProvider<ApiService, SuperAdminProvider>(
+          create: (context) => SuperAdminProvider(
+            Provider.of<ApiService>(context, listen: false),
+          ),
+          update: (_, api, previous) => previous ?? SuperAdminProvider(api),
         ),
       ],
       child: const MyApp(),
@@ -257,6 +273,24 @@ class _MyAppState extends State<MyApp> {
                 ),
               ],
             ),
+            // Branch 9: Tasks
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/tasks',
+                  builder: (context, state) => const KanbanScreen(),
+                ),
+              ],
+            ),
+            // Branch 10: Team Management (Super Admin only)
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/team',
+                  builder: (context, state) => const TeamManagementScreen(),
+                ),
+              ],
+            ),
           ],
         ),
         GoRoute(
@@ -286,6 +320,11 @@ class _MyAppState extends State<MyApp> {
             entrenamientoId: state.pathParameters['id'],
             clienteId: null, // Context will load via API
           ),
+        ),
+        GoRoute(
+          path: '/team/:id',
+          builder: (context, state) =>
+              AdvisorDetailScreen(advisorId: state.pathParameters['id']!),
         ),
       ],
     );
