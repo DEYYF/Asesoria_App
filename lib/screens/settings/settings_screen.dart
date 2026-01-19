@@ -15,6 +15,7 @@ import 'modules_management_screen.dart';
 import '../../providers/settings_provider.dart';
 import 'tarifas_screen.dart';
 import 'extras_screen.dart';
+import 'transfer_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -429,6 +430,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SettingsSectionHeader(title: 'Datos y Cuenta'),
               SettingsGroup(
                 children: [
+                  if (auth.isAdmin)
+                    SettingsNavigationTile(
+                      title: 'Transferir Cartera',
+                      subtitle: 'Mover clientes y datos entre asesores',
+                      icon: Icons.swap_horiz_rounded,
+                      iconColor: Colors.teal,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TransferDataScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   SettingsNavigationTile(
                     title: 'Exportar Datos',
                     subtitle: 'Descarga tu información completa',

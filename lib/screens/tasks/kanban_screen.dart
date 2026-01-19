@@ -49,6 +49,11 @@ class _KanbanScreenState extends State<KanbanScreen> {
       context,
       listen: false,
     ).loadTasks(assigneeId: assigneeId);
+
+    Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).loadSettings(userId: assigneeId);
   }
 
   @override
@@ -893,11 +898,29 @@ class _KanbanScreenState extends State<KanbanScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () async {
+                        final saProvider = Provider.of<SuperAdminProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final auth = Provider.of<AuthService>(
+                          context,
+                          listen: false,
+                        );
+                        String? assigneeId;
+                        if (auth.isSuperAdmin) {
+                          assigneeId = saProvider.selectedAdvisorId;
+                        } else {
+                          assigneeId = auth.userId;
+                        }
+
                         final updatedSettings = settingsProv.settings?.copyWith(
                           kanbanColumns: currentColumns,
                         );
                         if (updatedSettings != null) {
-                          await settingsProv.updateSettings(updatedSettings);
+                          await settingsProv.updateSettings(
+                            updatedSettings,
+                            userId: assigneeId,
+                          );
                         }
                         Navigator.pop(ctx);
                       },

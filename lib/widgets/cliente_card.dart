@@ -15,6 +15,7 @@ class ClienteCard extends StatefulWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback onToggleStatus;
+  final VoidCallback? onTransfer;
 
   const ClienteCard({
     super.key,
@@ -22,6 +23,7 @@ class ClienteCard extends StatefulWidget {
     required this.onTap,
     required this.onDelete,
     required this.onToggleStatus,
+    this.onTransfer,
   });
 
   @override
@@ -189,6 +191,7 @@ class _ClienteCardState extends State<ClienteCard> {
                             onSelected: (val) {
                               if (val == 'baja') widget.onToggleStatus();
                               if (val == 'delete') widget.onDelete();
+                              if (val == 'transfer') widget.onTransfer?.call();
                             },
                             itemBuilder: (context) => [
                               PopupMenuItem(
@@ -202,7 +205,7 @@ class _ClienteCardState extends State<ClienteCard> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      c.estado == 'Baja'
+                                      widget.cliente.estado == 'Baja'
                                           ? 'Dar de alta'
                                           : 'Dar de baja',
                                     ),
@@ -226,6 +229,26 @@ class _ClienteCardState extends State<ClienteCard> {
                                   ],
                                 ),
                               ),
+                              if (widget.onTransfer != null)
+                                PopupMenuItem(
+                                  value: 'transfer',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.swap_horiz_rounded,
+                                        size: 18,
+                                        color: theme.primaryColor,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Transferir',
+                                        style: TextStyle(
+                                          color: theme.primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ],

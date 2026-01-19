@@ -14,55 +14,67 @@ class SettingsService {
   /// Get user settings
   /// Prioritizes SharedPreferences (Local) for immediate UI response.
   /// Then attempts to fetch from API to sync.
-  Future<UserSettings> getSettings() async {
+  Future<UserSettings> getSettings({String? userId}) async {
     final prefs = await SharedPreferences.getInstance();
+    // If userId is provided, use it. Otherwise, we assume 'me' or current user logic elsewhere?
+    // Actually, to make this robust, if userId is null, we should probably fetch 'me' to get the ID first or just use 'me' endpoint.
+    // However, for caching, we need an ID.
+    // Let's assume if userId is passed, we use it. If not, we use 'me' endpoint and cache under 'me' or distinct key.
+
+    final storageKey = userId != null ? '${_storageKey}_$userId' : _storageKey;
 
     // 1. Try loading from local storage
-    if (prefs.containsKey(_storageKey)) {
+    if (prefs.containsKey(storageKey)) {
       try {
-        final jsonString = prefs.getString(_storageKey);
+        final jsonString = prefs.getString(storageKey);
         if (jsonString != null) {
           final Map<String, dynamic> jsonMap = json.decode(jsonString);
           return UserSettings.fromJson(jsonMap);
         }
       } catch (e) {
-        // Parse error, ignore and fall through
+        // Parse error
       }
     }
 
-    // 2. Try fetching from API (and update local)
+    // 2. Try fetching from API
     try {
-      final response = await _api.get('/usuarios/me/settings');
+      final endpoint = userId != null
+          ? '/usuarios/$userId/settings'
+          : '/usuarios/me/settings';
+      final response = await _api.get(endpoint);
+
       if (response.statusCode == 200) {
         final data = await parseJsonInIsolate(response.body);
         final settings = UserSettings.fromJson(data as Map<String, dynamic>);
 
         // Update local cache
-        await prefs.setString(_storageKey, json.encode(settings.toJson()));
+        await prefs.setString(storageKey, json.encode(settings.toJson()));
 
         return settings;
       }
     } catch (e) {
-      // API error, just use defaults if local failed too
+      // API error
     }
 
     // 3. Return defaults
     return UserSettings();
   }
 
-  /// Update user settings
-  /// Saves locally first, then syncs to API.
-  Future<void> updateSettings(UserSettings settings) async {
+  Future<void> updateSettings(UserSettings settings, {String? userId}) async {
     final prefs = await SharedPreferences.getInstance();
+    final storageKey = userId != null ? '${_storageKey}_$userId' : _storageKey;
 
     // 1. Save locally
-    await prefs.setString(_storageKey, json.encode(settings.toJson()));
+    await prefs.setString(storageKey, json.encode(settings.toJson()));
 
-    // 2. Sync to API (Fire and forget, or await if critical)
+    // 2. Sync to API
     try {
-      await _api.put('/usuarios/me/settings', settings.toJson());
+      final endpoint = userId != null
+          ? '/usuarios/$userId/settings'
+          : '/usuarios/me/settings';
+      await _api.put(endpoint, settings.toJson());
     } catch (e) {
-      // Failed to sync to backend, but saved locally
+      // Failed to sync
     }
   }
 

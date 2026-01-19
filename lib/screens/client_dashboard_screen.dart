@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import '../services/api_service.dart';
 import '../models/cliente_model.dart';
 import '../models/tarifa_model.dart';
@@ -215,6 +216,128 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _handleTransferClient(Cliente cliente) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    List<dynamic> advisors = [];
+    String? selectedAdvisorId;
+
+    // Load advisors
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final res = await api.get('/users');
+      if (res.statusCode == 200) {
+        final List<dynamic> allUsers = await api.parseJsonResponse(res);
+        // Filter out current advisor
+        advisors = allUsers.where((u) {
+          final uid = u['_id']?.toString();
+          final cid = cliente.asesorId;
+          return uid != null && uid != cid;
+        }).toList();
+      }
+      if (mounted)
+        Navigator.of(context, rootNavigator: true).pop(); // Close loading
+    } catch (e, stack) {
+      print('DEBUG: Error loading advisors: $e\n$stack');
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error cargando asesores: $e')));
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    // Show Selection Dialog
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Transferir Cliente'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Selecciona el nuevo asesor para ${cliente.nombre}. Se moverán todas sus tareas, citas y datos.',
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Nuevo Asesor',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: advisors.map<DropdownMenuItem<String>>((u) {
+                    final String uid = u['_id'].toString();
+                    final String uname =
+                        u['nombre']?.toString() ?? 'Sin nombre';
+                    return DropdownMenuItem(value: uid, child: Text(uname));
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => selectedAdvisorId = val);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: selectedAdvisorId == null
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+                        _executeTransfer(cliente, selectedAdvisorId!);
+                      },
+                child: const Text('Transferir'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _executeTransfer(Cliente cliente, String targetAdvisorId) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.post('/clientes/${cliente.id}/transfer', {
+        'targetAdvisorId': targetAdvisorId,
+      });
+
+      if (mounted) {
+        if (res.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cliente transferido exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadData(); // Refresh list to remove if moved or just update
+        } else {
+          final err = jsonDecode(res.body)['error'] ?? 'Error desconocido';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
+      }
     }
   }
 
@@ -566,6 +689,10 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
                           },
                           onDelete: () => _deleteClient(c),
                           onToggleStatus: () => _toggleStatus(c),
+                          onTransfer:
+                              Provider.of<AuthService>(context).isSuperAdmin
+                              ? () => _handleTransferClient(c)
+                              : null,
                         );
                       },
                     ),

@@ -12,12 +12,12 @@ class SettingsProvider with ChangeNotifier {
   UserSettings? get settings => _settings;
   bool get isLoading => _isLoading;
 
-  Future<void> loadSettings() async {
+  Future<void> loadSettings({String? userId}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      _settings = await _settingsService.getSettings();
+      _settings = await _settingsService.getSettings(userId: userId);
     } catch (e) {
       debugPrint('Error loading settings in provider: $e');
       _settings = UserSettings();
@@ -27,13 +27,16 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateSettings(UserSettings newSettings) async {
+  Future<void> updateSettings(
+    UserSettings newSettings, {
+    String? userId,
+  }) async {
     final oldSettings = _settings;
     _settings = newSettings;
     notifyListeners();
 
     try {
-      await _settingsService.updateSettings(newSettings);
+      await _settingsService.updateSettings(newSettings, userId: userId);
     } catch (e) {
       debugPrint('Error updating settings in provider: $e');
       _settings = oldSettings;

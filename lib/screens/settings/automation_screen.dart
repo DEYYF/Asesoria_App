@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/automation_service.dart';
 import '../../providers/super_admin_provider.dart';
 import 'automation_form_sheet.dart';
+import '../../widgets/advisor_selector.dart';
 
 class AutomationScreen extends StatefulWidget {
   const AutomationScreen({super.key});
@@ -29,6 +30,31 @@ class _AutomationScreenState extends State<AutomationScreen> {
       Provider.of<ApiService>(context, listen: false),
     );
     _loadData();
+
+    // Listen to Advisor changes for SuperAdmin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.addListener(_onAdvisorChanged);
+    });
+  }
+
+  void _onAdvisorChanged() {
+    if (mounted) _loadData();
+  }
+
+  @override
+  void dispose() {
+    try {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      saProvider.removeListener(_onAdvisorChanged);
+    } catch (_) {}
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -51,7 +77,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
         api.get(
           '/templates?userId=${advisorId ?? auth.userId}',
         ), // Templates might need specific user or global? Assuming current user or selected.
-        api.get('/clientes/asesor/${advisorId ?? auth.userId}'),
+        api.get('/clientes?asesorId=${advisorId ?? auth.userId}'),
       ]);
 
       setState(() {
@@ -72,18 +98,26 @@ class _AutomationScreenState extends State<AutomationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthService>(context); // Listen to auth changes
     return Scaffold(
       appBar: AppBar(title: const Text('Automatización'), elevation: 0),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _automations.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _automations.length,
-              itemBuilder: (context, index) =>
-                  _buildAutomationCard(_automations[index]),
-            ),
+      body: Column(
+        children: [
+          if (auth.isSuperAdmin) const AdvisorSelector(),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _automations.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _automations.length,
+                    itemBuilder: (context, index) =>
+                        _buildAutomationCard(_automations[index]),
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateDialog,
         icon: const Icon(Icons.add_task_rounded),
@@ -263,6 +297,8 @@ class _AutomationScreenState extends State<AutomationScreen> {
                         _showEditDialog(auto);
                       } else if (val == 'delete') {
                         _confirmDelete(auto);
+                      } else if (val == 'transfer') {
+                        _handleTransferAutomation(auto);
                       }
                     },
                     itemBuilder: (ctx) => [
@@ -290,6 +326,16 @@ class _AutomationScreenState extends State<AutomationScreen> {
                               'Eliminar',
                               style: TextStyle(color: Colors.red),
                             ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'transfer',
+                        child: Row(
+                          children: [
+                            Icon(Icons.swap_horiz_rounded, size: 18),
+                            SizedBox(width: 12),
+                            Text('Transferir'),
                           ],
                         ),
                       ),
@@ -598,5 +644,126 @@ class _AutomationScreenState extends State<AutomationScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleTransferAutomation(dynamic auto) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    List<dynamic> advisors = [];
+    String? selectedAdvisorId;
+
+    // Load advisors
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final res = await api.get('/users');
+      if (res.statusCode == 200) {
+        final List<dynamic> allUsers = await api.parseJsonResponse(res);
+        // Filter out current owner
+        advisors = allUsers.where((u) {
+          final uid = u['_id']?.toString();
+          final ownerId = auto['advisorId']?.toString();
+          return uid != null && uid != ownerId;
+        }).toList();
+      }
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    } catch (e) {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error cargando asesores: $e')));
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    // Show Selection Dialog
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Transferir Automatización'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Selecciona el nuevo asesor para "${auto['name']}".'),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  decoration: const InputDecoration(
+                    labelText: 'Nuevo Asesor',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: advisors.map<DropdownMenuItem<String>>((u) {
+                    final String uid = u['_id'].toString();
+                    final String uname =
+                        u['nombre']?.toString() ?? 'Sin nombre';
+                    return DropdownMenuItem(value: uid, child: Text(uname));
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => selectedAdvisorId = val);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: selectedAdvisorId == null
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+                        await _executeTransfer(auto['_id'], selectedAdvisorId!);
+                      },
+                child: const Text('Transferir'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _executeTransfer(
+    String automationId,
+    String targetAdvisorId,
+  ) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.post('/automations/$automationId/transfer', {
+        'targetAdvisorId': targetAdvisorId,
+      });
+
+      if (mounted) {
+        if (res.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Automatización transferida exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          _loadData();
+        } else {
+          final err = jsonDecode(res.body)['error'] ?? 'Error desconocido';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
+      }
+    }
   }
 }
