@@ -36,10 +36,19 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
   void _loadData() {
     final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    String? assigneeId;
+    if (auth.isSuperAdmin) {
+      assigneeId = saProvider.selectedAdvisorId; // Null means Global View
+    } else {
+      assigneeId = auth.userId; // Force own ID
+    }
+
     Provider.of<TaskService>(
       context,
       listen: false,
-    ).loadTasks(assigneeId: saProvider.selectedAdvisorId);
+    ).loadTasks(assigneeId: assigneeId);
   }
 
   @override

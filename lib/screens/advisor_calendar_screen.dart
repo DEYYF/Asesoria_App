@@ -57,6 +57,9 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
     try {
+      // For settings, if SuperAdmin has NOT selected an advisor (Global View),
+      // we default to their own settings to avoid UI errors, or we could handle "Global" settings.
+      // For now, defaulting to SuperAdmin's own settings or the selected advisor.
       final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
       final res = await api.get('/users/$effectiveAsesorId/calendar-settings');
       if (res.statusCode == 200) {
@@ -85,8 +88,16 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
     try {
-      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
-      final res = await api.get('/clientes?asesorId=$effectiveAsesorId');
+      Map<String, dynamic> params = {};
+      if (auth.isSuperAdmin) {
+        if (saProvider.selectedAdvisorId != null) {
+          params['asesorId'] = saProvider.selectedAdvisorId;
+        }
+      } else {
+        params['asesorId'] = auth.userId;
+      }
+
+      final res = await api.get('/clientes', params: params);
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
         if (mounted) {
@@ -116,10 +127,18 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     ).format(now.add(const Duration(days: 120)));
 
     try {
-      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
-      final res = await api.get(
-        '/citas?asesorId=$effectiveAsesorId&start=$start&end=$end',
-      );
+      String query = 'start=$start&end=$end';
+
+      if (auth.isSuperAdmin) {
+        if (saProvider.selectedAdvisorId != null) {
+          query += '&asesorId=${saProvider.selectedAdvisorId}';
+        }
+        // If null, no asesorId param sent => Global View (All appointments)
+      } else {
+        query += '&asesorId=${auth.userId}';
+      }
+
+      final res = await api.get('/citas?$query');
       if (res.statusCode == 200) {
         final List<dynamic> list = jsonDecode(res.body);
 

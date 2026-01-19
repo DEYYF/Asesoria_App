@@ -54,13 +54,28 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     if (!mounted) return;
     final api = Provider.of<ApiService>(context, listen: false);
     final auth = Provider.of<AuthService>(context, listen: false);
-    final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
-
     try {
       setState(() => _isLoading = true);
 
-      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
-      final queryParam = 'asesorId=$effectiveAsesorId';
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      String queryParam = '';
+
+      if (!auth.isSuperAdmin) {
+        // Normal Advisor: Restricted to own data
+        queryParam = 'asesorId=${auth.userId}';
+      } else {
+        // Super Admin:
+        // If selectedAdvisorId is present, filter by it.
+        // If null, allow global view (empty param or handled by backend)
+        final selectedId = saProvider.selectedAdvisorId;
+        if (selectedId != null) {
+          queryParam = 'asesorId=$selectedId';
+        }
+        // If null, we send empty string/no param to get ALL
+      }
 
       final responses = await Future.wait([
         api.get('/presupuestos?$queryParam'),

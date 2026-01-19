@@ -91,9 +91,21 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
     final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     try {
-      final params = saProvider.selectedAdvisorId != null
-          ? {'asesorId': saProvider.selectedAdvisorId}
-          : <String, dynamic>{};
+      Map<String, dynamic> params = {};
+
+      // If NOT SuperAdmin, force own ID
+      if (!Provider.of<AuthService>(context, listen: false).isSuperAdmin) {
+        params['asesorId'] = Provider.of<AuthService>(
+          context,
+          listen: false,
+        ).userId;
+      } else {
+        // If SuperAdmin, use selected advisor ID (if any)
+        // If selectedAdvisorId is null, we send NO asesorId param, which means "Global View" (All)
+        if (saProvider.selectedAdvisorId != null) {
+          params['asesorId'] = saProvider.selectedAdvisorId;
+        }
+      }
 
       final resClientes = await api.get('/clientes', params: params);
       final resTarifas = await api.get('/tarifas');

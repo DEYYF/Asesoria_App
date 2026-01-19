@@ -68,8 +68,14 @@ class _FinanzasScreenState extends State<FinanzasScreen>
     final saProvider = Provider.of<SuperAdminProvider>(context, listen: false);
 
     try {
-      final effectiveAsesorId = saProvider.selectedAdvisorId ?? auth.userId;
-      final queryParam = 'asesorId=$effectiveAsesorId';
+      String queryParam = '';
+      if (auth.isSuperAdmin) {
+        if (saProvider.selectedAdvisorId != null) {
+          queryParam = 'asesorId=${saProvider.selectedAdvisorId}';
+        }
+      } else {
+        queryParam = 'asesorId=${auth.userId}';
+      }
 
       final responses = await Future.wait([
         api.get('/finanzas/resumen?$queryParam'),

@@ -6,8 +6,9 @@ class AutomationService {
 
   AutomationService(this._api);
 
-  Future<List<dynamic>> getAutomations(String advisorId) async {
-    final response = await _api.get('/automations?advisorId=$advisorId');
+  Future<List<dynamic>> getAutomations(String? advisorId) async {
+    final param = advisorId != null ? '?advisorId=$advisorId' : '';
+    final response = await _api.get('/automations$param');
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }

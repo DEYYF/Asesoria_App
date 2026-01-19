@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/automation_service.dart';
+import '../../providers/super_admin_provider.dart';
 import 'automation_form_sheet.dart';
 
 class AutomationScreen extends StatefulWidget {
@@ -34,10 +35,23 @@ class _AutomationScreenState extends State<AutomationScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     final api = Provider.of<ApiService>(context, listen: false);
     try {
+      final saProvider = Provider.of<SuperAdminProvider>(
+        context,
+        listen: false,
+      );
+      String? advisorId;
+      if (auth.isSuperAdmin) {
+        advisorId = saProvider.selectedAdvisorId; // Null = Global
+      } else {
+        advisorId = auth.userId;
+      }
+
       final futures = await Future.wait([
-        _service.getAutomations(auth.userId!),
-        api.get('/templates?userId=${auth.userId}'),
-        api.get('/clientes/asesor/${auth.userId}'),
+        _service.getAutomations(advisorId),
+        api.get(
+          '/templates?userId=${advisorId ?? auth.userId}',
+        ), // Templates might need specific user or global? Assuming current user or selected.
+        api.get('/clientes/asesor/${advisorId ?? auth.userId}'),
       ]);
 
       setState(() {

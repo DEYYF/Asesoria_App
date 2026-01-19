@@ -108,7 +108,9 @@ class _ScaffoldWithNavbarState extends State<ScaffoldWithNavbar> {
     final List<int> visibleBranches = [0, 1, 2, 3, 4, 5, 6, 9];
     if (showAutomation) visibleBranches.add(7);
     if (showFinanzas) visibleBranches.add(8);
-    if (auth.isSuperAdmin) visibleBranches.add(10);
+    if (auth.isSuperAdmin) {
+      if (!visibleBranches.contains(10)) visibleBranches.add(10);
+    }
 
     int getUIIndex(int branchIndex) {
       final uiIdx = visibleBranches.indexOf(branchIndex);
