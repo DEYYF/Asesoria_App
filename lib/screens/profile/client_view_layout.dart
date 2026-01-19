@@ -125,31 +125,75 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
               automaticallyImplyLeading: false,
               leadingWidth: 0,
               pinned: true,
-              floating: true,
-              snap: true,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Hola,',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  Text(
-                    widget.cliente.nombre,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.bodyLarge?.color,
+              toolbarHeight: 80,
+              title: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.primaryColor,
+                            theme.primaryColor.withOpacity(0.7),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primaryColor.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          widget.cliente.nombre[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Bienvenido de nuevo',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: theme.hintColor.withOpacity(0.6),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          widget.cliente.nombre,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: theme.textTheme.bodyLarge?.color,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.logout_rounded, size: 20),
                   onPressed: () =>
                       Provider.of<AuthService>(context, listen: false).logout(),
                 ),
+                const SizedBox(width: 16),
               ],
             ),
             SliverPersistentHeader(
@@ -166,44 +210,73 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
         },
         body: content,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Inicio',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(
+              color: theme.dividerColor.withOpacity(0.05),
+              width: 1,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.restaurant_menu_outlined),
-            selectedIcon: Icon(Icons.restaurant_menu),
-            label: 'Nutrición',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fitness_center_outlined),
-            selectedIcon: Icon(Icons.fitness_center),
-            label: 'Entreno',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_today_rounded),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Calendario',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.show_chart_rounded),
-            selectedIcon: Icon(Icons.show_chart),
-            label: 'Progreso',
-          ),
-          NavigationDestination(
-            icon: _buildChatIcon(context, isSelected: false),
-            selectedIcon: _buildChatIcon(context, isSelected: true),
-            label: 'Chat',
-          ),
-        ],
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          indicatorColor: theme.primaryColor.withOpacity(0.1),
+          height: 65,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+          onDestinationSelected: (index) {
+            setState(() => _selectedIndex = index);
+          },
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.grid_view_rounded),
+              selectedIcon: Icon(
+                Icons.grid_view_rounded,
+                color: Color(0xFF007AFF),
+              ),
+              label: 'Inicio',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.restaurant_menu_rounded),
+              selectedIcon: Icon(
+                Icons.restaurant_menu_rounded,
+                color: Color(0xFF34C759),
+              ),
+              label: 'Nutrición',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.fitness_center_rounded),
+              selectedIcon: Icon(
+                Icons.fitness_center_rounded,
+                color: Color(0xFFFF9500),
+              ),
+              label: 'Entreno',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.calendar_month_rounded),
+              selectedIcon: Icon(
+                Icons.calendar_month_rounded,
+                color: Color(0xFFAF52DE),
+              ),
+              label: 'Calendario',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.analytics_rounded),
+              selectedIcon: Icon(
+                Icons.analytics_rounded,
+                color: Color(0xFFFF2D55),
+              ),
+              label: 'Progreso',
+            ),
+            NavigationDestination(
+              icon: _buildChatIcon(context, isSelected: false),
+              selectedIcon: _buildChatIcon(context, isSelected: true),
+              label: 'Chat',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -222,7 +295,6 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
-    // Quick Actions: Chat, Entrenar, Progreso
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
@@ -230,10 +302,10 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
           Expanded(
             child: _QuickActionButton(
               icon: Icons.chat_bubble_rounded,
-              label: 'Chat',
-              color: Colors.blue,
+              label: 'CHAT',
+              color: const Color(0xFF007AFF),
               onPressed: () {
-                setState(() => _selectedIndex = 5); // Switch to Chat tab
+                setState(() => _selectedIndex = 5);
               },
             ),
           ),
@@ -242,8 +314,8 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.play_arrow_rounded,
-                label: 'Entrenar',
-                color: Colors.green,
+                label: 'ENTRENAR',
+                color: const Color(0xFF34C759),
                 onPressed: widget.onNavigateToLiveSession,
               ),
             ),
@@ -251,8 +323,8 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
             Expanded(
               child: _QuickActionButton(
                 icon: Icons.edit_calendar_rounded,
-                label: 'Registrar',
-                color: Colors.purple,
+                label: 'REGISTRAR',
+                color: const Color(0xFFAF52DE),
                 onPressed: () {
                   _handleRegisterSession(context);
                 },
@@ -263,13 +335,9 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
           Expanded(
             child: _QuickActionButton(
               icon: Icons.add_chart_rounded,
-              label: 'Progreso',
-              color: Colors.orange,
+              label: 'PROGRESO',
+              color: const Color(0xFFFF9500),
               onPressed: () {
-                // Determine if we switch to Progress Tab or show dialog
-                // User said "comenzar progreso", usually means Add Progress
-                // But typically switching to the tab is better UX if they want to view
-                // Let's switch to Tab 4
                 setState(() => _selectedIndex = 4);
               },
             ),
@@ -297,8 +365,9 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
             isSelected
                 ? Icons.chat_bubble_rounded
                 : Icons.chat_bubble_outline_rounded,
-            // Explicitly set color if it's "turning white" incorrectly
-            color: isSelected ? theme.primaryColor : theme.dividerColor,
+            color: isSelected
+                ? const Color(0xFF007AFF)
+                : theme.dividerColor.withOpacity(0.5),
           ),
         );
       },
@@ -535,26 +604,43 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: isDark ? color.withOpacity(0.1) : color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
               ),
             ),
           ],

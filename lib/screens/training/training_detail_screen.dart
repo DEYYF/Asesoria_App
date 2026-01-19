@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
@@ -161,36 +162,14 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
     }
   }
 
-  Widget _buildInfoChip(IconData icon, String label) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: theme.textTheme.bodySmall?.color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+        ),
+      );
     }
     if (_ent == null) {
       return const Scaffold(
@@ -200,181 +179,365 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
     final theme = Theme.of(context);
 
-    // Date formatting
-    final updatedStr = _ent!.updatedAt != null
-        ? '${_ent!.updatedAt!.day}/${_ent!.updatedAt!.month}/${_ent!.updatedAt!.year}'
-        : '-';
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: BackButton(
           color: theme.iconTheme.color,
           onPressed: () => context.pop(),
         ),
-        title: Row(
-          children: [
-            Icon(Icons.fitness_center, color: theme.iconTheme.color),
-            const SizedBox(width: 8),
-            Text(
-              'Rutina entrenamiento',
-              style: TextStyle(
-                color: theme.textTheme.titleLarge?.color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        title: Text(
+          'Detalle de Rutina',
+          style: TextStyle(
+            color: theme.textTheme.titleLarge?.color,
+            fontWeight: FontWeight.w900,
+            fontSize: 20,
+            letterSpacing: -0.5,
+          ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Actions Row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final auth = Provider.of<AuthService>(
-                        context,
-                        listen: false,
-                      );
-                      if (auth.isClient) return const SizedBox.shrink();
-
-                      return Row(
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              context
-                                  .push(
-                                    '/entrenamientos/${widget.entrenamientoId}/editar',
-                                  )
-                                  .then(
-                                    (_) => _loadData(),
-                                  ); // Refresh on return
-                            },
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('Editar'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: theme.primaryColor,
-                              side: BorderSide(color: theme.primaryColor),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: _handleDuplicate,
-                            icon: const Icon(Icons.copy, size: 16),
-                            label: const Text('Duplicar'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: theme.primaryColor,
-                              side: BorderSide(color: theme.primaryColor),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: _handleDelete,
-                            icon: const Icon(Icons.delete_forever, size: 16),
-                            label: const Text('Eliminar'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                      );
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _handleExportPDF,
-                    icon: const Icon(Icons.picture_as_pdf, size: 16),
-                    label: const Text('Exportar PDF'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700, // Better blue
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      context.push(
-                        '/entrenamientos/cuaderno/${widget.entrenamientoId}',
-                      );
-                    },
-                    icon: const Icon(Icons.edit_calendar, size: 16),
-                    label: const Text('Registrar Sesión'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade600, // Better purple
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: theme.primaryColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Header Card
+              _TrainingHeaderCard(
+                ent: _ent!,
+                onExport: _handleExportPDF,
+                onDuplicate: _handleDuplicate,
+                onDelete: _handleDelete,
+                onRegister: () => context.push(
+                  '/entrenamientos/cuaderno/${widget.entrenamientoId}',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-            // Stats Row
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              // 2. Stats
+              _TrainingStatsCards(ent: _ent!),
+              const SizedBox(height: 32),
+
+              // 3. Content
+              Text(
+                'ESTRUCTURA DE ENTRENAMIENTO',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: theme.hintColor.withOpacity(0.5),
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ..._ent!.semanas.map((sem) => _WeekSection(sem: sem)),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrainingHeaderCard extends StatelessWidget {
+  final Entrenamiento ent;
+  final VoidCallback onExport;
+  final VoidCallback onDuplicate;
+  final VoidCallback onDelete;
+  final VoidCallback onRegister;
+
+  const _TrainingHeaderCard({
+    required this.ent,
+    required this.onExport,
+    required this.onDuplicate,
+    required this.onDelete,
+    required this.onRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final updatedStr = ent.updatedAt != null
+        ? DateFormat('dd MMM, yyyy').format(ent.updatedAt!)
+        : '-';
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ent.titulo,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: theme.textTheme.headlineSmall?.color,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.update_rounded,
+                          size: 14,
+                          color: theme.hintColor.withOpacity(0.5),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Actualizado $updatedStr',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.hintColor.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: (ent.activo ? Colors.green : Colors.grey).withOpacity(
+                    0.1,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  ent.activo ? 'ACTIVO' : 'INACTIVO',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: ent.activo ? Colors.green : Colors.grey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                _buildInfoChip(
-                  Icons.calendar_today,
-                  'Actualizado: $updatedStr',
+                _ActionButton(
+                  icon: Icons.edit_calendar_rounded,
+                  label: 'Sesión',
+                  onTap: onRegister,
+                  isPrimary: true,
+                  color: Colors.purple.shade600,
                 ),
-                _buildInfoChip(Icons.flag, '${_ent!.semanas.length} semana'),
-                _buildInfoChip(
-                  Icons.calendar_view_day,
-                  '${_ent!.semanas.fold(0, (s, w) => s + w.dias.length)} días',
+                const SizedBox(width: 10),
+                _ActionButton(
+                  icon: Icons.picture_as_pdf_rounded,
+                  label: 'PDF',
+                  onTap: onExport,
+                  isPrimary: true,
+                  color: Colors.blue.shade700,
                 ),
-                _buildInfoChip(
-                  Icons.fitness_center,
-                  '${_ent!.semanas.fold(0, (s, w) => s + w.dias.fold(0, (d, day) => d + day.items.length))} ejercicios',
+                const SizedBox(width: 10),
+                Builder(
+                  builder: (context) {
+                    final auth = Provider.of<AuthService>(
+                      context,
+                      listen: false,
+                    );
+                    if (auth.isClient) return const SizedBox.shrink();
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _ActionButton(
+                          icon: Icons.edit_rounded,
+                          label: 'Editar',
+                          onTap: () {
+                            context
+                                .push('/entrenamientos/${ent.id}/editar')
+                                .then((_) => (context as dynamic)._loadData());
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        _ActionButton(
+                          icon: Icons.copy_rounded,
+                          label: 'Copiar',
+                          onTap: onDuplicate,
+                        ),
+                        const SizedBox(width: 10),
+                        _ActionButton(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Borrar',
+                          color: Colors.redAccent,
+                          onTap: onDelete,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
-            Divider(height: 32, color: theme.dividerColor),
-
-            // Content
-            ..._ent!.semanas.map((sem) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Semana ${sem.numero}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                      Text(
-                        '${sem.dias.length} día(s)',
-                        style: TextStyle(
-                          color: theme.textTheme.bodySmall?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ...sem.dias.map((dia) {
-                    return _DaySection(dia: dia);
-                  }),
-                  const SizedBox(height: 16),
-                ],
-              );
-            }),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _TrainingStatsCards extends StatelessWidget {
+  final Entrenamiento ent;
+  const _TrainingStatsCards({required this.ent});
+
+  @override
+  Widget build(BuildContext context) {
+    int weeks = ent.semanas.length;
+    int days = ent.semanas.fold(0, (sum, s) => sum + s.dias.length);
+    int exercises = ent.semanas.fold(
+      0,
+      (sum, s) => sum + s.dias.fold(0, (dSum, d) => dSum + d.items.length),
+    );
+
+    return Row(
+      children: [
+        Expanded(
+          child: _StatBox(
+            label: 'Semanas',
+            value: '$weeks',
+            icon: Icons.calendar_view_week_rounded,
+            color: Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatBox(
+            label: 'Días/Sem',
+            value: '${(days / weeks).toStringAsFixed(0)}',
+            icon: Icons.event_repeat_rounded,
+            color: Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatBox(
+            label: 'Ejercicios',
+            value: '$exercises',
+            icon: Icons.fitness_center_rounded,
+            color: Colors.purple,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _StatBox({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: theme.hintColor.withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekSection extends StatelessWidget {
+  final SemanaEntrenamiento sem;
+  const _WeekSection({required this.sem});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: theme.primaryColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Semana ${sem.numero}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...sem.dias.map((dia) => _DaySection(dia: dia)),
+      ],
     );
   }
 }
@@ -396,87 +559,193 @@ class _DaySectionState extends State<_DaySection> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.5)),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Column(
         children: [
-          // Day Header (Clickable)
           InkWell(
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(24),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.dia.nombre,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.titleLarge?.color,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.flash_on_rounded,
+                      color: theme.primaryColor,
+                      size: 16,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.scaffoldBackgroundColor, // Slighly different
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: theme.dividerColor.withOpacity(0.5),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      widget.dia.nombre,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(
-                          '${widget.dia.items.length} ejercicio(s)',
-                          style: TextStyle(
-                            color: theme.textTheme.bodySmall?.color,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Icon(
-                          _isExpanded
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          size: 16,
-                          color: theme.iconTheme.color?.withOpacity(0.5),
-                        ),
-                      ],
+                  ),
+                  Text(
+                    '${widget.dia.items.length} ejercicios',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.hintColor.withOpacity(0.6),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: theme.hintColor,
                   ),
                 ],
               ),
             ),
           ),
-
           if (_isExpanded) ...[
-            Divider(height: 1, color: theme.dividerColor),
-            // Table Header
-            _buildTableHeader(),
-            // Table Body
-            ...widget.dia.items.map((item) => _buildExerciseRow(item)),
+            Divider(height: 1, color: theme.dividerColor.withOpacity(0.05)),
+            _buildTableHeader(theme),
+            ...widget.dia.items.map((item) => _buildExerciseRow(item, theme)),
+            const SizedBox(height: 8),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildTableHeader(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      color: theme.hintColor.withOpacity(0.02),
+      child: Row(
+        children: [
+          const Expanded(
+            flex: 3,
+            child: Text(
+              'EJERCICIO',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          _headerCell('SET'),
+          _headerCell('REPS'),
+          _headerCell('RIR'),
+          _headerCell('D.(s)'),
+          const Expanded(flex: 1, child: SizedBox()),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCell(String label) {
+    return Expanded(
+      flex: 1,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExerciseRow(ItemEntrenamiento item, ThemeData theme) {
+    final s = item.esquema ?? EsquemaSerie();
+    final thumb = _getYoutubeThumbnail(
+      item.urlVideo ?? item.ejercicio?.urlVideo,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.05)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                if (item.ejercicio?.grupo != null)
+                  Text(
+                    item.ejercicio!.grupo!.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _dataCell('${s.series}'),
+          _dataCell('${s.repsMin}-${s.repsMax}'),
+          _dataCell('${s.rir ?? '-'}'),
+          _dataCell('${s.descanso ?? '-'}'),
+          Expanded(
+            flex: 1,
+            child: GestureDetector(
+              onTap: () =>
+                  _launchVideo(item.urlVideo ?? item.ejercicio?.urlVideo),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: thumb.isNotEmpty
+                      ? Colors.red.withOpacity(0.1)
+                      : theme.hintColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  thumb.isNotEmpty
+                      ? Icons.play_arrow_rounded
+                      : Icons.videocam_off_outlined,
+                  size: 16,
+                  color: thumb.isNotEmpty ? Colors.red : theme.hintColor,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dataCell(String val) {
+    return Expanded(
+      flex: 1,
+      child: Text(
+        val,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -485,9 +754,7 @@ class _DaySectionState extends State<_DaySection> {
     if (url == null || url.isEmpty) return;
     try {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (e) {
-      // ignore
-    }
+    } catch (_) {}
   }
 
   String _getYoutubeThumbnail(String? url) {
@@ -500,184 +767,55 @@ class _DaySectionState extends State<_DaySection> {
       } else if (uri.host.contains('youtu.be')) {
         videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
       }
-      if (videoId != null) {
-        return 'https://img.youtube.com/vi/$videoId/0.jpg';
-      }
+      if (videoId != null) return 'https://img.youtube.com/vi/$videoId/0.jpg';
     } catch (_) {}
     return '';
   }
+}
 
-  Widget _buildTableHeader() {
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isPrimary;
+  final Color? color;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isPrimary = false,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      color: theme.scaffoldBackgroundColor.withOpacity(0.5),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              'Ejercicio',
+    final accentColor = color ?? theme.primaryColor;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isPrimary ? accentColor : accentColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: isPrimary ? Colors.white : accentColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: theme.textTheme.bodyMedium?.color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isPrimary ? Colors.white : accentColor,
               ),
             ),
-          ),
-          _buildHeaderCell('Series'),
-          _buildHeaderCell('Reps'),
-          _buildHeaderCell('RIR'),
-          _buildHeaderCell('Desc (s)'),
-          Expanded(
-            flex: 1,
-            child: Text(
-              'Video',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: theme.textTheme.bodyMedium?.color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderCell(String label) {
-    return Expanded(
-      flex: 1,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-          color: Theme.of(context).textTheme.bodyMedium?.color,
+          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildExerciseRow(ItemEntrenamiento item) {
-    final s = item.esquema ?? EsquemaSerie();
-    final thumb = _getYoutubeThumbnail(
-      item.urlVideo ?? item.ejercicio?.urlVideo,
-    );
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.3)),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Ejercicio + Chips
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: theme.textTheme.bodyLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  children: [
-                    if (item.ejercicio?.grupo != null)
-                      _buildTag(item.ejercicio!.grupo!),
-                    if (item.ejercicio?.equipo != null)
-                      _buildTag(item.ejercicio!.equipo!),
-                  ],
-                ),
-                if (item.grupoId != null && item.grupoId!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Grupo: ${item.grupoId}',
-                      style: TextStyle(fontSize: 10, color: theme.primaryColor),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          _buildDataCell('${s.series}'),
-          _buildDataCell('${s.repsMin}-${s.repsMax}'),
-          _buildDataCell('${s.rir ?? '-'}'),
-          _buildDataCell('${s.descanso ?? '-'}'),
-
-          // Video
-          Expanded(
-            flex: 1,
-            child: GestureDetector(
-              onTap: () =>
-                  _launchVideo(item.urlVideo ?? item.ejercicio?.urlVideo),
-              child: thumb.isNotEmpty
-                  ? Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            thumb,
-                            height: 40,
-                            width: 60,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox(),
-                          ),
-                        ),
-                        const Icon(
-                          Icons.play_circle_fill,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                      ],
-                    )
-                  : Icon(Icons.play_circle_outline, color: theme.disabledColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDataCell(String text) {
-    return Expanded(
-      flex: 1,
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 13,
-          color: Theme.of(context).textTheme.bodyMedium?.color,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTag(String label) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor, // Slightly different
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 10, color: theme.textTheme.bodySmall?.color),
       ),
     );
   }

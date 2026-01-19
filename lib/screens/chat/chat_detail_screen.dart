@@ -110,37 +110,92 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        automaticallyImplyLeading: widget.isEmbedded ? false : !auth.isClient,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _conversation?.getDisplayName(auth.userId!) ?? 'Chat',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        automaticallyImplyLeading: false,
+        backgroundColor: theme.scaffoldBackgroundColor.withOpacity(0.8),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.dividerColor.withOpacity(0.05),
+                width: 1,
+              ),
             ),
-            if (_conversation?.type == 'advisor-advisor')
-              Text(
-                'Conversación con Asesor',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: theme.primaryColor,
-                  fontWeight: FontWeight.w500,
+          ),
+        ),
+        title: Row(
+          children: [
+            if (!widget.isEmbedded && !auth.isClient)
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            if (!widget.isEmbedded && !auth.isClient) const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.primaryColor.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                child: Text(
+                  _conversation?.getDisplayInitial(auth.userId!) ?? '?',
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
                 ),
               ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _conversation?.getDisplayName(auth.userId!) ?? 'Chat',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    _conversation?.type == 'advisor-advisor'
+                        ? 'Colega Asesor'
+                        : 'Cliente',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: theme.hintColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: widget.isEmbedded
-            ? null
-            : (!auth.isClient
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      onPressed: () => Navigator.pop(context),
-                    )
-                  : null),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline_rounded),
+            onPressed: () {
+              // Show conversation info or user profile
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -171,11 +226,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         }
                       }
 
+                      // Simple grouping: check if next message is from same sender
+                      bool isLastInGroup = true;
+                      if (index < _messages.length - 1) {
+                        final nextMsg = _messages[index + 1];
+                        if (nextMsg.senderId == msg.senderId) {
+                          isLastInGroup = false;
+                        }
+                      }
+
                       return Column(
                         children: [
                           if (showDate)
                             _buildDateSeparator(msg.createdAt, theme),
-                          _buildMessageBubble(msg, isMe, theme),
+                          _buildMessageBubble(msg, isMe, theme, isLastInGroup),
                         ],
                       );
                     },
@@ -199,58 +263,91 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         date.year == now.year) {
       label = 'Ayer';
     } else {
-      label = DateFormat('dd MMMM yyyy', 'es').format(date);
+      label = DateFormat('dd MMMM', 'es').format(date).toUpperCase();
     }
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.dividerColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: theme.hintColor,
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: theme.dividerColor.withOpacity(0.05),
+              thickness: 1,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: theme.hintColor.withOpacity(0.5),
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color: theme.dividerColor.withOpacity(0.05),
+              thickness: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg, bool isMe, ThemeData theme) {
+  Widget _buildMessageBubble(
+    ChatMessage msg,
+    bool isMe,
+    ThemeData theme,
+    bool isLastInGroup,
+  ) {
+    final isDark = theme.brightness == Brightness.dark;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isLastInGroup ? 16 : 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
+          gradient: isMe
+              ? LinearGradient(
+                  colors: [
+                    theme.primaryColor,
+                    theme.primaryColor.withBlue(
+                      (theme.primaryColor.blue + 30).clamp(0, 255),
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
           color: isMe
-              ? theme.primaryColor
-              : (theme.brightness == Brightness.dark
-                    ? const Color(0xFF2C2C2E)
-                    : Colors.white),
+              ? null
+              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isMe ? 20 : 4),
-            bottomRight: Radius.circular(isMe ? 4 : 20),
+            topLeft: const Radius.circular(22),
+            topRight: const Radius.circular(22),
+            bottomLeft: Radius.circular(isMe ? 22 : (isLastInGroup ? 6 : 22)),
+            bottomRight: Radius.circular(isMe ? (isLastInGroup ? 6 : 22) : 22),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(isMe ? 0.08 : 0.03),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Text(
               msg.text,
@@ -258,16 +355,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 color: isMe ? Colors.white : theme.textTheme.bodyLarge?.color,
                 fontSize: 15,
                 height: 1.4,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              DateFormat('HH:mm').format(msg.createdAt),
-              style: TextStyle(
-                color: isMe ? Colors.white.withOpacity(0.7) : theme.hintColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('HH:mm').format(msg.createdAt),
+                  style: TextStyle(
+                    color: isMe
+                        ? Colors.white.withOpacity(0.6)
+                        : theme.hintColor.withOpacity(0.6),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (isMe) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.done_all_rounded,
+                    size: 14,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -279,25 +392,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.fromLTRB(
+        16,
         12,
-        12,
-        12,
-        MediaQuery.of(context).padding.bottom + 12,
+        16,
+        MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
+        color: theme.scaffoldBackgroundColor,
+        border: Border(
+          top: BorderSide(
+            color: theme.dividerColor.withOpacity(0.05),
+            width: 1,
           ),
-        ],
+        ),
       ),
       child: Row(
         children: [
+          Container(
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: Icon(Icons.add_rounded, color: theme.primaryColor),
+              onPressed: () {
+                // Show more options (attach, etc)
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: Icon(Icons.description_outlined, color: theme.primaryColor),
+            icon: Icon(Icons.description_outlined, color: theme.hintColor),
             tooltip: 'Usar Plantilla',
             onPressed: () async {
               final template = await showDialog<MessageTemplate>(
@@ -309,53 +434,82 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               }
             },
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
           Expanded(
             child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withOpacity(0.05)
-                    : Colors.grey[100],
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.grey.shade200,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                ],
               ),
               child: TextField(
                 controller: _messageController,
-                style: const TextStyle(fontSize: 15),
-                decoration: const InputDecoration(
-                  hintText: 'Escribe un mensaje...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
                 ),
-                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Tu mensaje...',
+                  hintStyle: TextStyle(
+                    color: theme.hintColor.withOpacity(0.4),
+                    fontSize: 15,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                maxLines: 5,
                 minLines: 1,
               ),
             ),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.primaryColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.primaryColor.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _messageController,
+            builder: (context, value, _) {
+              final hasText = value.text.trim().isNotEmpty;
+              return AnimatedScale(
+                scale: hasText ? 1.0 : 0.9,
+                duration: const Duration(milliseconds: 200),
+                child: GestureDetector(
+                  onTap: _sendMessage,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: hasText
+                          ? theme.primaryColor
+                          : theme.primaryColor.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                      boxShadow: hasText
+                          ? [
+                              BoxShadow(
+                                color: theme.primaryColor.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),

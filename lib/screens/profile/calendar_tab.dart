@@ -108,7 +108,6 @@ class _CalendarTabState extends State<CalendarTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       color: theme.scaffoldBackgroundColor,
@@ -126,19 +125,12 @@ class _CalendarTabState extends State<CalendarTab> {
                     vertical: 20,
                   ),
                   children: [
-                    // 1. Header
                     _buildHeader(theme),
                     const SizedBox(height: 30),
-
-                    // 3. Calendar Title "Hoy"
                     _buildCalendarHeader(theme),
                     const SizedBox(height: 20),
-
-                    // 4. Week Strip
                     _buildWeekStrip(theme),
                     const SizedBox(height: 40),
-
-                    // 5. Content (Empty State or List)
                     _buildDailyContent(theme),
                   ],
                 ),
@@ -151,130 +143,161 @@ class _CalendarTabState extends State<CalendarTab> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hola ${widget.cliente.nombre.split(' ').first},',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: theme.textTheme.headlineMedium?.color,
-                letterSpacing: -0.5,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hola ${widget.cliente.nombre.split(' ').first},',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: theme.textTheme.headlineMedium?.color,
+                  letterSpacing: -1,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tu agenda diaria',
-              style: TextStyle(
-                fontSize: 16,
-                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+              const SizedBox(height: 4),
+              Text(
+                'Tu actividad diaria',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: theme.hintColor.withOpacity(0.6),
+                ),
               ),
-            ),
-          ],
-        ),
-        TextButton(
-          onPressed: () {}, // Navigate to full plan?
-          child: const Text(
-            'Mi plan',
-            style: TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 16,
-            ), // Gold color
+            ],
           ),
-        ),
-      ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Text(
+              'Mi Plan',
+              style: TextStyle(
+                color: Color(0xFFFFD700),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildCalendarHeader(ThemeData theme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Hoy',
-          style: TextStyle(
-            color: theme.textTheme.titleLarge?.color,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Text(
+            'Hoy',
+            style: TextStyle(
+              color: theme.textTheme.titleLarge?.color,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
           ),
+          const Spacer(),
+          _buildActionButton(Icons.history_rounded, () {}),
+          const SizedBox(width: 8),
+          _buildActionButton(Icons.calendar_month_rounded, () {}),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          shape: BoxShape.circle,
         ),
-        // History/Calendar icons
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(Icons.history, color: const Color(0xFFFFD700)),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.calendar_today_outlined,
-                color: const Color(0xFFFFD700),
-              ),
-              onPressed: () {}, // Date picker?
-            ),
-          ],
-        ),
-      ],
+        child: Icon(icon, color: const Color(0xFFFFD700), size: 20),
+      ),
     );
   }
 
   Widget _buildWeekStrip(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     final weekDays = _getWeekDays(_selectedDate);
 
-    return SizedBox(
-      height: 80,
+    return Container(
+      height: 90,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: weekDays.map((date) {
           final isSelected = _isSameDay(date, _selectedDate);
 
-          return GestureDetector(
-            onTap: () {
-              setState(() => _selectedDate = date);
-            },
-            child: Container(
-              width: 45,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF4A5568)
-                    : Colors.transparent, // Grey-ish blue selection
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat(
-                      'E',
-                      'es',
-                    ).format(date).toUpperCase().substring(0, 2),
-                    style: TextStyle(
-                      color:
-                          (isSelected
-                                  ? Colors.white
-                                  : theme.textTheme.bodySmall?.color)
-                              ?.withOpacity(isSelected ? 1 : 0.6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedDate = date);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFFFD700)
+                      : (isDark ? const Color(0xFF2C2C2E) : Colors.white),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFFFFD700).withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      DateFormat(
+                        'E',
+                        'es',
+                      ).format(date).toUpperCase().substring(0, 1),
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.black.withOpacity(0.8)
+                            : theme.hintColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${date.day}',
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : theme.textTheme.titleMedium?.color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 8),
+                    Text(
+                      '${date.day}',
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.black
+                            : theme.textTheme.titleMedium?.color,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -376,44 +399,74 @@ class _CalendarTabState extends State<CalendarTab> {
     Color iconColor,
   ) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: IntrinsicHeight(
+          child: Row(
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: theme.textTheme.titleMedium?.color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.5),
-                  fontSize: 14,
+              Container(width: 6, color: iconColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: iconColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Center(
+                          child: Icon(icon, color: iconColor, size: 24),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: theme.dividerColor,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

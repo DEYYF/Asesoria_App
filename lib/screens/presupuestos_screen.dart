@@ -101,29 +101,71 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Gestión de Presupuestos'),
+        title: const Text(
+          'Presupuestos',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 22,
+            letterSpacing: -0.5,
+          ),
+        ),
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
-          TextButton.icon(
+          IconButton(
             onPressed: () => setState(() => _isGrouped = !_isGrouped),
             icon: Icon(
               _isGrouped ? Icons.grid_view_rounded : Icons.list_alt_rounded,
+              color: primary,
             ),
-            label: Text(_isGrouped ? 'Vista Agrupada' : 'Vista Lista'),
+            tooltip: _isGrouped ? 'Vista Lista' : 'Vista Agrupada',
           ),
           const SizedBox(width: 8),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: primary,
-          labelColor: primary,
-          unselectedLabelColor: theme.hintColor,
-          onTap: (index) => setState(() {}),
-          tabs: const [
-            Tab(text: 'Clientes Registrados'),
-            Tab(text: 'Borradores'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: theme.brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.grey[200],
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: theme.brightness == Brightness.dark
+                    ? theme.primaryColor
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  if (theme.brightness != Brightness.dark)
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: theme.brightness == Brightness.dark
+                  ? Colors.white
+                  : theme.primaryColor,
+              unselectedLabelColor: theme.hintColor,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+              onTap: (index) => setState(() {}),
+              tabs: const [
+                Tab(text: 'Registrados'),
+                Tab(text: 'Borradores'),
+              ],
+            ),
+          ),
         ),
       ),
       body: _isLoading
@@ -132,8 +174,17 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
       floatingActionButton: _tabController.index == 1
           ? FloatingActionButton.extended(
               onPressed: _showCreateBorradorDialog,
-              label: const Text('Nuevo Borrador'),
-              icon: const Icon(Icons.add),
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              label: const Text(
+                'Nuevo Borrador',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              icon: const Icon(Icons.add_rounded),
             )
           : null,
     );
@@ -180,59 +231,124 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
 
   Widget _buildGroupItem(Map<String, dynamic> group) {
     final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? Colors.white.withOpacity(0.03)
+            : Colors.grey[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withOpacity(0.05)
+              : Colors.grey[200]!,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.brightness == Brightness.dark
-                  ? Colors.white10
-                  : Colors.grey[100],
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: theme.primaryColor.withOpacity(0.1),
-                  child: Text(
-                    group['clientName'][0].toUpperCase(),
-                    style: TextStyle(
-                      color: theme.primaryColor,
-                      fontWeight: FontWeight.bold,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.primaryColor,
+                        theme.primaryColor.withOpacity(0.7),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.primaryColor.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      group['clientName'][0].toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      group['clientName'],
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group['clientName'],
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                    Text(
-                      group['clientEmail'],
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.hintColor,
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.alternate_email_rounded,
+                            size: 14,
+                            color: theme.hintColor.withOpacity(0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            group['clientEmail'],
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.hintColor,
+                            ),
+                          ),
+                        ],
                       ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${(group['presupuestos'] as List).length} PPTOS',
+                    style: TextStyle(
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
           ...(group['presupuestos'] as List).map(
             (p) => _buildPresupuestoItem(p, showClient: false),
           ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -240,162 +356,267 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
 
   Widget _buildPresupuestoItem(dynamic p, {bool showClient = true}) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final status = p['estado'] as String;
+    final isPaid = status == 'pagado';
 
     Color statusColor;
+    IconData statusIcon;
     switch (status) {
       case 'pagado':
-      case 'aceptado':
         statusColor = Colors.green;
+        statusIcon = Icons.check_circle_rounded;
+        break;
+      case 'aceptado':
+        statusColor = Colors.blue;
+        statusIcon = Icons.thumb_up_rounded;
         break;
       case 'rechazado':
         statusColor = Colors.red;
+        statusIcon = Icons.cancel_rounded;
+        break;
+      case 'pendiente':
+        statusColor = Colors.orange;
+        statusIcon = Icons.hourglass_empty_rounded;
         break;
       default:
-        statusColor = Colors.orange;
+        statusColor = Colors.grey;
+        statusIcon = Icons.help_outline_rounded;
     }
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (showClient) ...[
-            Text(
-              p['clienteId']?['nombre'] ?? p['nombreCliente'] ?? "Desconocido",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.grey.shade100,
+          width: 1.5,
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(height: 4),
-          ],
-          Row(
-            children: [
-              Text(
-                p['tarifaId']?['nombre'] ?? 'Sin tarifa',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${p['total']} €',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 8.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: statusColor.withOpacity(0.2)),
-              ),
-              child: Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  color: statusColor,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () => _showDetail(p),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(statusIcon, color: statusColor, size: 24),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showClient) ...[
+                        Text(
+                          p['clienteId']?['nombre'] ??
+                              p['nombreCliente'] ??
+                              "Desconocido",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      Text(
+                        p['tarifaId']?['nombre'] ?? 'Sin tarifa',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.hintColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat(
+                              'dd/MM/yyyy',
+                            ).format(DateTime.parse(p['createdAt'])),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.hintColor.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${p['total']} €',
+                      style: TextStyle(
+                        color: theme.primaryColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) => _handleAction(value, p),
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        color: theme.hintColor,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      itemBuilder: (context) {
+                        final isBorrador =
+                            (p['estado'] == 'borrador' ||
+                            p['clienteId'] == null);
+
+                        if (isBorrador) {
+                          return [
+                            const PopupMenuItem(
+                              value: 'accept_create',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.person_add,
+                                  color: Colors.green,
+                                ),
+                                title: Text('Aceptar y Crear Cliente'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'add_discount',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.discount,
+                                  color: Colors.orange,
+                                ),
+                                title: Text('Añadir Descuento'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                leading: Icon(Icons.delete, color: Colors.red),
+                                title: Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ];
+                        }
+
+                        return [
+                          const PopupMenuItem(
+                            value: 'detail',
+                            child: ListTile(
+                              leading: Icon(Icons.visibility),
+                              title: Text('Ver Detalle'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'edit_status',
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.swap_horiz,
+                                color: Colors.teal,
+                              ),
+                              title: Text('Cambiar Estado'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          if (!isPaid) // Logic restriction: hide discount if paid
+                            const PopupMenuItem(
+                              value: 'add_discount',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.discount,
+                                  color: Colors.orange,
+                                ),
+                                title: Text('Añadir Descuento'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          const PopupMenuItem(
+                            value: 'pdf',
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.blue,
+                              ),
+                              title: Text('Descargar PDF'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'email',
+                            child: ListTile(
+                              leading: Icon(Icons.email, color: Colors.purple),
+                              title: Text('Enviar Email'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete, color: Colors.red),
+                              title: Text(
+                                'Eliminar',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ];
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              DateFormat('dd/MM/yyyy').format(DateTime.parse(p['createdAt'])),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.hintColor,
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-      trailing: PopupMenuButton<String>(
-        onSelected: (value) => _handleAction(value, p),
-        itemBuilder: (context) {
-          final isBorrador =
-              (p['estado'] == 'borrador' || p['clienteId'] == null);
-
-          if (isBorrador) {
-            return [
-              const PopupMenuItem(
-                value: 'accept_create',
-                child: ListTile(
-                  leading: Icon(Icons.person_add, color: Colors.green),
-                  title: Text('Aceptar y Crear Cliente'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'add_discount',
-                child: ListTile(
-                  leading: Icon(Icons.discount, color: Colors.orange),
-                  title: Text('Añadir Descuento'),
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'delete',
-                child: ListTile(
-                  leading: Icon(Icons.delete, color: Colors.red),
-                  title: Text('Eliminar', style: TextStyle(color: Colors.red)),
-                ),
-              ),
-            ];
-          }
-
-          return [
-            const PopupMenuItem(
-              value: 'detail',
-              child: ListTile(
-                leading: Icon(Icons.visibility),
-                title: Text('Ver Detalle'),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'edit_status',
-              child: ListTile(
-                leading: Icon(Icons.swap_horiz, color: Colors.teal),
-                title: Text('Cambiar Estado'),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'add_discount',
-              child: ListTile(
-                leading: Icon(Icons.discount, color: Colors.orange),
-                title: Text('Añadir Descuento'),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'pdf',
-              child: ListTile(
-                leading: Icon(Icons.picture_as_pdf, color: Colors.blue),
-                title: Text('Descargar PDF'),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'email',
-              child: ListTile(
-                leading: Icon(Icons.email, color: Colors.purple),
-                title: Text('Enviar Email'),
-              ),
-            ),
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'delete',
-              child: ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
-                title: Text('Eliminar', style: TextStyle(color: Colors.red)),
-              ),
-            ),
-          ];
-        },
       ),
     );
   }
@@ -791,12 +1012,19 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
             children: [
               TextField(
                 controller: discountController,
+                enabled: status != 'pagado',
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Descuento (%)',
                   suffixText: '%',
+                  helperText: status == 'pagado'
+                      ? 'No se puede editar descuento en un presupuesto pagado'
+                      : null,
+                  helperStyle: status == 'pagado'
+                      ? const TextStyle(color: Colors.red)
+                      : null,
                 ),
               ),
               const SizedBox(height: 16),
@@ -940,36 +1168,44 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Añadir Descuento'),
-        content: TextField(
-          controller: discountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Descuento (%)',
-            suffixText: '%',
-          ),
-        ),
+        content: p['estado'] == 'pagado'
+            ? const Text(
+                'No se puede añadir un descuento a un presupuesto que ya ha sido pagado.',
+                style: TextStyle(color: Colors.red),
+              )
+            : TextField(
+                controller: discountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Descuento (%)',
+                  suffixText: '%',
+                ),
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () async {
-              final api = Provider.of<ApiService>(context, listen: false);
-              try {
-                await api.put('/presupuestos/${p['_id']}', {
-                  'descuento': double.tryParse(discountController.text) ?? 0,
-                });
-                Navigator.pop(ctx);
-                _fetchData();
-              } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Error: $e')));
-              }
-            },
-            child: const Text('Guardar'),
-          ),
+          if (p['estado'] != 'pagado')
+            ElevatedButton(
+              onPressed: () async {
+                final api = Provider.of<ApiService>(context, listen: false);
+                try {
+                  await api.put('/presupuestos/${p['_id']}', {
+                    'descuento': double.tryParse(discountController.text) ?? 0,
+                  });
+                  Navigator.pop(ctx);
+                  _fetchData();
+                } catch (e) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              },
+              child: const Text('Guardar'),
+            ),
         ],
       ),
     );

@@ -120,7 +120,7 @@ class _InfoTabState extends State<InfoTab> {
             ),
           ]),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _sectionTitle('TARIFA Y VIGENCIA'),
           _buildGroup([
             _appleRow(
@@ -133,7 +133,9 @@ class _InfoTabState extends State<InfoTab> {
               'Vigencia',
               '${_formatDateShort(widget.cliente.fechaInicio)} - ${_formatDateShort(widget.cliente.fechaFin)}',
               icon: Icons.calendar_month_rounded,
-              valueColor: _isTariffExpired() ? Colors.red : null,
+              valueColor: _isTariffExpired()
+                  ? Colors.redAccent
+                  : theme.primaryColor,
             ),
           ]),
 
@@ -154,18 +156,19 @@ class _InfoTabState extends State<InfoTab> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: theme.primaryColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: theme.primaryColor.withOpacity(0.2),
+                            color: theme.primaryColor.withOpacity(0.15),
                           ),
                         ),
                         child: Text(
                           tag,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
                             color: theme.primaryColor,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -207,36 +210,37 @@ class _InfoTabState extends State<InfoTab> {
             SizedBox(
               width: double.infinity,
               child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 10,
+                runSpacing: 10,
                 children: _clienteExtras.map((extra) {
                   return Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: 14,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFAF52DE).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFAF52DE).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: const Color(0xFFAF52DE).withOpacity(0.2),
+                        color: const Color(0xFFAF52DE).withOpacity(0.15),
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
-                          Icons.star_rounded,
+                          Icons.workspace_premium_rounded,
                           size: 16,
                           color: Color(0xFFAF52DE),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           '${extra.nombre} (+${extra.precio}€)',
                           style: const TextStyle(
                             color: Color(0xFFAF52DE),
                             fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
                           ),
                         ),
                       ],
@@ -376,13 +380,19 @@ class _InfoTabState extends State<InfoTab> {
 
   Widget _buildGroup(List<Widget> children) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: theme.cardTheme.color,
-        borderRadius: theme.cardTheme.shape is RoundedRectangleBorder
-            ? (theme.cardTheme.shape as RoundedRectangleBorder).borderRadius
-            : BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: children.asMap().entries.map((entry) {
@@ -392,17 +402,18 @@ class _InfoTabState extends State<InfoTab> {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+                  horizontal: 20,
+                  vertical: 18,
                 ),
                 child: child,
               ),
               if (index < children.length - 1)
                 Divider(
                   height: 1,
-                  indent: 16,
-                  thickness: 0.5,
-                  color: theme.dividerColor.withOpacity(0.1),
+                  indent: 20,
+                  endIndent: 20,
+                  thickness: 1,
+                  color: theme.dividerColor.withOpacity(0.05),
                 ),
             ],
           );
@@ -426,7 +437,11 @@ class _InfoTabState extends State<InfoTab> {
         ],
         Text(
           label,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8),
+          ),
         ),
         const Spacer(),
         Text(
@@ -454,35 +469,28 @@ class _InfoTabState extends State<InfoTab> {
     int performed = widget.cliente.sesionesCounter ?? 0;
     int packSize = isPack8 ? 8 : (isPack4 ? 4 : 0);
 
-    // Logic:
-    // Restantes: How many left in the pack (Pack - Performed). Min 0.
-    // Completadas (Extra): How many exceeding the pack (Performed - Pack). Min 0.
-
     int remainingInPack = hasPack ? (packSize - performed) : 0;
     if (remainingInPack < 0) remainingInPack = 0;
 
     int extraCompleted = hasPack ? (performed - packSize) : performed;
     if (extraCompleted < 0) extraCompleted = 0;
 
-    final primaryColor = hasPack ? const Color(0xFFFFD700) : theme.primaryColor;
+    // Use a premium color palette for the counter
+    final accentColor1 = hasPack ? const Color(0xFFFFCC00) : theme.primaryColor;
+    final accentColor2 = hasPack
+        ? const Color(0xFFFF9500)
+        : theme.primaryColor.withOpacity(0.8);
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [theme.cardColor, theme.cardColor.withOpacity(0.8)]
-              : [Colors.white, Colors.grey.shade50],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.1)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -493,10 +501,23 @@ class _InfoTabState extends State<InfoTab> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [accentColor1, accentColor2],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accentColor1.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Icon(Icons.bolt_rounded, color: primaryColor),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -506,18 +527,19 @@ class _InfoTabState extends State<InfoTab> {
                     Text(
                       'Rendimiento Mensual',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
                         color: theme.textTheme.titleLarge?.color,
-                        letterSpacing: -0.5,
+                        letterSpacing: -0.8,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       hasPack ? 'Pack $packSize Sesiones' : 'Pago por uso',
                       style: TextStyle(
                         fontSize: 13,
-                        color: theme.hintColor,
-                        fontWeight: FontWeight.w500,
+                        color: theme.hintColor.withOpacity(0.7),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -525,10 +547,9 @@ class _InfoTabState extends State<InfoTab> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
           Row(
             children: [
-              // 1. Counter: SESIONES RESTANTES (Solo si tiene Pack)
               if (hasPack) ...[
                 Expanded(
                   child: _buildStatBox(
@@ -536,19 +557,17 @@ class _InfoTabState extends State<InfoTab> {
                     theme,
                     label: 'Restantes',
                     value: '$remainingInPack',
-                    color: const Color(0xFFFFD700), // Gold
+                    color: accentColor1,
                     isHighlight: true,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
               ],
-
-              // 2. Counter: SESIONES COMPLETADAS (Para todos)
               Expanded(
                 child: _buildStatBox(
                   context,
                   theme,
-                  label: hasPack ? 'Extras Completadas' : 'Completadas',
+                  label: hasPack ? 'Extras' : 'Completadas',
                   value: '$extraCompleted',
                   color: hasPack
                       ? theme.hintColor.withOpacity(0.7)
@@ -566,8 +585,6 @@ class _InfoTabState extends State<InfoTab> {
                   child: _CounterButton(
                     icon: Icons.remove_rounded,
                     color: Colors.redAccent,
-                    // If Pack: Decrement reduces remaining (uses session)
-                    // If No Pack: Decrement reduces completed (undo)
                     onPressed: () => widget.onSessionAction?.call('decrement'),
                   ),
                 ),
@@ -575,9 +592,7 @@ class _InfoTabState extends State<InfoTab> {
                 Expanded(
                   child: _CounterButton(
                     icon: Icons.add_rounded,
-                    color: Colors.greenAccent.shade700,
-                    // If Pack: Increment adds remaining (undo usage)
-                    // If No Pack: Increment adds completed (do session)
+                    color: const Color(0xFF34C759),
                     onPressed: () => widget.onSessionAction?.call('increment'),
                   ),
                 ),
@@ -597,14 +612,19 @@ class _InfoTabState extends State<InfoTab> {
     required Color color,
     bool isHighlight = false,
   }) {
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
-        color: isHighlight ? color.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        color: isHighlight
+            ? color.withOpacity(isDark ? 0.15 : 0.08)
+            : (isDark ? Colors.white.withOpacity(0.04) : Colors.grey.shade50),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isHighlight ? color : theme.dividerColor.withOpacity(0.2),
-          width: isHighlight ? 1.5 : 1,
+          color: isHighlight
+              ? color.withOpacity(0.3)
+              : theme.dividerColor.withOpacity(0.08),
+          width: 1.5,
         ),
       ),
       child: Column(
@@ -612,18 +632,22 @@ class _InfoTabState extends State<InfoTab> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
               color: isHighlight ? color : theme.textTheme.bodyLarge?.color,
+              letterSpacing: -1,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            label,
+            label.toUpperCase(),
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isHighlight ? color.withOpacity(0.8) : theme.hintColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: isHighlight
+                  ? color.withOpacity(0.8)
+                  : theme.hintColor.withOpacity(0.6),
+              letterSpacing: 0.8,
             ),
           ),
         ],
@@ -669,34 +693,28 @@ class _ObjectiveChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark
-            ? theme.primaryColor.withOpacity(0.1)
-            : theme.primaryColor.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
+        color: theme.primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: theme.primaryColor.withOpacity(0.2),
+          color: theme.primaryColor.withOpacity(0.15),
           width: 1,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            size: 14,
-            color: theme.primaryColor,
-          ),
-          const SizedBox(width: 6),
+          Icon(Icons.adjust_rounded, size: 14, color: theme.primaryColor),
+          const SizedBox(width: 8),
           Text(
             label,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
               color: theme.primaryColor,
+              letterSpacing: -0.3,
             ),
           ),
         ],
@@ -720,32 +738,44 @@ class _AppleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Opacity(
       opacity: onPressed == null ? 0.5 : 1.0,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.2)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: isDark ? color.withOpacity(0.1) : color.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withOpacity(0.15)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 10),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),

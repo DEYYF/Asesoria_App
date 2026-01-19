@@ -150,23 +150,14 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                     vertical: 20,
                   ),
                   children: [
-                    // 1. Header
                     _buildHeader(auth.userEmail ?? 'Asesor'),
                     const SizedBox(height: 30),
-
-                    // 2. Goal Cards (Visual only)
                     _buildGoalsSection(),
                     const SizedBox(height: 30),
-
-                    // 3. Calendar Title "Hoy"
                     _buildCalendarHeader(),
                     const SizedBox(height: 20),
-
-                    // 4. Week Strip
                     _buildWeekStrip(),
                     const SizedBox(height: 40),
-
-                    // 5. Daily Content
                     _buildDailyContent(),
                   ],
                 ),
@@ -177,8 +168,8 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: colorScheme.primary,
-        child: Icon(Icons.add, color: colorScheme.onPrimary),
         onPressed: _showCreateCitaDialog,
+        child: Icon(Icons.add, color: colorScheme.onPrimary),
       ),
     );
   }
@@ -187,80 +178,90 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final display = name.split('@').first;
     final theme = Theme.of(context);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hola $display,',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hola $display,',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1,
+                      color: theme.textTheme.headlineMedium?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Esta es tu agenda para hoy',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.hintColor.withOpacity(0.6),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tu agenda',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(Icons.settings, color: theme.colorScheme.primary),
-              onPressed: _showCalendarSettings,
-            ),
-            TextButton(
-              onPressed: () {},
-              child: Text(
-                'Vista Mes',
-                style: TextStyle(
-                  color: theme.colorScheme.primary,
-                  fontSize: 16,
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.settings_outlined,
+                    color: theme.primaryColor,
+                  ),
+                  onPressed: _showCalendarSettings,
                 ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildGoalsSection() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildGoalCard(
-            Icons.calendar_today,
-            'Citas Hoy',
-            '${_citasTodayCount()}',
-            const Color(0xFFE6A23C), // Warning/Orange
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: _buildGoalCard(
+                Icons.calendar_today_rounded,
+                'Citas',
+                '${_citasTodayCount()}',
+                const [Color(0xFF64748B), Color(0xFF475569)],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildGoalCard(
+                Icons.check_circle_rounded,
+                'Completas',
+                '0',
+                const [Color(0xFF10B981), Color(0xFF059669)],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildGoalCard(
+                Icons.timer_rounded,
+                'Pendientes',
+                '${_citasTodayCount()}',
+                const [Color(0xFF3B82F6), Color(0xFF2563EB)],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildGoalCard(
-            Icons.check_circle_outline,
-            'Hechas',
-            '0',
-            const Color(0xFFF56C6C), // Error/Red
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildGoalCard(
-            Icons.schedule,
-            'Pendientes',
-            '${_citasTodayCount()}',
-            const Color(0xFF409EFF), // Info/Blue
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -274,48 +275,56 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     IconData icon,
     String label,
     String value,
-    Color color,
+    List<Color> colors,
   ) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    // final theme = Theme.of(context);
 
     return Container(
-      height: 140,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color: colors.first.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
-              color: color.withOpacity(0.1),
-              border: Border.all(color: color.withOpacity(0.2)),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
-          const Spacer(),
+          const SizedBox(height: 20),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+            ),
+          ),
           Text(
             label,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Text(value, style: theme.textTheme.bodySmall),
         ],
       ),
     );
@@ -323,62 +332,65 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
 
   Widget _buildCalendarHeader() {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Hoy',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
+          'Junio 2024', // TODO: Make dynamic
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
           ),
         ),
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(Icons.arrow_back_ios, color: primary, size: 18),
-              onPressed: () {
-                setState(
-                  () => _selectedDate = _selectedDate.subtract(
-                    const Duration(days: 7),
-                  ),
-                );
-                _loadCitas();
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.calendar_today, color: primary),
-              onPressed: () async {
-                final d = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime(2030),
-                  builder: (context, child) {
-                    return child!; // Theme is already inherited
-                  },
-                );
-                if (d != null) {
-                  setState(() => _selectedDate = d);
-                  _loadCitas();
-                }
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.arrow_forward_ios, color: primary, size: 18),
-              onPressed: () {
-                setState(
-                  () => _selectedDate = _selectedDate.add(
-                    const Duration(days: 7),
-                  ),
-                );
-                _loadCitas();
-              },
-            ),
-          ],
-        ),
+        const Spacer(),
+        _buildNavButton(Icons.chevron_left_rounded, () {
+          setState(
+            () =>
+                _selectedDate = _selectedDate.subtract(const Duration(days: 7)),
+          );
+          _loadCitas();
+        }),
+        const SizedBox(width: 8),
+        _buildNavButton(Icons.calendar_month_rounded, () async {
+          final d = await showDatePicker(
+            context: context,
+            initialDate: _selectedDate,
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2030),
+          );
+          if (d != null) {
+            setState(() => _selectedDate = d);
+            _loadCitas();
+          }
+        }, isIcon: true),
+        const SizedBox(width: 8),
+        _buildNavButton(Icons.chevron_right_rounded, () {
+          setState(
+            () => _selectedDate = _selectedDate.add(const Duration(days: 7)),
+          );
+          _loadCitas();
+        }),
       ],
+    );
+  }
+
+  Widget _buildNavButton(
+    IconData icon,
+    VoidCallback onTap, {
+    bool isIcon = false,
+  }) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        ),
+        child: Icon(icon, size: 20, color: theme.primaryColor),
+      ),
     );
   }
 
@@ -387,8 +399,8 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final weekDays = _getWeekDays(_selectedDate);
 
-    return SizedBox(
-      height: 90, // Slightly taller for better touch targets
+    return Container(
+      height: 100,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: weekDays.map((date) {
@@ -397,58 +409,74 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
               (_citasMap[DateTime(date.year, date.month, date.day)] ?? [])
                   .isNotEmpty;
 
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDate = date),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 50, // Wider for touch
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.colorScheme.primary.withOpacity(isDark ? 0.3 : 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(30),
-                border: isSelected
-                    ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-                    : null,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat(
-                      'E',
-                      'es',
-                    ).format(date).toUpperCase().substring(0, 2),
-                    style: TextStyle(
-                      color: isSelected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${date.day}',
-                    style: TextStyle(
-                      color: theme.colorScheme.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (hasCitas) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary,
-                        shape: BoxShape.circle,
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedDate = date),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.primaryColor
+                      : (isDark ? const Color(0xFF2C2C2E) : Colors.white),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: theme.primaryColor.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      DateFormat(
+                        'E',
+                        'es',
+                      ).format(date).toUpperCase().substring(0, 1),
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white.withOpacity(0.8)
+                            : theme.hintColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${date.day}',
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : theme.textTheme.bodyLarge?.color,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (hasCitas) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : theme.primaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );
@@ -509,125 +537,179 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
 
   Widget _buildItemCard(dynamic cita) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
+    final bool isCompleted = cita['asistio'] == true;
+    final bool isAbsent = cita['asistio'] == false;
+
+    final Color statusColor = isCompleted
+        ? Colors.green
+        : (isAbsent ? Colors.red : theme.primaryColor);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: (cita['asistio'] == true)
-                  ? Colors.green.withOpacity(0.1)
-                  : (cita['asistio'] == false)
-                  ? Colors.red.withOpacity(0.1)
-                  : theme.colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              (cita['asistio'] == true)
-                  ? Icons.check_circle
-                  : (cita['asistio'] == false)
-                  ? Icons.cancel
-                  : Icons.event,
-              color: (cita['asistio'] == true)
-                  ? Colors.green
-                  : (cita['asistio'] == false)
-                  ? Colors.red
-                  : theme.colorScheme.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  cita['title'],
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(width: 6, color: statusColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            isCompleted
+                                ? Icons.check_circle_rounded
+                                : (isAbsent
+                                      ? Icons.cancel_rounded
+                                      : Icons.calendar_today_rounded),
+                            color: statusColor,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cita['title'],
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time_rounded,
+                                  size: 14,
+                                  color: theme.hintColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  cita['hora'],
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 14,
+                                  color: theme.hintColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    cita['clienteNombre'] ?? 'Sin cliente',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildActionMenu(cita, theme),
+                    ],
                   ),
-                ),
-                Text(
-                  '${cita['hora']} - ${cita['clienteNombre'] ?? 'Sin cliente'}',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert,
-              color: theme.colorScheme.onSurface.withOpacity(0.5),
-            ),
-            onSelected: (value) {
-              if (value == 'delete') {
-                _deleteCita(cita['_id']);
-              } else if (value == 'present') {
-                _toggleAttendance(cita['_id'], true);
-              } else if (value == 'absent') {
-                _toggleAttendance(cita['_id'], false);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'present',
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('Asistió', style: theme.textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'absent',
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.highlight_off,
-                      color: Colors.red,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('No asistió', style: theme.textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red, size: 20),
-                    SizedBox(width: 8),
-                    Text('Eliminar', style: TextStyle(color: Colors.red)),
-                  ],
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildActionMenu(dynamic cita, ThemeData theme) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: theme.dividerColor.withOpacity(0.05),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.more_horiz_rounded, color: theme.hintColor, size: 20),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onSelected: (value) {
+        if (value == 'delete') {
+          _deleteCita(cita['_id']);
+        } else if (value == 'present') {
+          _toggleAttendance(cita['_id'], true);
+        } else if (value == 'absent') {
+          _toggleAttendance(cita['_id'], false);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'present',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Colors.green,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              const Text('Marcar Asistido'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'absent',
+          child: Row(
+            children: [
+              const Icon(Icons.cancel_rounded, color: Colors.red, size: 20),
+              const SizedBox(width: 12),
+              const Text('Marcar No Asistió'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.red,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              const Text('Eliminar Cita', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

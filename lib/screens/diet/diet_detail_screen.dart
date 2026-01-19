@@ -266,67 +266,94 @@ class _HeaderCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final dateStr = dieta.createdAt != null
-        ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
+        ? DateFormat('dd MMMM, yyyy').format(dieta.createdAt!)
         : '-';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: theme.primaryColor.withOpacity(isDark ? 0.15 : 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.primaryColor.withOpacity(0.1)),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Detalle de la Dieta',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dieta.nombre,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: theme.textTheme.headlineSmall?.color,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
+                        color: theme.hintColor.withOpacity(0.5),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: [
-                        _iconText(Icons.calendar_month, dateStr, theme),
-                        _iconText(
-                          Icons.local_fire_department,
-                          '${dieta.macros.kcal.round()} kcal objetivo',
-                          theme,
+                      const SizedBox(width: 6),
+                      Text(
+                        dateStr,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.hintColor.withOpacity(0.6),
                         ),
-                        _iconText(
-                          Icons.flag,
-                          dieta.objetivo?.toUpperCase() ?? '-',
-                          theme,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+              if (dieta.objetivo != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    dieta.objetivo!.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 _ActionButton(
-                  icon: Icons.picture_as_pdf,
-                  label: 'Exportar',
+                  icon: Icons.picture_as_pdf_rounded,
+                  label: 'PDF',
                   onTap: onExport,
                   isPrimary: true,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Builder(
                   builder: (context) {
                     final auth = Provider.of<AuthService>(
@@ -339,27 +366,27 @@ class _HeaderCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _ActionButton(
-                          icon: Icons.save_as,
-                          label: 'Versión',
+                          icon: Icons.save_as_rounded,
+                          label: 'Revisión',
                           onTap: onSaveVersion,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         _ActionButton(
-                          icon: Icons.history,
+                          icon: Icons.history_rounded,
                           label: 'Historial',
                           onTap: onHistory,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         _ActionButton(
-                          icon: Icons.edit,
+                          icon: Icons.edit_rounded,
                           label: 'Editar',
                           onTap: onEdit,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         _ActionButton(
-                          icon: Icons.delete_outline,
+                          icon: Icons.delete_outline_rounded,
                           label: 'Borrar',
-                          color: Colors.red,
+                          color: Colors.redAccent,
                           onTap: onDelete,
                         ),
                       ],
@@ -373,17 +400,6 @@ class _HeaderCard extends StatelessWidget {
       ),
     );
   }
-
-  Widget _iconText(IconData icon, String text, ThemeData theme) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: theme.hintColor),
-        const SizedBox(width: 6),
-        Text(text, style: TextStyle(color: theme.hintColor, fontSize: 13)),
-      ],
-    );
-  }
 }
 
 class _InfoAndMacros extends StatelessWidget {
@@ -393,99 +409,114 @@ class _InfoAndMacros extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final isWide = constraints.maxWidth > 720;
-        final info = Expanded(
-          flex: isWide ? 5 : 0,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _MacroCard(
+                label: 'Proteína',
+                val: dieta.macros.proteinas,
+                icon: Icons.egg_alt_rounded,
+                color: Colors.blue,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Información general',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
-                const SizedBox(height: 12),
-                _InfoRow(
-                  'Fecha de creación:',
-                  dieta.createdAt != null
-                      ? DateFormat('dd/MM/yyyy').format(dieta.createdAt!)
-                      : '-',
-                  theme,
-                ),
-                _InfoRow(
-                  'Calorías totales:',
-                  '${dieta.macros.kcal.round()} kcal',
-                  theme,
-                ),
-                _InfoRow(
-                  'Objetivo:',
-                  dieta.objetivo?.toUpperCase() ?? '-',
-                  theme,
-                ),
-                _InfoRow('Estado:', dieta.estado.toUpperCase(), theme),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MacroCard(
+                label: 'Carbos',
+                val: dieta.macros.carbohidratos,
+                icon: Icons.breakfast_dining_rounded,
+                color: Colors.orange,
+              ),
             ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MacroCard(
+                label: 'Grasas',
+                val: dieta.macros.grasas,
+                icon: Icons.water_drop_rounded,
+                color: Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
           ),
-        );
-
-        final macros = Expanded(
-          flex: isWide ? 7 : 0,
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _MacroCard(
-                  label: 'Proteínas',
-                  val: dieta.macros.proteinas,
-                  icon: Icons.egg_alt,
-                  color: Colors.blue,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orangeAccent.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Colors.orangeAccent,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Calorías Totales',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: theme.hintColor.withOpacity(0.6),
+                        ),
+                      ),
+                      Text(
+                        '${dieta.macros.kcal.round()} kcal',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: theme.textTheme.titleMedium?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MacroCard(
-                  label: 'Carbos',
-                  val: dieta.macros.carbohidratos,
-                  icon: Icons.breakfast_dining,
-                  color: Colors.orange,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _MacroCard(
-                  label: 'Grasas',
-                  val: dieta.macros.grasas,
-                  icon: Icons.water_drop,
-                  color: Colors.purple,
+                decoration: BoxDecoration(
+                  color: (dieta.estado == 'activa' ? Colors.green : Colors.grey)
+                      .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  dieta.estado.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: dieta.estado == 'activa'
+                        ? Colors.green
+                        : Colors.grey,
+                  ),
                 ),
               ),
             ],
           ),
-        );
-
-        if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [info, const SizedBox(width: 16), macros],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [info, const SizedBox(height: 12), macros],
-        );
-      },
+        ),
+      ],
     );
   }
 }
@@ -500,37 +531,31 @@ class _MealsCard extends StatelessWidget {
 
     if (dieta.comidas.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(24),
+        height: 100,
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: const Center(child: Text('Sin comidas registradas')),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Comidas',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'ESTRUCTURA DE COMIDAS',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: theme.hintColor.withOpacity(0.5),
+            letterSpacing: 1.5,
           ),
-          const SizedBox(height: 12),
-          Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
-          const SizedBox(height: 16),
-          ...dieta.comidas.map((comida) => _MealItem(comida: comida)),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        ...dieta.comidas.map((comida) => _MealItem(comida: comida)),
+      ],
     );
   }
 }
@@ -771,37 +796,6 @@ class _ActionButton extends StatelessWidget {
         minimumSize: const Size(0, 36),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final ThemeData theme;
-  const _InfoRow(this.label, this.value, this.theme);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: theme.hintColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

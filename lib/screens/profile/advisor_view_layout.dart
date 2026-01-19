@@ -31,11 +31,9 @@ class AdvisorViewLayout extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Filter Quick Action Buttons: Only show relevant ones for Advisors
-    // Actually, originally the code showed buttons even for advisors?
-    // Let's re-verify: "if (auth.isClient) ...Chat Button". So Advisors didn't see Chat button here.
-    // Advisors saw "Entrenar" (maybe debug?) and "Progreso".
-    // We will keep the same logic: Show buttons based on role checks or passed props.
+    // Calculate dynamic header heights to prevent overlap
+    final bottomHeight = 160.0 + (budgetEstado == 'pendiente' ? 60.0 : 0.0);
+    final expandedHeight = bottomHeight + 230.0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -45,18 +43,25 @@ class AdvisorViewLayout extends StatelessWidget {
           headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
               SliverAppBar(
-                expandedHeight: 240,
+                expandedHeight: expandedHeight,
                 pinned: true,
                 stretch: true,
                 backgroundColor: theme.primaryColor,
                 elevation: 0,
                 automaticallyImplyLeading: true,
-                leading: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: IconButton.filledTonal(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 18,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.15),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => context.pop(),
                   ),
-                  onPressed: () => context.pop(),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   stretchModes: const [
@@ -73,96 +78,149 @@ class AdvisorViewLayout extends StatelessWidget {
                             end: Alignment.bottomRight,
                             colors: [
                               theme.primaryColor,
-                              theme.primaryColor.withBlue(200),
+                              theme.primaryColor.withBlue(220).withRed(50),
                             ],
                           ),
                         ),
                       ),
+                      // Decorative circles for a "premium" depth feel
                       Positioned(
-                        right: -50,
-                        top: -50,
+                        top: -40,
+                        right: -40,
                         child: Container(
-                          width: 200,
-                          height: 200,
+                          width: 180,
+                          height: 180,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withOpacity(0.08),
                           ),
                         ),
                       ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Hero(
-                            tag: 'client_${cliente.id}',
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
+                      Positioned(
+                        bottom: 60,
+                        left: -50,
+                        child: Container(
+                          width: 150,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.05),
+                          ),
+                        ),
+                      ),
+                      // Glassmorphic overlay for the profile area
+                      Positioned(
+                        bottom: bottomHeight + 20,
+                        left: 20,
+                        right: 20,
+                        child: Column(
+                          children: [
+                            Hero(
+                              tag: 'client_${cliente.id}',
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 45,
-                                backgroundColor: Colors.white24,
-                                child: Text(
-                                  cliente.nombre[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                child: CircleAvatar(
+                                  radius: 48,
+                                  backgroundColor: Colors.white24,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      cliente.nombre[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            cliente.nombre,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 10,
-                                  color: Colors.black26,
-                                  offset: Offset(0, 2),
+                            const SizedBox(height: 16),
+                            Text(
+                              cliente.nombre,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    offset: Offset(0, 2),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
                                 ),
-                              ],
+                              ),
+                              child: Text(
+                                _getDuration(
+                                  cliente.fechaInicio,
+                                  cliente.fechaFin,
+                                ).toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getDuration(cliente.fechaInicio, cliente.fechaFin),
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 bottom: PreferredSize(
-                  preferredSize: Size.fromHeight(
-                    120.0 + (budgetEstado == 'pendiente' ? 60.0 : 0.0) + 50.0,
-                  ),
+                  preferredSize: Size.fromHeight(bottomHeight),
                   child: Container(
-                    color: theme.scaffoldBackgroundColor,
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(32),
+                        topRight: Radius.circular(32),
+                      ),
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        const SizedBox(height: 20),
                         if (budgetEstado == 'pendiente')
                           _buildBudgetWarning(isDark),
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
+                            horizontal: 20,
                             vertical: 8,
                           ),
                           child: Row(
@@ -170,48 +228,52 @@ class AdvisorViewLayout extends StatelessWidget {
                               if (hasEntrenamiento && canEditFeatures) ...[
                                 Expanded(
                                   child: _QuickActionButton(
-                                    icon: Icons.play_arrow_rounded,
-                                    label: 'Entrenar',
-                                    color: Colors.green,
+                                    icon: Icons.play_circle_filled_rounded,
+                                    label: 'ENTRENAR',
+                                    color: const Color(0xFF34C759),
                                     onPressed: onNavigateToLiveSession,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 16),
                               ],
                               Expanded(
                                 child: _QuickActionButton(
-                                  icon: Icons.add_chart_rounded,
-                                  label: 'Progreso',
-                                  color: Colors.orange,
+                                  icon: Icons.analytics_rounded,
+                                  label: 'PROGRESO',
+                                  color: const Color(0xFFFF9500),
                                   onPressed: onAddProgress,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(height: 8),
                         TabBar(
                           tabs: tabs,
                           labelColor: theme.primaryColor,
-                          unselectedLabelColor: theme.hintColor,
+                          unselectedLabelColor: theme.hintColor.withOpacity(
+                            0.4,
+                          ),
                           indicatorSize: TabBarIndicatorSize.label,
                           indicator: UnderlineTabIndicator(
                             borderSide: BorderSide(
-                              width: 3,
+                              width: 3.5,
                               color: theme.primaryColor,
                             ),
-                            insets: const EdgeInsets.symmetric(horizontal: 16),
+                            insets: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           labelStyle: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                            letterSpacing: 0.2,
                           ),
                           unselectedLabelStyle: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
                           ),
                           isScrollable: true,
                           tabAlignment: TabAlignment.start,
-                          dividerColor: theme.dividerColor.withOpacity(0.1),
+                          dividerColor: Colors.transparent,
                         ),
                       ],
                     ),
@@ -289,29 +351,49 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: isDark ? color.withOpacity(0.1) : color.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label.toUpperCase(),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

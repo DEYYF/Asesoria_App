@@ -217,7 +217,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
                   ),
                   // Active Switch
                   Transform.scale(
-                    scale: 0.9,
+                    scale: 0.8,
                     child: Switch.adaptive(
                       value: isActive,
                       activeColor: primaryActionColor,
@@ -234,6 +234,52 @@ class _AutomationScreenState extends State<AutomationScreen> {
                         }
                       },
                     ),
+                  ),
+                  // Actions Menu
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: Colors.grey[600],
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (val) {
+                      if (val == 'edit') {
+                        _showEditDialog(auto);
+                      } else if (val == 'delete') {
+                        _confirmDelete(auto);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 18),
+                            SizedBox(width: 12),
+                            Text('Editar'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Eliminar',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -492,6 +538,50 @@ class _AutomationScreenState extends State<AutomationScreen> {
         templates: _templates,
         clients: _clients,
         onSave: () => _loadData(),
+      ),
+    );
+  }
+
+  void _confirmDelete(dynamic auto) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar automatización?'),
+        content: Text(
+          '¿Estás seguro de que quieres eliminar "${auto['name']}"? Esta acción no se puede deshacer.',
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await _service.deleteAutomation(auto['_id']);
+                _loadData();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Automatización eliminada')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
       ),
     );
   }

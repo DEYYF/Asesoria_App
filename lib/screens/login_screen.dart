@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _errorMessage = 'Error al iniciar sesión';
   bool _isClientLogin = false;
   bool _localLoading = false;
+  bool _obscurePass = true;
 
   @override
   void initState() {
@@ -91,125 +92,231 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // App Logo Placeholder / Icon
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.fitness_center_rounded,
-                    size: 64,
-                    color: theme.primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Asesoría App',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Entrena . Aprende . Evoluciona',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.hintColor,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 40),
+      body: Stack(
+        children: [
+          // Premium Mesh-like background circles
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.primaryColor.withOpacity(isDark ? 0.05 : 0.03),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.primaryColor.withOpacity(isDark ? 0.03 : 0.02),
+              ),
+            ),
+          ),
 
-                // Selector Admin/Cliente
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[200],
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(
+          Center(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(
+                context,
+              ).copyWith(scrollbars: false),
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildSelectorOption('Admin', !_isClientLogin),
-                      _buildSelectorOption('Cliente', _isClientLogin),
+                      // App Logo Branding
+                      Hero(
+                        tag: 'app_logo_login',
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.primaryColor.withOpacity(0.1),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.fitness_center_rounded,
+                            size: 64,
+                            color: theme.primaryColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'ASESORÍA APP',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'ENTRENA . APRENDE . EVOLUCIONA',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor.withOpacity(0.5),
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Selector Admin/Cliente
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1C1C1E)
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(35),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.black.withOpacity(0.05),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildSelectorOption('ADMIN', !_isClientLogin),
+                            _buildSelectorOption('CLIENTE', _isClientLogin),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // Form Fields
+                      _buildTextField(
+                        controller: _emailCtrl,
+                        label: 'Email',
+                        icon: Icons.alternate_email_rounded,
+                        keyboardType: TextInputType.emailAddress,
+                        isDark: isDark,
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTextField(
+                        controller: _passCtrl,
+                        label: 'Contraseña',
+                        icon: Icons.lock_outline_rounded,
+                        obscureText: _obscurePass,
+                        isDark: isDark,
+                        theme: theme,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _obscurePass
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: theme.primaryColor.withOpacity(0.5),
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() => _obscurePass = !_obscurePass);
+                          },
+                        ),
+                      ),
+
+                      if (_error)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 24.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage,
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(height: 32),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.primaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 8,
+                            shadowColor: theme.primaryColor.withOpacity(0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          onPressed: _localLoading
+                              ? null
+                              : () => _handleLogin(auth),
+                          child: _localLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'INICIAR SESIÓN',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-
-                // Form Fields
-                TextField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: Icon(Icons.lock_outline_rounded),
-                  ),
-                  obscureText: true,
-                ),
-
-                if (_error)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _errorMessage,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _localLoading ? null : () => _handleLogin(auth),
-                    child: _localLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Iniciar Sesión'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -220,18 +327,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _isClientLogin = (label == 'Cliente')),
+        onTap: () {
+          setState(() {
+            _isClientLogin = (label == 'CLIENTE');
+          });
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             color: isSelected ? theme.primaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(30),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
                       color: theme.primaryColor.withOpacity(0.3),
-                      blurRadius: 8,
+                      blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                   ]
@@ -243,10 +355,72 @@ class _LoginScreenState extends State<LoginScreen> {
             style: TextStyle(
               color: isSelected
                   ? Colors.white
-                  : (isDark ? Colors.grey[400] : Colors.black54),
-              fontWeight: FontWeight.bold,
+                  : (isDark ? Colors.grey[500] : Colors.black54),
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              letterSpacing: 1,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    required bool isDark,
+    required ThemeData theme,
+    Widget? suffix,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200]!,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        textAlignVertical: TextAlignVertical.center,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          letterSpacing: 0.2,
+        ),
+        decoration: InputDecoration(
+          hintText: label,
+          hintStyle: TextStyle(
+            color: theme.hintColor.withOpacity(0.4),
+            fontWeight: FontWeight.w500,
+            fontSize: 15,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 20, right: 12),
+            child: Icon(icon, color: theme.primaryColor, size: 20),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
+          suffixIcon: suffix,
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 20),
         ),
       ),
     );

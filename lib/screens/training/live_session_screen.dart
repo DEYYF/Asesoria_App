@@ -649,33 +649,60 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (item.ejercicio?.urlVideo != null &&
+                    item.ejercicio!.urlVideo!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => VideoPlayerDialog(
+                          videoUrl: item.ejercicio!.urlVideo!,
+                          title:
+                              item.ejercicioNombre ??
+                              item.ejercicio?.nombre ??
+                              'Ejercicio',
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.redAccent.withOpacity(0.2),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'VER TÉCNICA',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
-            if (item.ejercicio?.urlVideo != null &&
-                item.ejercicio!.urlVideo!.isNotEmpty)
-              Positioned(
-                top: 0,
-                right: 0,
-                child: IconButton.filled(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => VideoPlayerDialog(
-                        videoUrl: item.ejercicio!.urlVideo!,
-                        title:
-                            item.ejercicioNombre ??
-                            item.ejercicio?.nombre ??
-                            'Ejercicio',
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.play_circle_filled_rounded, size: 32),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
           ],
         ),
         if (item.ejercicio?.grupo != null) ...[

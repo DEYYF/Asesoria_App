@@ -102,20 +102,32 @@ class _AdvisorChatListScreenState extends State<AdvisorChatListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Mis Mensajes',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Mensajes',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 24,
+            letterSpacing: -1,
+          ),
         ),
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () {
+              // TODO: Implement search
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _conversations.isEmpty
           ? _buildEmptyState(theme)
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: _conversations.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final conv = _conversations[index];
                 return _buildConversationTile(conv, theme, auth.userId!);
@@ -137,67 +149,72 @@ class _AdvisorChatListScreenState extends State<AdvisorChatListScreen> {
     final initial = conv.getDisplayInitial(currentUserId);
     final unreadCount = conv.getUnreadCount(currentUserId);
     final hasUnread = unreadCount > 0;
+    final isDark = theme.brightness == Brightness.dark;
 
     // Safety check for lastMessage
-    final lastMsg = conv.lastMessage ?? 'Inicia una conversación';
+    final lastMsg = conv.lastMessage ?? 'Sin mensajes aún';
     final isLastMessage = conv.lastMessage != null;
 
-    final dateStr = isLastMessage
-        ? DateFormat('dd MMM, HH:mm').format(conv.lastMessageAt)
-        : '';
+    final dateStr = isLastMessage ? _formatDate(conv.lastMessageAt) : '';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
           color: hasUnread
-              ? theme.primaryColor.withOpacity(0.5)
-              : theme.dividerColor.withOpacity(0.1),
-          width: hasUnread ? 1.5 : 1,
+              ? theme.primaryColor.withOpacity(0.3)
+              : (isDark ? Colors.white10 : Colors.grey.shade100),
+          width: 1.5,
         ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(hasUnread ? 0.05 : 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+        ],
       ),
-      color: hasUnread ? theme.primaryColor.withOpacity(0.05) : theme.cardColor,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         leading: Stack(
           children: [
-            CircleAvatar(
-              backgroundColor: theme.primaryColor.withOpacity(0.1),
-              child: Text(
-                initial,
-                style: TextStyle(
-                  color: theme.primaryColor,
-                  fontWeight: FontWeight.bold,
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: hasUnread
+                    ? Border.all(color: theme.primaryColor, width: 2)
+                    : null,
+              ),
+              child: Center(
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
                 ),
               ),
             ),
             if (hasUnread)
               Positioned(
-                right: -2,
-                top: -2,
+                right: 0,
+                bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: theme.primaryColor,
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: theme.scaffoldBackgroundColor,
                       width: 2,
-                    ),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
-                  ),
-                  child: Center(
-                    child: Text(
-                      unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
                   ),
                 ),
@@ -210,42 +227,9 @@ class _AdvisorChatListScreenState extends State<AdvisorChatListScreen> {
               child: Text(
                 name,
                 style: TextStyle(
-                  fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-            if (conv.type == 'advisor-advisor')
-              Container(
-                margin: const EdgeInsets.only(left: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Asesor',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: theme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        subtitle: Row(
-          children: [
-            Expanded(
-              child: Text(
-                lastMsg,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: hasUnread
-                      ? theme.textTheme.bodyLarge?.color
-                      : theme.hintColor,
-                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 16,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
             ),
@@ -253,19 +237,98 @@ class _AdvisorChatListScreenState extends State<AdvisorChatListScreen> {
               Text(
                 dateStr,
                 style: TextStyle(
-                  fontSize: 10,
-                  color: hasUnread ? theme.primaryColor : theme.hintColor,
+                  fontSize: 11,
+                  color: hasUnread
+                      ? theme.primaryColor
+                      : theme.hintColor.withOpacity(0.5),
+                  fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, size: 20),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            children: [
+              if (conv.type == 'advisor-advisor')
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'ASESOR',
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Text(
+                  lastMsg,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: hasUnread
+                        ? theme.textTheme.bodyLarge?.color?.withOpacity(0.8)
+                        : theme.hintColor,
+                    fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              if (hasUnread)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    unreadCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         onTap: () async {
           await context.push('/chat/${conv.id}');
-          _loadConversations(); // Refresh list to update unread counts
+          _loadConversations();
         },
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    if (date.day == now.day &&
+        date.month == now.month &&
+        date.year == now.year) {
+      return DateFormat('HH:mm').format(date);
+    }
+    if (date.day == now.day - 1 &&
+        date.month == now.month &&
+        date.year == now.year) {
+      return 'Ayer';
+    }
+    return DateFormat('dd/MM/yy').format(date);
   }
 
   Widget _buildEmptyState(ThemeData theme) {

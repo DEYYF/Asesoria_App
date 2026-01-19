@@ -14,7 +14,6 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/muscle_mass_bar.dart';
-import '../../widgets/progress_status_widget.dart';
 import '../../services/settings_service.dart';
 import '../../models/settings_model.dart';
 
@@ -161,23 +160,38 @@ class _ProgressTabState extends State<ProgressTab> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with View Toggle
+          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Progreso',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tu Evolución',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: theme.textTheme.headlineMedium?.color,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Seguimiento de tus metas',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: theme.hintColor.withOpacity(0.6),
+                    ),
+                  ),
+                ],
               ),
               Builder(
                 builder: (context) {
@@ -185,71 +199,43 @@ class _ProgressTabState extends State<ProgressTab> {
 
                   // For Clients, show a Chat shortcut
                   if (auth.isClient) {
-                    return IconButton(
-                      icon: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.primaryColor.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          color: theme.primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                      onPressed: () {
-                        // Find and switch to Chat tab
+                    return _buildHeaderAction(
+                      theme,
+                      Icons.chat_bubble_outline_rounded,
+                      () {
                         final tabController = DefaultTabController.of(context);
-                        // In ClientProfileScreen, we add chat at the end.
-                        // But let's find it dynamically to be safe.
-                        // Since we don't have access to the tabs list here easily,
-                        // we can try to find by index or just jump to last if we know it's last.
-                        // Actually, better to just let the user know they can click the Chat tab
-                        // OR use a more robust way to find it.
-                        // In ClientProfileScreen, the Chat tab is the last one.
                         tabController.animateTo(tabController.length - 1);
                       },
-                      tooltip: 'Ir al Chat',
+                      'Chat',
                     );
                   }
 
-                  if (widget.onAddProgress == null) {
+                  if (widget.onAddProgress == null)
                     return const SizedBox.shrink();
-                  }
 
-                  return IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.add_circle,
-                        color: theme.primaryColor,
-                        size: 24,
-                      ),
-                    ),
-                    onPressed: _viewMode == 'rendimiento'
+                  return _buildHeaderAction(
+                    theme,
+                    _viewMode == 'rendimiento'
+                        ? Icons.fitness_center_rounded
+                        : Icons.add_rounded,
+                    _viewMode == 'rendimiento'
                         ? _navigateToRegisterTraining
-                        : widget.onAddProgress,
-                    tooltip: _viewMode == 'rendimiento'
-                        ? 'Registrar Entrenamiento'
-                        : 'Añadir Progreso',
+                        : widget.onAddProgress!,
+                    _viewMode == 'rendimiento' ? 'Registrar' : 'Añadir',
+                    isPrimary: true,
                   );
                 },
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 30),
 
           // Custom Segmented Control
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.dividerColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: theme.dividerColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
@@ -258,13 +244,39 @@ class _ProgressTabState extends State<ProgressTab> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           if (_viewMode == 'rendimiento')
             _buildRendimientoView()
           else
             _buildCorporalView(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderAction(
+    ThemeData theme,
+    IconData icon,
+    VoidCallback onTap,
+    String tooltip, {
+    bool isPrimary = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? theme.primaryColor.withOpacity(0.1)
+              : theme.dividerColor.withOpacity(0.05),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: isPrimary ? theme.primaryColor : theme.iconTheme.color,
+          size: 22,
+        ),
       ),
     );
   }
@@ -279,16 +291,18 @@ class _ProgressTabState extends State<ProgressTab> {
         onTap: () => setState(() => _viewMode = value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? theme.cardColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected
+                ? (isDark ? const Color(0xFF2C2C2E) : Colors.white)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ]
                 : null,
@@ -298,11 +312,11 @@ class _ProgressTabState extends State<ProgressTab> {
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: isSelected
                   ? (isDark ? Colors.white : theme.textTheme.bodyLarge?.color)
-                  : theme.textTheme.bodySmall?.color,
-              letterSpacing: 0.5,
+                  : theme.hintColor.withOpacity(0.6),
+              letterSpacing: 1,
             ),
           ),
         ),
@@ -349,51 +363,40 @@ class _ProgressTabState extends State<ProgressTab> {
               _sectionTitle('ESTADO DE SEGUIMIENTO'),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
-                    SizedBox(
-                      width: 165,
-                      child: ProgressStatusWidget(
-                        label: 'PESO',
-                        lastDate: lastWeight,
-                        frequency: settings.weightFrequency,
-                        icon: Icons.fitness_center_rounded,
-                      ),
+                    _buildStatusBox(
+                      'PESO',
+                      lastWeight,
+                      settings.weightFrequency,
+                      Icons.fitness_center_rounded,
                     ),
                     const SizedBox(width: 12),
-                    SizedBox(
-                      width: 165,
-                      child: ProgressStatusWidget(
-                        label: 'GRASA',
-                        lastDate: lastFat,
-                        frequency: settings.fatFrequency,
-                        icon: Icons.water_drop_rounded,
-                      ),
+                    _buildStatusBox(
+                      'GRASA',
+                      lastFat,
+                      settings.fatFrequency,
+                      Icons.water_drop_rounded,
                     ),
                     const SizedBox(width: 12),
-                    SizedBox(
-                      width: 165,
-                      child: ProgressStatusWidget(
-                        label: 'MEDIDAS',
-                        lastDate: lastMeasures,
-                        frequency: settings.measuresFrequency,
-                        icon: Icons.straighten_rounded,
-                      ),
+                    _buildStatusBox(
+                      'MEDIDAS',
+                      lastMeasures,
+                      settings.measuresFrequency,
+                      Icons.straighten_rounded,
                     ),
                     const SizedBox(width: 12),
-                    SizedBox(
-                      width: 165,
-                      child: ProgressStatusWidget(
-                        label: 'MÚSCULO',
-                        lastDate: lastMuscle,
-                        frequency: settings.muscleFrequency,
-                        icon: Icons.monitor_weight_outlined,
-                      ),
+                    _buildStatusBox(
+                      'MÚSCULO',
+                      lastMuscle,
+                      settings.muscleFrequency,
+                      Icons.monitor_weight_outlined,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
             ],
 
             // Summary Cards for Corporal
@@ -404,32 +407,34 @@ class _ProgressTabState extends State<ProgressTab> {
                   Expanded(
                     child: _buildSummaryCard(
                       'PESO',
-                      '${historial.last.peso ?? '-'} kg',
+                      '${historial.last.peso ?? '-'}',
+                      'kg',
                       Icons.fitness_center_rounded,
                       theme.primaryColor,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildSummaryCard(
                       'GRASA',
-                      '${historial.last.grasaCorporal ?? '-'} %',
+                      '${historial.last.grasaCorporal ?? '-'}',
+                      '%',
                       Icons.water_drop_rounded,
                       Colors.pink,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildSummaryCard(
-                      'MÚSCULO',
-                      '${historial.last.masaMusculoEsqueletica ?? '-'} kg',
-                      Icons.monitor_weight_outlined,
-                      Colors.teal,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
+              _buildSummaryCard(
+                'MÚSCULO',
+                '${historial.last.masaMusculoEsqueletica ?? '-'}',
+                'kg',
+                Icons.monitor_weight_outlined,
+                Colors.teal,
+                isFullWidth: true,
+              ),
+              const SizedBox(height: 24),
               // Trend Cards Row
               Row(
                 children: [
@@ -441,7 +446,7 @@ class _ProgressTabState extends State<ProgressTab> {
                       'kg',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildTrendCard(
                       'GRASA',
@@ -450,7 +455,7 @@ class _ProgressTabState extends State<ProgressTab> {
                       '%',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _buildTrendCard(
                       'MÚSCULO',
@@ -461,7 +466,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               MuscleMassBar(
                 weight: historial.last.peso ?? 0,
                 muscleMass: historial.last.masaMusculoEsqueletica ?? 0,
@@ -537,15 +542,15 @@ class _ProgressTabState extends State<ProgressTab> {
       children: [
         // Exercise Selector
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
           decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(12),
+            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -556,14 +561,16 @@ class _ProgressTabState extends State<ProgressTab> {
               hint: const Text('Seleccionar Ejercicio'),
               icon: Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: theme.iconTheme.color,
+                color: theme.primaryColor,
               ),
               style: TextStyle(
                 color: theme.textTheme.bodyLarge?.color,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                letterSpacing: -0.5,
               ),
-              dropdownColor: theme.cardColor,
+              dropdownColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
               items: _ejercicios
                   .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                   .toList(),
@@ -576,7 +583,7 @@ class _ProgressTabState extends State<ProgressTab> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
 
         // Summary Cards
         if (_historyData.isNotEmpty)
@@ -585,16 +592,18 @@ class _ProgressTabState extends State<ProgressTab> {
               Expanded(
                 child: _buildSummaryCard(
                   '1RM ESTIMADO',
-                  '${max1RM.toStringAsFixed(1)} kg',
+                  '${max1RM.toStringAsFixed(1)}',
+                  'kg',
                   Icons.emoji_events_rounded,
                   const Color(0xFFFFB800),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: _buildSummaryCard(
                   'PESO MÁX',
-                  '${maxWeight.toStringAsFixed(1)} kg',
+                  '${maxWeight.toStringAsFixed(1)}',
+                  'kg',
                   Icons.fitness_center_rounded,
                   theme.primaryColor,
                 ),
@@ -602,19 +611,14 @@ class _ProgressTabState extends State<ProgressTab> {
             ],
           ),
         if (_historyData.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          // Volume Card full width or third card
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryCard(
-                  'VOLUMEN RÉCORD',
-                  '${(maxVolume / 1000).toStringAsFixed(1)} tons',
-                  Icons.bar_chart_rounded,
-                  isDark ? Colors.purpleAccent : const Color(0xFFAF52DE),
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          _buildSummaryCard(
+            'VOLUMEN RÉCORD',
+            '${(maxVolume / 1000).toStringAsFixed(1)}',
+            'tons',
+            Icons.bar_chart_rounded,
+            isDark ? Colors.purpleAccent : const Color(0xFFAF52DE),
+            isFullWidth: true,
           ),
         ],
 
@@ -630,10 +634,10 @@ class _ProgressTabState extends State<ProgressTab> {
                 // Metric Toggles
                 Container(
                   decoration: BoxDecoration(
-                    color: theme.dividerColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: theme.dividerColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.all(2),
+                  padding: const EdgeInsets.all(4),
                   child: Row(
                     children: [
                       _buildMetricBtn('Fuerza', 'strength'),
@@ -642,14 +646,14 @@ class _ProgressTabState extends State<ProgressTab> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 // Time Filter
                 Container(
                   decoration: BoxDecoration(
-                    color: theme.dividerColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: theme.dividerColor.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.all(2),
+                  padding: const EdgeInsets.all(4),
                   child: Row(
                     children: [
                       _buildTimeBtn('1M', '1M'),
@@ -697,21 +701,33 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Widget _buildEmptyState(String msg) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         child: Column(
           children: [
-            Icon(
-              Icons.bar_chart_rounded,
-              size: 48,
-              color: Theme.of(context).disabledColor,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.dividerColor.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.analytics_outlined,
+                size: 40,
+                color: theme.hintColor.withOpacity(0.3),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
               msg,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).hintColor),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: theme.hintColor.withOpacity(0.6),
+              ),
             ),
           ],
         ),
@@ -752,19 +768,92 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
-  Widget _buildTrendCard(
-    String title,
-    List<Progreso> historial,
-    double? Function(Progreso) getValue,
-    String unit,
-  ) {
+  Widget _buildStatusBox(String label, DateTime? lastDate, String frequency, IconData icon) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Logic to determine completeness/status
+    bool isPending = true;
+    if (lastDate != null) {
+      final daysSince = DateTime.now().difference(lastDate).inDays;
+
+      int freqDays = 7;
+      switch (frequency.toLowerCase()) {
+        case 'daily':
+          freqDays = 1;
+          break;
+        case 'weekly':
+          freqDays = 7;
+          break;
+        case 'biweekly':
+          freqDays = 14;
+          break;
+        case 'monthly':
+          freqDays = 30;
+          break;
+      }
+
+      if (daysSince <= freqDays) isPending = false;
+    }
+
+    final color = isPending ? Colors.orange : theme.primaryColor;
+
+    return Container(
+      width: 165,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 20, color: color),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  isPending ? 'PENDIENTE' : 'AL DÍA',
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: theme.hintColor.withOpacity(0.5), letterSpacing: 1),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            lastDate != null ? 'Hace ${DateTime.now().difference(lastDate).inDays} días' : 'Sin datos',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: theme.textTheme.bodyLarge?.color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrendCard(String title, List<Progreso> historial, double? Function(Progreso) getValue, String unit) {
     if (historial.length < 2) return const SizedBox.shrink();
 
     final latest = historial.last;
     final latestVal = getValue(latest);
     if (latestVal == null) return const SizedBox.shrink();
 
-    // Find the immediate previous entry with this specific data point
     Progreso? previous;
     for (var i = historial.length - 2; i >= 0; i--) {
       if (getValue(historial[i]) != null) {
@@ -773,19 +862,17 @@ class _ProgressTabState extends State<ProgressTab> {
       }
     }
 
-    if (previous == null) {
-      return const SizedBox.shrink();
-    }
+    if (previous == null) return const SizedBox.shrink();
 
     final prevVal = getValue(previous)!;
     final diff = latestVal - prevVal;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     Color color;
     IconData icon;
     String label;
 
-    // User requested: Subida = Verde/Up, Bajada = Roja/Down
     if (diff > 0.01) {
       color = Colors.green;
       icon = Icons.arrow_upward_rounded;
@@ -801,10 +888,10 @@ class _ProgressTabState extends State<ProgressTab> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -818,24 +905,19 @@ class _ProgressTabState extends State<ProgressTab> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: color),
+              Icon(icon, size: 12, color: color),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: theme.hintColor,
-                    letterSpacing: 0.5,
-                  ),
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: theme.hintColor.withOpacity(0.5), letterSpacing: 0.5),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
@@ -844,20 +926,12 @@ class _ProgressTabState extends State<ProgressTab> {
               children: [
                 Text(
                   "${diff > 0 ? '+' : ''}${diff.toStringAsFixed(1)}$unit",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: theme.textTheme.titleLarge?.color,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: theme.textTheme.titleLarge?.color),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: color.withOpacity(0.8),
-                  ),
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color.withOpacity(0.8), letterSpacing: 0.5),
                 ),
               ],
             ),
@@ -903,15 +977,20 @@ class _ProgressTabState extends State<ProgressTab> {
   Widget _buildSummaryCard(
     String title,
     String value,
+    String unit,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    bool isFullWidth = false,
+  }) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.all(12), // Reduced from 16
+      width: isFullWidth ? double.infinity : null,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -926,47 +1005,50 @@ class _ProgressTabState extends State<ProgressTab> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: color,
-                ), // Reduced size slightly
+                child: Icon(icon, size: 18, color: color),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                // Ensure title truncates if needed
                 child: Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: theme.hintColor,
+                    fontWeight: FontWeight.w900,
+                    color: theme.hintColor.withOpacity(0.6),
                     letterSpacing: 0.5,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          FittedBox(
-            // Auto-scale large numbers
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 18, // Slightly adjusted base size
-                fontWeight: FontWeight.w800,
-                color: theme.textTheme.titleLarge?.color,
-                letterSpacing: -0.5,
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: theme.textTheme.titleLarge?.color,
+                ),
               ),
-            ),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: theme.hintColor.withOpacity(0.5),
+                ),
+              ),
+            ],
           ),
         ],
       ),

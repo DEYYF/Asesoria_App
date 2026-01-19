@@ -292,7 +292,39 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      final theme = Theme.of(context);
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Cargando perfil...',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: theme.hintColor.withOpacity(0.6),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_error != null) {
       return Scaffold(
