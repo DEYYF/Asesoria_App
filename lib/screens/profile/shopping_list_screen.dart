@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:downloadsfolder/downloadsfolder.dart' as df;
+import 'package:path_provider/path_provider.dart';
 import '../../services/api_service.dart';
 
 class ShoppingListScreen extends StatefulWidget {
@@ -79,6 +82,64 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     }
   }
 
+  Future<void> _downloadAsText() async {
+    if (_ingredients.isEmpty) return;
+
+    try {
+      final groups = _groupByCategory();
+      final categories = groups.keys.toList()..sort();
+
+      String content =
+          "🛒 LISTA DE LA COMPRA (${_selectedPeriod.toUpperCase()})\n";
+      content += "Plan: ${_currentDietaNombre}\n";
+      content += "Fecha: ${DateTime.now().toString().split('.')[0]}\n";
+      content += "=" * 30 + "\n\n";
+
+      for (var cat in categories) {
+        content += "\n[ ${cat.toUpperCase()} ]\n";
+        for (var item in groups[cat]!) {
+          final name = item['name'];
+          final grams = item['grams'] as num;
+          final qty = _formatQuantity(grams);
+          content += "- $name: $qty\n";
+        }
+      }
+
+      content += "\n" + "=" * 30 + "\n";
+      content += "Generado por AsesoriaApp\n";
+
+      final List<int> bytes = utf8.encode(content);
+
+      // Save to a temporary file first
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'lista_compra_${_selectedPeriod}.txt';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(bytes);
+
+      // Move to Downloads folder
+      final bool success =
+          await df.copyFileIntoDownloadFolder(file.path, fileName) ?? false;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Archivo guardado en Descargas'
+                  : 'Error al guardar archivo',
+            ),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+        if (success) {
+          await df.openDownloadFolder();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error downloading: $e');
+    }
+  }
+
   Map<String, List<dynamic>> _groupByCategory() {
     final grouped = <String, List<dynamic>>{};
     for (var item in _ingredients) {
@@ -141,6 +202,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 );
               }).toList(),
             ),
+          IconButton(
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Descargar .txt',
+            onPressed: _downloadAsText,
+          ),
           const SizedBox(width: 8),
         ],
         elevation: 0,
