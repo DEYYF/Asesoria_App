@@ -25,6 +25,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
   List<dynamic> _movimientos = [];
   List<dynamic> _controlPagos = [];
   List<dynamic> _historicoGrafico = [];
+  String _selectedPeriod = 'mensual'; // Added: 'mensual' or 'anual'
   final _currencyFormat = NumberFormat.currency(symbol: '€', decimalDigits: 2);
 
   @override
@@ -77,11 +78,17 @@ class _FinanzasScreenState extends State<FinanzasScreen>
         queryParam = 'asesorId=${auth.userId}';
       }
 
+      // Add period to query
+      final periodParam = 'periodo=$_selectedPeriod';
+      final fullQuery = queryParam.isEmpty
+          ? periodParam
+          : '$queryParam&$periodParam';
+
       final responses = await Future.wait([
-        api.get('/finanzas/resumen?$queryParam'),
-        api.get('/finanzas/movimientos?$queryParam'),
-        api.get('/finanzas/control-pagos?$queryParam'),
-        api.get('/finanzas/historico-grafico?$queryParam'),
+        api.get('/finanzas/resumen?$fullQuery'),
+        api.get('/finanzas/movimientos?$fullQuery'),
+        api.get('/finanzas/control-pagos?$fullQuery'),
+        api.get('/finanzas/historico-grafico?$fullQuery'),
       ]);
 
       if (mounted) {
@@ -133,6 +140,10 @@ class _FinanzasScreenState extends State<FinanzasScreen>
         children: [
           if (Provider.of<AuthService>(context, listen: false).isSuperAdmin)
             const AdvisorSelector(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: _buildPeriodSelector(),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -186,8 +197,8 @@ class _FinanzasScreenState extends State<FinanzasScreen>
 
   Widget _buildSummaryCards() {
     final theme = Theme.of(context);
-    final mes =
-        _resumen['mesActual'] ??
+    final periodo =
+        _resumen['periodoActual'] ??
         {'ingresos': 0.0, 'gastos': 0.0, 'balance': 0.0};
 
     return Column(
@@ -219,9 +230,11 @@ class _FinanzasScreenState extends State<FinanzasScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Balance Mensual',
-                    style: TextStyle(
+                  Text(
+                    _selectedPeriod == 'mensual'
+                        ? 'Balance Mensual'
+                        : 'Balance Anual',
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -244,7 +257,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                _currencyFormat.format(mes['balance'] ?? 0),
+                _currencyFormat.format(periodo['balance'] ?? 0),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 36,
@@ -258,7 +271,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
                   Expanded(
                     child: _SummaryMiniItem(
                       label: 'Ingresos',
-                      amount: _currencyFormat.format(mes['ingresos'] ?? 0),
+                      amount: _currencyFormat.format(periodo['ingresos'] ?? 0),
                       icon: Icons.arrow_upward_rounded,
                       color: Colors.white,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
@@ -268,7 +281,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
                   Expanded(
                     child: _SummaryMiniItem(
                       label: 'Gastos',
-                      amount: _currencyFormat.format(mes['gastos'] ?? 0),
+                      amount: _currencyFormat.format(periodo['gastos'] ?? 0),
                       icon: Icons.arrow_downward_rounded,
                       color: Colors.white,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
@@ -308,115 +321,145 @@ class _FinanzasScreenState extends State<FinanzasScreen>
           ),
         ],
       ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: theme.dividerColor.withValues(alpha: 0.05),
-                strokeWidth: 1,
-              );
-            },
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _selectedPeriod == 'mensual'
+                    ? 'TENDENCIA (ÚLTIMOS 6 MESES)'
+                    : 'TENDENCIA (AÑO COMPLETO)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: theme.hintColor.withValues(alpha: 0.5),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              Row(
+                children: [
+                  _buildChartLegend('Ingresos', Colors.greenAccent),
+                  const SizedBox(width: 12),
+                  _buildChartLegend('Gastos', Colors.redAccent),
+                ],
+              ),
+            ],
           ),
-          titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                interval: 1,
-                getTitlesWidget: (value, meta) {
-                  int idx = value.toInt();
-                  if (idx >= 0 && idx < _historicoGrafico.length) {
-                    return SideTitleWidget(
-                      axisSide: meta.axisSide,
-                      child: Text(
-                        _historicoGrafico[idx]['mes'],
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.hintColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: theme.dividerColor.withValues(alpha: 0.05),
+                      strokeWidth: 1,
                     );
-                  }
-                  return const Text('');
-                },
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        int idx = value.toInt();
+                        if (idx >= 0 && idx < _historicoGrafico.length) {
+                          return SideTitleWidget(
+                            axisSide: meta.axisSide,
+                            child: Text(
+                              _historicoGrafico[idx]['mes'],
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: theme.hintColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  // Ingresos
+                  LineChartBarData(
+                    spots: _historicoGrafico
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => FlSpot(
+                            e.key.toDouble(),
+                            (e.value['ingresos'] as num).toDouble(),
+                          ),
+                        )
+                        .toList(),
+                    isCurved: true,
+                    color: Colors.greenAccent,
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.greenAccent.withValues(alpha: 0.2),
+                          Colors.greenAccent.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Gastos
+                  LineChartBarData(
+                    spots: _historicoGrafico
+                        .asMap()
+                        .entries
+                        .map(
+                          (e) => FlSpot(
+                            e.key.toDouble(),
+                            (e.value['gastos'] as num).toDouble(),
+                          ),
+                        )
+                        .toList(),
+                    isCurved: true,
+                    color: Colors.redAccent,
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.redAccent.withValues(alpha: 0.15),
+                          Colors.redAccent.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            // Ingresos
-            LineChartBarData(
-              spots: _historicoGrafico
-                  .asMap()
-                  .entries
-                  .map(
-                    (e) => FlSpot(
-                      e.key.toDouble(),
-                      (e.value['ingresos'] as num).toDouble(),
-                    ),
-                  )
-                  .toList(),
-              isCurved: true,
-              color: Colors.greenAccent,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.greenAccent.withValues(alpha: 0.2),
-                    Colors.greenAccent.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-            // Gastos
-            LineChartBarData(
-              spots: _historicoGrafico
-                  .asMap()
-                  .entries
-                  .map(
-                    (e) => FlSpot(
-                      e.key.toDouble(),
-                      (e.value['gastos'] as num).toDouble(),
-                    ),
-                  )
-                  .toList(),
-              isCurved: true,
-              color: Colors.redAccent,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.redAccent.withValues(alpha: 0.15),
-                    Colors.redAccent.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -534,13 +577,27 @@ class _FinanzasScreenState extends State<FinanzasScreen>
 
   Widget _buildPagosTab() {
     if (_controlPagos.isEmpty)
-      return _buildEmptyState('No hay clientes registrados');
+      return _buildEmptyState(
+        _selectedPeriod == 'mensual'
+            ? 'No hay pagos que venzan este mes'
+            : 'No hay pagos que venzan este año',
+      );
 
     return ListView.builder(
       padding: const EdgeInsets.all(20),
-      itemCount: _controlPagos.length,
+      itemCount: _controlPagos.length + 1,
       itemBuilder: (context, index) {
-        final c = _controlPagos[index];
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: _buildSectionHeader(
+              _selectedPeriod == 'mensual'
+                  ? 'CLIENTES QUE VENCEN ESTE MES'
+                  : 'CLIENTES QUE VENCEN ESTE AÑO',
+            ),
+          );
+        }
+        final c = _controlPagos[index - 1];
         final status = c['status'];
         final theme = Theme.of(context);
 
@@ -709,14 +766,29 @@ class _FinanzasScreenState extends State<FinanzasScreen>
   }
 
   Widget _buildMovimientosTab() {
-    if (_movimientos.isEmpty)
-      return _buildEmptyState('No hay movimientos registrados');
+    if (_movimientos.isEmpty) {
+      return _buildEmptyState(
+        _selectedPeriod == 'mensual'
+            ? 'No hay movimientos este mes'
+            : 'No hay movimientos este año',
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.all(20),
-      itemCount: _movimientos.length,
+      itemCount: _movimientos.length + 1,
       itemBuilder: (context, index) {
-        final m = _movimientos[index];
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: _buildSectionHeader(
+              _selectedPeriod == 'mensual'
+                  ? 'HISTORIAL DE ESTE MES'
+                  : 'HISTORIAL DE ESTE AÑO',
+            ),
+          );
+        }
+        final m = _movimientos[index - 1];
         final isIngreso = m['tipoMovimiento'] == 'INGRESO';
         final theme = Theme.of(context);
         final date = DateTime.parse(m['fecha']).toLocal();
@@ -1162,6 +1234,86 @@ class _FinanzasScreenState extends State<FinanzasScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Row(
+        children: [
+          _buildPeriodOption('mensual', 'MENSUAL'),
+          _buildPeriodOption('anual', 'ANUAL'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodOption(String value, String label) {
+    final theme = Theme.of(context);
+    final isSelected = _selectedPeriod == value;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedPeriod = value);
+          _loadData();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.primaryColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: theme.primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.white : theme.hintColor,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartLegend(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
     );
   }
 }

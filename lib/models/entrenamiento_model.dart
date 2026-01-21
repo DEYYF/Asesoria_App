@@ -2,7 +2,7 @@ import 'ejercicio_model.dart';
 
 class Entrenamiento {
   final String? id;
-  final String? asesorId; // 'asesorid' in backend
+  final String? asesorId;
   final String clienteId;
   final String titulo;
   final String? objetivo;
@@ -22,6 +22,30 @@ class Entrenamiento {
     this.createdAt,
     this.updatedAt,
   });
+
+  Entrenamiento copyWith({
+    String? id,
+    String? asesorId,
+    String? clienteId,
+    String? titulo,
+    String? objetivo,
+    bool? activo,
+    List<SemanaEntrenamiento>? semanas,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Entrenamiento(
+      id: id ?? this.id,
+      asesorId: asesorId ?? this.asesorId,
+      clienteId: clienteId ?? this.clienteId,
+      titulo: titulo ?? this.titulo,
+      objetivo: objetivo ?? this.objetivo,
+      activo: activo ?? this.activo,
+      semanas: semanas ?? this.semanas,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   factory Entrenamiento.fromJson(Map<String, dynamic> json) {
     return Entrenamiento(
@@ -62,6 +86,13 @@ class SemanaEntrenamiento {
 
   SemanaEntrenamiento({required this.numero, required this.dias});
 
+  SemanaEntrenamiento copyWith({int? numero, List<DiaEntrenamiento>? dias}) {
+    return SemanaEntrenamiento(
+      numero: numero ?? this.numero,
+      dias: dias ?? this.dias,
+    );
+  }
+
   factory SemanaEntrenamiento.fromJson(Map<String, dynamic> json) {
     return SemanaEntrenamiento(
       numero: json['numero'] ?? 1,
@@ -77,10 +108,17 @@ class SemanaEntrenamiento {
 }
 
 class DiaEntrenamiento {
-  final String nombre;
+  String nombre;
   final List<ItemEntrenamiento> items;
 
   DiaEntrenamiento({required this.nombre, required this.items});
+
+  DiaEntrenamiento copyWith({String? nombre, List<ItemEntrenamiento>? items}) {
+    return DiaEntrenamiento(
+      nombre: nombre ?? this.nombre,
+      items: items ?? this.items,
+    );
+  }
 
   factory DiaEntrenamiento.fromJson(Map<String, dynamic> json) {
     return DiaEntrenamiento(
@@ -97,15 +135,16 @@ class DiaEntrenamiento {
 }
 
 class ItemEntrenamiento {
-  // 'ejercicio' can be a String ID or a populated Object in backend.
-  // We'll store ID in 'ejercicioId' and full object in 'ejercicio' if available.
   final String? ejercicioId;
   final Ejercicio? ejercicio;
-  final String? ejercicioNombre; // Fallback name
+  final String? ejercicioNombre;
   final int orden;
-  final String? grupoId; // for supersets (A, B, etc.)
+  final String? grupoId;
   final EsquemaSerie? esquema;
-  final String? urlVideo; // Sometimes flattened?
+  final String? urlVideo;
+
+  // Stable key for UI reordering/focus
+  final String? uniqueKey;
 
   ItemEntrenamiento({
     this.ejercicioId,
@@ -115,7 +154,30 @@ class ItemEntrenamiento {
     this.grupoId,
     this.esquema,
     this.urlVideo,
+    this.uniqueKey,
   });
+
+  ItemEntrenamiento copyWith({
+    String? ejercicioId,
+    Ejercicio? ejercicio,
+    String? ejercicioNombre,
+    int? orden,
+    String? grupoId,
+    EsquemaSerie? esquema,
+    String? urlVideo,
+    String? uniqueKey,
+  }) {
+    return ItemEntrenamiento(
+      ejercicioId: ejercicioId ?? this.ejercicioId,
+      ejercicio: ejercicio ?? this.ejercicio,
+      ejercicioNombre: ejercicioNombre ?? this.ejercicioNombre,
+      orden: orden ?? this.orden,
+      grupoId: grupoId ?? this.grupoId,
+      esquema: esquema ?? this.esquema,
+      urlVideo: urlVideo ?? this.urlVideo,
+      uniqueKey: uniqueKey ?? this.uniqueKey,
+    );
+  }
 
   factory ItemEntrenamiento.fromJson(Map<String, dynamic> json) {
     String? eId;
@@ -130,7 +192,6 @@ class ItemEntrenamiento {
       eName = eObj.nombre;
     }
 
-    // Explicit fallback name if provided
     if (json['ejercicioNombre'] != null) {
       eName = json['ejercicioNombre'];
     }
@@ -145,12 +206,16 @@ class ItemEntrenamiento {
           ? EsquemaSerie.fromJson(json['esquema'])
           : null,
       urlVideo: json['urlVideo'],
+      uniqueKey:
+          DateTime.now().microsecondsSinceEpoch.toString() +
+          '_' +
+          (eId ?? 'none'),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'ejercicio': ejercicioId, // Sending ID back usually
+      'ejercicio': ejercicioId,
       'orden': orden,
       'grupoId': grupoId,
       'esquema': esquema?.toJson(),

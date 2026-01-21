@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/dieta_model.dart';
 import '../diet/diet_detail_screen.dart';
+import 'shopping_list_screen.dart';
 
 class DietTab extends StatefulWidget {
   final String clienteId;
@@ -167,6 +168,8 @@ class _DietTabState extends State<DietTab> {
             ),
             const SizedBox(height: 30),
             _buildMacroDashboard(currentDiet, theme),
+            const SizedBox(height: 24),
+            _buildShoppingListButton(currentDiet, theme),
             const SizedBox(height: 40),
             Text(
               'Planes de Alimentación',
@@ -443,6 +446,92 @@ class _DietTabState extends State<DietTab> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShoppingListButton(Dieta dieta, ThemeData theme) {
+    return InkWell(
+      onTap: () {
+        if (dieta.id != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ShoppingListScreen(
+                dietaId: dieta.id!,
+                dietaNombre: dieta.nombre,
+                clienteId: widget.clienteId,
+              ),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: theme.primaryColor.withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.shopping_cart_checkout_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 20),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Lista de la Compra',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Generar desde este plan',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );

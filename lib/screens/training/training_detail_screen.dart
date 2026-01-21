@@ -22,6 +22,7 @@ class TrainingDetailScreen extends StatefulWidget {
 class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   Entrenamiento? _ent;
   bool _isLoading = true;
+  int _selectedWeekIdx = 0;
 
   @override
   void initState() {
@@ -179,6 +180,14 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
     final theme = Theme.of(context);
 
+    // Safety check
+    if (_selectedWeekIdx >= _ent!.semanas.length) _selectedWeekIdx = 0;
+    if (_ent!.semanas.isEmpty) {
+      return const Scaffold(body: Center(child: Text('Plan vacío')));
+    }
+
+    final currentSemana = _ent!.semanas[_selectedWeekIdx];
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -223,7 +232,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               _TrainingStatsCards(ent: _ent!),
               const SizedBox(height: 32),
 
-              // 3. Content
+              // 3. Content Label
               Text(
                 'ESTRUCTURA DE ENTRENAMIENTO',
                 style: TextStyle(
@@ -234,8 +243,63 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              ..._ent!.semanas.map((sem) => _WeekSection(sem: sem)),
-              const SizedBox(height: 40),
+
+              // 4. Week Selector
+              SizedBox(
+                height: 50,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _ent!.semanas.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (ctx, idx) {
+                    final sem = _ent!.semanas[idx];
+                    final isSelected = idx == _selectedWeekIdx;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedWeekIdx = idx),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? theme.primaryColor
+                              : theme.cardColor,
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.transparent
+                                : theme.dividerColor.withOpacity(0.1),
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: theme.primaryColor.withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Text(
+                          'Semana ${sem.numero}',
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : theme.textTheme.bodyMedium?.color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 5. Days
+              ...currentSemana.dias.map((dia) => _DaySection(dia: dia)),
+              const SizedBox(height: 60), // Extra space for FAB or nav
             ],
           ),
         ),
@@ -503,45 +567,6 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-class _WeekSection extends StatelessWidget {
-  final SemanaEntrenamiento sem;
-  const _WeekSection({required this.sem});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: theme.primaryColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Semana ${sem.numero}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
-        ...sem.dias.map((dia) => _DaySection(dia: dia)),
-      ],
-    );
-  }
-}
-
 class _DaySection extends StatefulWidget {
   final DiaEntrenamiento dia;
   const _DaySection({required this.dia});
@@ -551,6 +576,7 @@ class _DaySection extends StatefulWidget {
 }
 
 class _DaySectionState extends State<_DaySection> {
+  // Always expanded by default in detail view, simpler
   bool _isExpanded = true;
 
   @override

@@ -36,6 +36,9 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   List<SemanaEntrenamiento> _semanas = [];
   String? _loadedClienteId;
 
+  // UI State
+  int _selectedWeekIdx = 0;
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +59,7 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
         _allEjercicios = ejercicios;
       }
     } catch (e) {
-      // Silent fail on init, showing later? Or SnackBar
+      // Silent fail on init
     }
 
     // 2. Load Training if Editing
@@ -96,6 +99,8 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
           dias: [DiaEntrenamiento(nombre: 'Día 1', items: [])],
         ),
       );
+      // Switch to new week
+      _selectedWeekIdx = _semanas.length - 1;
     });
   }
 
@@ -111,6 +116,7 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
       _semanas.add(
         SemanaEntrenamiento(numero: _semanas.length + 1, dias: newDias),
       );
+      _selectedWeekIdx = _semanas.length - 1;
     });
     ScaffoldMessenger.of(
       context,
@@ -138,21 +144,8 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
   }
 
   ItemEntrenamiento _cloneItem(ItemEntrenamiento item) {
-    final s = item.esquema ?? EsquemaSerie();
-    return ItemEntrenamiento(
-      orden: item.orden,
-      ejercicio: item.ejercicio,
-      ejercicioId: item.ejercicioId,
-      ejercicioNombre: item.ejercicioNombre,
-      grupoId: item.grupoId,
-      esquema: EsquemaSerie(
-        series: s.series,
-        repsMin: s.repsMin,
-        repsMax: s.repsMax,
-        rir: s.rir,
-        descanso: s.descanso,
-        notas: s.notas,
-      ),
+    return item.copyWith(
+      uniqueKey: DateTime.now().microsecondsSinceEpoch.toString() + '_copy',
     );
   }
 
@@ -188,15 +181,14 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
 
     try {
       final ent = Entrenamiento(
-        id: widget.entrenamientoId, // Include ID if editing
-        clienteId: _loadedClienteId!, // Use loaded or passed ID
+        id: widget.entrenamientoId,
+        clienteId: _loadedClienteId!,
         asesorId: asesorId,
         titulo: _tituloController.text.trim(),
         objetivo: _objetivoController.text.trim(),
         semanas: _semanas,
       );
 
-      // Add ToJson payload
       final payload = ent.toJson();
 
       final res = widget.entrenamientoId != null
@@ -238,16 +230,21 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text(
-            'Cargando...',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
+          title: const Text('Cargando...'),
           backgroundColor: theme.scaffoldBackgroundColor,
-          elevation: 0,
         ),
-        body: _buildSkeletonUI(theme),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
+
+    if (_selectedWeekIdx >= _semanas.length) {
+      _selectedWeekIdx = 0;
+    }
+    if (_semanas.isEmpty) {
+      return const Scaffold(body: Center(child: Text("Sin semanas")));
+    }
+
+    final currentSemana = _semanas[_selectedWeekIdx];
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -258,104 +255,69 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
               : 'Crear Entrenamiento',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
         backgroundColor: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: theme.textTheme.titleLarge?.color,
+        leading: BackButton(color: theme.textTheme.bodyLarge?.color),
         actions: [
-          TextButton.icon(
-            onPressed: _isSaving ? null : _handleSave,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save),
-            label: const Text('Guardar'),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: TextButton.icon(
+              onPressed: _isSaving ? null : _handleSave,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_rounded),
+              label: const Text('Guardar'),
+              style: TextButton.styleFrom(
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                foregroundColor: theme.primaryColor,
+              ),
+            ),
           ),
         ],
       ),
       body: Form(
         key: _formKey,
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    // Header Card
-                    Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _tituloController,
-                              decoration: const InputDecoration(
-                                labelText: 'Título del Plan',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.title),
-                              ),
-                              validator: (v) =>
-                                  v == null || v.isEmpty ? 'Requerido' : null,
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _objetivoController,
-                              decoration: const InputDecoration(
-                                labelText: 'Objetivo Principal',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.flag),
-                              ),
-                              maxLines: 2,
-                            ),
-                          ],
+        child: Column(
+          children: [
+            _buildMetaHeader(theme),
+            _buildWeekSelector(theme),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                children: [
+                  ...currentSemana.dias.asMap().entries.map((entry) {
+                    return _buildDiaCard(
+                      _selectedWeekIdx,
+                      entry.key,
+                      entry.value,
+                    );
+                  }),
+
+                  const SizedBox(height: 16),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _addDia(_selectedWeekIdx),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Añadir Día'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  return _buildSemanaCard(index, _semanas[index]);
-                }, childCount: _semanas.length),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    Center(
-                      child: OutlinedButton.icon(
-                        onPressed: _addSemana,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Añadir Semana'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 48),
+                ],
               ),
             ),
           ],
@@ -364,93 +326,205 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     );
   }
 
-  Widget _buildSkeletonUI(ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Container(
-          height: 150,
-          decoration: BoxDecoration(
-            color: theme.cardColor.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        const SizedBox(height: 24),
-        ...List.generate(3, (index) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 24),
-            height: 200,
-            decoration: BoxDecoration(
-              color: theme.cardColor.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(12),
+  Widget _buildMetaHeader(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: theme.scaffoldBackgroundColor,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _tituloController,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            decoration: InputDecoration(
+              hintText: 'Título del Plan (ej. Hipertrofia Fase 1)',
+              hintStyle: TextStyle(color: theme.disabledColor),
+              isDense: true,
+              border: InputBorder.none,
             ),
-          );
-        }),
-      ],
+            validator: (v) => v!.isEmpty ? 'Requerido' : null,
+          ),
+          const Divider(height: 1),
+          TextFormField(
+            controller: _objetivoController,
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Objetivo y notas generales...',
+              hintStyle: TextStyle(color: theme.disabledColor, fontSize: 13),
+              isDense: true,
+              border: InputBorder.none,
+            ),
+            maxLines: 1,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 
-  Widget _buildSemanaCard(int weekIdx, SemanaEntrenamiento semana) {
+  Widget _buildWeekSelector(ThemeData theme) {
+    return Container(
+      height: 60,
+      width: double.infinity,
+      color: theme.scaffoldBackgroundColor,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        scrollDirection: Axis.horizontal,
+        itemCount: _semanas.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (ctx, idx) {
+          if (idx == _semanas.length) {
+            return IconButton.filledTonal(
+              onPressed: _addSemana,
+              icon: const Icon(Icons.add),
+              tooltip: 'Añadir Semana',
+            );
+          }
+          final sem = _semanas[idx];
+          final isSelected = idx == _selectedWeekIdx;
+          return _buildCapsuleTab(
+            theme,
+            label: 'Semana ${sem.numero}',
+            isSelected: isSelected,
+            onTap: () => setState(() => _selectedWeekIdx = idx),
+            onLongPress: () => _copySemana(idx),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCapsuleTab(
+    ThemeData theme, {
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    VoidCallback? onLongPress,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? theme.primaryColor : theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? Colors.transparent
+                : theme.dividerColor.withOpacity(0.1),
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: theme.primaryColor.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiaCard(int weekIdx, int dayIdx, DiaEntrenamiento dia) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Week Header
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: theme.primaryColor.withOpacity(0.05),
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+                top: Radius.circular(16),
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Semana ${semana.numero}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: theme.primaryColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: dia.nombre,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: theme.primaryColor,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: 'Nombre del día',
+                    ),
+                    onChanged: (v) {
+                      setState(() {
+                        dia.nombre = v;
+                      });
+                    },
                   ),
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.copy,
-                        size: 20,
-                        color: Colors.blue,
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, size: 20, color: theme.hintColor),
+                  onSelected: (val) {
+                    if (val == 'dup') _copyDia(weekIdx, dayIdx);
+                    if (val == 'del') {
+                      setState(() {
+                        _semanas[weekIdx].dias.removeAt(dayIdx);
+                      });
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'dup',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy, size: 16),
+                          SizedBox(width: 8),
+                          Text('Duplicar'),
+                        ],
                       ),
-                      onPressed: () => _copySemana(weekIdx),
-                      tooltip: 'Duplicar Semana',
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete,
-                        size: 20,
-                        color: Colors.red,
+                    const PopupMenuItem(
+                      value: 'del',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red, size: 16),
+                          SizedBox(width: 8),
+                          Text('Eliminar', style: TextStyle(color: Colors.red)),
+                        ],
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _semanas.removeAt(weekIdx);
-                        });
-                      },
-                      tooltip: 'Eliminar Semana',
                     ),
                   ],
                 ),
@@ -458,119 +532,21 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
             ),
           ),
 
-          // Days
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                ...semana.dias.asMap().entries.map(
-                  (dEntry) => _buildDiaCard(weekIdx, dEntry.key, dEntry.value),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () => _addDia(weekIdx),
-                  icon: const Icon(Icons.add_circle, size: 16),
-                  label: const Text('Añadir Día'),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    backgroundColor: theme.primaryColor.withOpacity(0.1),
-                    foregroundColor: theme.primaryColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDiaCard(int weekIdx, int dayIdx, DiaEntrenamiento dia) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Day Title Row
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: theme.hintColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    initialValue: dia.nombre,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: theme.textTheme.titleSmall?.color,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: 'Nombre del día (ej. Pecho/Tríceps)',
-                      hintStyle: TextStyle(color: theme.hintColor),
-                    ),
-                    onChanged: (v) {
-                      setState(() {
-                        // In-place update of mutable object
-                        // Actually need to replace object in list to trigger update if immutable
-                        // Assuming mutable list in Semana but Dia fields might be final?
-                        // Re-constructing Dia to be safe:
-                        final items = dia.items;
-                        _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-                          nombre: v,
-                          items: items,
-                        );
-                      });
-                    },
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.copy,
-                    size: 18,
-                    color: Colors.blueGrey,
-                  ),
-                  onPressed: () => _copyDia(weekIdx, dayIdx),
-                  tooltip: 'Duplicar Día',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      _semanas[weekIdx].dias.removeAt(dayIdx);
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // Reorderable List of Exercises
-          // Using ReorderableListView inside a column needs physics limit and shrinkwrap
           if (dia.items.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Sin ejercicios',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: theme.hintColor),
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'Añade ejercicios a este día',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             )
           else
             ReorderableListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
               proxyDecorator: (child, _, __) => Material(
                 elevation: 4,
                 color: Colors.transparent,
@@ -582,46 +558,49 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                   if (newIndex > oldIndex) newIndex -= 1;
                   final item = dia.items.removeAt(oldIndex);
                   dia.items.insert(newIndex, item);
-                  // Update orden property
                   for (var i = 0; i < dia.items.length; i++) {
-                    // Again, need to reconstruct ItemEntrenamiento if fields are final
-                    final it = dia.items[i];
-                    dia.items[i] = ItemEntrenamiento(
-                      orden: i,
-                      ejercicio: it.ejercicio,
-                      ejercicioId: it.ejercicioId,
-                      ejercicioNombre: it.ejercicioNombre,
-                      grupoId: it.grupoId,
-                      esquema: it.esquema,
-                    );
+                    dia.items[i] = dia.items[i].copyWith(orden: i);
                   }
-                  // Re-assign dia to refresh state deeply check
-                  _semanas[weekIdx].dias[dayIdx] = DiaEntrenamiento(
-                    nombre: dia.nombre,
-                    items: dia.items,
-                  );
                 });
               },
               itemBuilder: (context, itemIdx) {
                 final item = dia.items[itemIdx];
-                return Container(
-                  key: ValueKey('${item.ejercicioId}_$itemIdx'),
-                  child: _buildExerciseRow(weekIdx, dayIdx, itemIdx, item),
-                );
+                return _buildExerciseRow(weekIdx, dayIdx, itemIdx, item);
               },
             ),
 
-          // Add Exercise Button
-          Container(
-            padding: const EdgeInsets.all(8),
-            color: isDark
-                ? Colors.white.withOpacity(0.02)
-                : Colors.grey.shade50,
-            child: TextButton.icon(
-              onPressed: () => _showExercisePicker(context, weekIdx, dayIdx),
-              icon: const Icon(Icons.add),
-              label: const Text('Añadir Ejercicio'),
-              style: TextButton.styleFrom(foregroundColor: theme.primaryColor),
+          InkWell(
+            onTap: () => _showExercisePicker(context, weekIdx, dayIdx),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: theme.dividerColor.withOpacity(0.05)),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_circle_outline,
+                    size: 18,
+                    color: theme.primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Añadir Ejercicio',
+                    style: TextStyle(
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -636,36 +615,60 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     ItemEntrenamiento item,
   ) {
     final theme = Theme.of(context);
+    final key = ValueKey(item.uniqueKey);
 
     return Container(
+      key: key,
+      margin: const EdgeInsets.only(bottom: 1),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       color: theme.cardColor,
       child: Column(
         children: [
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: Icon(Icons.drag_indicator, color: theme.hintColor),
-            title: Text(
-              item.ejercicioNombre ?? 'Ejercicio',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: theme.textTheme.bodyLarge?.color,
+          Row(
+            children: [
+              ReorderableDragStartListener(
+                index: iIdx,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    color: theme.disabledColor,
+                    size: 20,
+                  ),
+                ),
               ),
-            ),
-            subtitle: Text(
-              item.ejercicio?.grupo ?? 'General',
-              style: TextStyle(color: theme.hintColor),
-            ),
-            trailing: IconButton(
-              icon: Icon(Icons.close, size: 18, color: theme.hintColor),
-              onPressed: () {
-                setState(() {
-                  _semanas[wIdx].dias[dIdx].items.removeAt(iIdx);
-                });
-              },
-            ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.ejercicioNombre ?? 'Ejercicio',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (item.ejercicio?.grupo != null)
+                      Text(
+                        item.ejercicio!.grupo!,
+                        style: TextStyle(color: theme.hintColor, fontSize: 10),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close, size: 18, color: theme.disabledColor),
+                onPressed: () {
+                  setState(() {
+                    _semanas[wIdx].dias[dIdx].items.removeAt(iIdx);
+                  });
+                },
+              ),
+            ],
           ),
+
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.only(left: 36, right: 12, bottom: 8),
             child: Row(
               children: [
                 _OptimizedMiniInput(
@@ -673,27 +676,33 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                   val: item.esquema?.series,
                   onChange: (v) => _updateSchema(wIdx, dIdx, iIdx, 'series', v),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _OptimizedMiniInput(
                   label: 'Reps',
                   val: item.esquema?.repsMin,
                   onChange: (v) =>
                       _updateSchema(wIdx, dIdx, iIdx, 'repsMin', v),
                 ),
-                const Text(' - ', style: TextStyle(color: Colors.grey)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    '-',
+                    style: TextStyle(color: theme.disabledColor),
+                  ),
+                ),
                 _OptimizedMiniInput(
                   label: 'Max',
                   val: item.esquema?.repsMax,
                   onChange: (v) =>
                       _updateSchema(wIdx, dIdx, iIdx, 'repsMax', v),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _OptimizedMiniInput(
                   label: 'RIR',
                   val: item.esquema?.rir,
                   onChange: (v) => _updateSchema(wIdx, dIdx, iIdx, 'rir', v),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _OptimizedMiniInput(
                   label: 'Desc (s)',
                   val: item.esquema?.descanso,
@@ -704,23 +713,21 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
               ],
             ),
           ),
-          const Divider(height: 1),
         ],
       ),
     );
   }
 
   Timer? _debounceTimer;
-
   void _updateSchema(int wIdx, int dIdx, int iIdx, String field, String val) {
-    // 1. Update the data immediately without setState for maximum speed
-    final item = _semanas[wIdx].dias[dIdx].items[iIdx];
+    final dia = _semanas[wIdx].dias[dIdx];
+    final item = dia.items[iIdx];
     final currentE = item.esquema ?? EsquemaSerie();
 
     EsquemaSerie nextE;
     switch (field) {
       case 'series':
-        nextE = currentE.copyWith(series: int.tryParse(val) ?? currentE.series);
+        nextE = currentE.copyWith(series: int.tryParse(val));
         break;
       case 'repsMin':
         nextE = currentE.copyWith(repsMin: int.tryParse(val));
@@ -738,25 +745,14 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
         nextE = currentE;
     }
 
-    // Direct object update
-    _semanas[wIdx].dias[dIdx].items[iIdx] = ItemEntrenamiento(
-      orden: item.orden,
-      ejercicio: item.ejercicio,
-      ejercicioId: item.ejercicioId,
-      ejercicioNombre: item.ejercicioNombre,
-      grupoId: item.grupoId,
-      esquema: nextE,
-      urlVideo: item.urlVideo,
-    );
+    dia.items[iIdx] = item.copyWith(esquema: nextE);
 
-    // 2. Debounce the setState to UI only when user stops typing
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 1000), () {
       if (mounted) setState(() {});
     });
   }
 
-  // Logic to show dialog
   void _showExercisePicker(BuildContext mainCtx, int wIdx, int dIdx) {
     showDialog(
       context: mainCtx,
@@ -778,6 +774,10 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                   rir: 2,
                   descanso: 90,
                 ),
+                uniqueKey:
+                    DateTime.now().microsecondsSinceEpoch.toString() +
+                    '_' +
+                    (ej.id ?? 'none'),
               ),
             );
           });
@@ -806,26 +806,27 @@ class _OptimizedMiniInput extends StatefulWidget {
 }
 
 class _OptimizedMiniInputState extends State<_OptimizedMiniInput> {
-  late TextEditingController _controller;
+  late TextEditingController _ctrl;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.val?.toString() ?? '');
+    _ctrl = TextEditingController(text: widget.val?.toString() ?? '');
   }
 
   @override
-  void didUpdateWidget(_OptimizedMiniInput oldWidget) {
+  void didUpdateWidget(covariant _OptimizedMiniInput oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.val?.toString() != oldWidget.val?.toString() &&
-        widget.val?.toString() != _controller.text) {
-      _controller.text = widget.val?.toString() ?? '';
+    if (widget.val != oldWidget.val) {
+      if (_ctrl.text != widget.val?.toString()) {
+        _ctrl.text = widget.val?.toString() ?? '';
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -834,43 +835,31 @@ class _OptimizedMiniInputState extends State<_OptimizedMiniInput> {
     final theme = Theme.of(context);
     return Expanded(
       flex: widget.flex,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.label,
-            style: TextStyle(fontSize: 10, color: theme.hintColor),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: TextField(
+          controller: _ctrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            hintText: widget.label,
+            hintStyle: TextStyle(fontSize: 10, color: theme.disabledColor),
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
           ),
-          SizedBox(
-            height: 32,
-            child: TextField(
-              controller: _controller,
-              keyboardType: TextInputType.number,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.textTheme.bodyMedium?.color,
-              ),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-              ),
-              onChanged: widget.onChange,
-            ),
-          ),
-        ],
+          onChanged: widget.onChange,
+        ),
       ),
     );
   }
 }
 
-// Helper Dialog
 class _ExerciseSearchDialog extends StatefulWidget {
   final List<Ejercicio> ejercicios;
   final Function(Ejercicio) onSelected;
@@ -885,99 +874,72 @@ class _ExerciseSearchDialog extends StatefulWidget {
 }
 
 class _ExerciseSearchDialogState extends State<_ExerciseSearchDialog> {
-  String _query = '';
-  String? _filterGroup;
+  List<Ejercicio> _filtered = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = widget.ejercicios;
+  }
+
+  void _filter(String q) {
+    setState(() {
+      if (q.isEmpty) {
+        _filtered = widget.ejercicios;
+      } else {
+        _filtered = widget.ejercicios
+            .where((e) => e.nombre.toLowerCase().contains(q.toLowerCase()))
+            .toList();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Unique groups
-    final groups = widget.ejercicios
-        .map((e) => e.grupo)
-        .where((g) => g != null)
-        .toSet()
-        .toList();
-
-    final filtered = widget.ejercicios.where((e) {
-      final matchesSearch = e.nombre.toLowerCase().contains(
-        _query.toLowerCase(),
-      );
-      final matchesGroup = _filterGroup == null || e.grupo == _filterGroup;
-      return matchesSearch && matchesGroup;
-    }).toList();
-
-    return AlertDialog(
-      title: const Text('Seleccionar Ejercicio'),
-      content: SizedBox(
-        width: 400,
+    final theme = Theme.of(context);
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
         height: 500,
         child: Column(
           children: [
+            Text('Seleccionar Ejercicio', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
             TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Buscar...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                filled: true,
+                fillColor: theme.scaffoldBackgroundColor,
               ),
-              onChanged: (v) => setState(() => _query = v),
+              onChanged: _filter,
             ),
-            const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ChoiceChip(
-                    label: const Text('Todos'),
-                    selected: _filterGroup == null,
-                    onSelected: (b) => setState(() => _filterGroup = null),
-                  ),
-                  const SizedBox(width: 8),
-                  ...groups.map(
-                    (g) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(g!),
-                        selected: _filterGroup == g,
-                        onSelected: (b) =>
-                            setState(() => _filterGroup = b ? g : null),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
+            const SizedBox(height: 12),
             Expanded(
-              child: filtered.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No se encontraron ejercicios',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final e = filtered[index];
-                        return ListTile(
-                          title: Text(e.nombre),
-                          subtitle: Text(
-                            '${e.grupo ?? '-'} | ${e.equipo ?? '-'}',
-                          ),
-                          onTap: () => widget.onSelected(e),
-                        );
-                      },
-                    ),
+              child: ListView.separated(
+                itemCount: _filtered.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (ctx, i) {
+                  final e = _filtered[i];
+                  return ListTile(
+                    title: Text(e.nombre),
+                    subtitle: Text(e.grupo ?? ''),
+                    onTap: () => widget.onSelected(e),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-      ],
     );
   }
 }

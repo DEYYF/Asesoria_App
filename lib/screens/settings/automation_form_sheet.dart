@@ -43,6 +43,10 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
   String selectedActionType = 'SEND_CHAT';
   String? selectedTemplateId;
 
+  // Shopping List config
+  String _shoppingListPeriod = 'semanal';
+  String _shoppingListChannel = 'CHAT';
+
   // Helper lists
   final List<String> dayNames = [
     'Dom',
@@ -107,6 +111,13 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       selectedTemplateId = (existingAction?['templateId'] is Map)
           ? existingAction['templateId']['_id']?.toString()
           : existingAction?['templateId']?.toString();
+
+      if (selectedActionType == 'SEND_SHOPPING_LIST') {
+        _shoppingListPeriod =
+            existingAction?['metadata']?['periodo'] ?? 'semanal';
+        _shoppingListChannel =
+            existingAction?['metadata']?['channel'] ?? 'CHAT';
+      }
     }
   }
 
@@ -566,6 +577,16 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
                           selectedTemplateId = null;
                         }),
                       ),
+                      ActionChoiceChip(
+                        label: 'Lista Compra',
+                        icon: Icons.shopping_basket_rounded,
+                        selected: selectedActionType == 'SEND_SHOPPING_LIST',
+                        customColor: Colors.amber,
+                        onSelected: (val) => setState(() {
+                          selectedActionType = 'SEND_SHOPPING_LIST';
+                          selectedTemplateId = null;
+                        }),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -842,6 +863,113 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
                     ),
                   ],
 
+                  // SEND_SHOPPING_LIST configuration
+                  if (selectedActionType == 'SEND_SHOPPING_LIST') ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.amber.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 16,
+                                color: Colors.amber[800],
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Esta acción enviará la lista basada en la dieta actual.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.amber[900],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'FRECUENCIA:',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildOptionChip(
+                                label: 'SEMANAL',
+                                icon: Icons.calendar_view_week_rounded,
+                                selected: _shoppingListPeriod == 'semanal',
+                                color: Colors.amber,
+                                onSelected: (val) => setState(
+                                  () => _shoppingListPeriod = 'semanal',
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildOptionChip(
+                                label: 'MENSUAL',
+                                icon: Icons.calendar_month_rounded,
+                                selected: _shoppingListPeriod == 'mensual',
+                                color: Colors.amber,
+                                onSelected: (val) => setState(
+                                  () => _shoppingListPeriod = 'mensual',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'ENVIAR POR:',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildOptionChip(
+                                label: 'CHAT',
+                                icon: Icons.chat_bubble_rounded,
+                                selected: _shoppingListChannel == 'CHAT',
+                                color: Colors.blue,
+                                onSelected: (val) => setState(
+                                  () => _shoppingListChannel = 'CHAT',
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildOptionChip(
+                                label: 'EMAIL',
+                                icon: Icons.alternate_email_rounded,
+                                selected: _shoppingListChannel == 'EMAIL',
+                                color: Colors.green,
+                                onSelected: (val) => setState(
+                                  () => _shoppingListChannel = 'EMAIL',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 20),
                   TextField(
                     controller: delayController,
@@ -918,6 +1046,8 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       'delay': int.tryParse(delayController.text) ?? 0,
       'metadata': selectedActionType == 'CREATE_TASK'
           ? {'dueDate': taskDueDateController.text}
+          : selectedActionType == 'SEND_SHOPPING_LIST'
+          ? {'periodo': _shoppingListPeriod, 'channel': _shoppingListChannel}
           : {},
     };
 
@@ -1478,6 +1608,45 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       default:
         return trigger.replaceAll('_', ' ').toLowerCase();
     }
+  }
+
+  Widget _buildOptionChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required Color color,
+    required ValueChanged<bool> onSelected,
+  }) {
+    return Expanded(
+      child: FilterChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: selected ? Colors.white : color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: selected ? Colors.white : color,
+              ),
+            ),
+          ],
+        ),
+        selected: selected,
+        onSelected: onSelected,
+        selectedColor: color,
+        checkmarkColor: Colors.white,
+        showCheckmark: false,
+        backgroundColor: color.withOpacity(0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: selected ? color : color.withOpacity(0.3)),
+        ),
+      ),
+    );
   }
 }
 

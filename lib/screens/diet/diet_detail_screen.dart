@@ -329,13 +329,16 @@ class _HeaderCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: theme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: theme.primaryColor.withOpacity(0.2),
+                    ),
                   ),
                   child: Text(
                     dieta.objetivo!.toUpperCase(),
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.bold,
                       color: theme.primaryColor,
                     ),
                   ),
@@ -409,111 +412,54 @@ class _InfoAndMacros extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final macs = dieta.macros;
 
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: theme.primaryColor.withOpacity(0.25),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _macroItem('Kcal', macs.kcal.round(), theme),
+          _macroItem('Prot', '${macs.proteinas.round()}g', theme),
+          _macroItem('Carb', '${macs.carbohidratos.round()}g', theme),
+          _macroItem('Gras', '${macs.grasas.round()}g', theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _macroItem(String label, dynamic val, ThemeData theme) {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _MacroCard(
-                label: 'Proteína',
-                val: dieta.macros.proteinas,
-                icon: Icons.egg_alt_rounded,
-                color: Colors.blue,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MacroCard(
-                label: 'Carbos',
-                val: dieta.macros.carbohidratos,
-                icon: Icons.breakfast_dining_rounded,
-                color: Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MacroCard(
-                label: 'Grasas',
-                val: dieta.macros.grasas,
-                icon: Icons.water_drop_rounded,
-                color: Colors.purple,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+        Text(
+          val.toString(),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orangeAccent.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.local_fire_department_rounded,
-                      color: Colors.orangeAccent,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Calorías Totales',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: theme.hintColor.withOpacity(0.6),
-                        ),
-                      ),
-                      Text(
-                        '${dieta.macros.kcal.round()} kcal',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: theme.textTheme.titleMedium?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: (dieta.estado == 'activa' ? Colors.green : Colors.grey)
-                      .withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  dieta.estado.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: dieta.estado == 'activa'
-                        ? Colors.green
-                        : Colors.grey,
-                  ),
-                ),
-              ),
-            ],
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -567,35 +513,45 @@ class _MealItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final k = comida.totales.kcal > 0 ? comida.totales.kcal : 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
+            color: theme.primaryColor.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                comida.titulo,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.restaurant_rounded,
+                    size: 16,
+                    color: theme.primaryColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    comida.titulo,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                ],
               ),
               if (k > 0)
                 Text(
                   '${k.round()} kcal',
                   style: TextStyle(
                     fontSize: 13,
-                    color: theme.hintColor,
-                    fontWeight: FontWeight.w600,
+                    color: theme.hintColor.withOpacity(0.8),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
             ],
@@ -796,54 +752,6 @@ class _ActionButton extends StatelessWidget {
         minimumSize: const Size(0, 36),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _MacroCard extends StatelessWidget {
-  final String label;
-  final double val;
-  final IconData icon;
-  final Color color;
-
-  const _MacroCard({
-    required this.label,
-    required this.val,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: theme.hintColor,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${val.round()}g',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
       ),
     );
   }

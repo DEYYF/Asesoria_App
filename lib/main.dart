@@ -1,5 +1,7 @@
 import 'package:asesoria_app/screens/first_login_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -341,6 +343,12 @@ class _MyAppState extends State<MyApp> {
       darkTheme: AppTheme.getTheme(themeProvider.accentColor, isDark: true),
       themeMode: themeProvider.themeMode,
       routerConfig: _router,
+      localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('es', 'ES'), Locale('en', 'US')],
     );
   }
 }

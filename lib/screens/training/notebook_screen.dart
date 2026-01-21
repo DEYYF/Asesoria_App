@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
-import '../../widgets/video_player_dialog.dart';
 
 class NotebookScreen extends StatefulWidget {
   final String entrenamientoId;
@@ -198,244 +197,171 @@ class _NotebookScreenState extends State<NotebookScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Registrar Sesión',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      Colors.black.withOpacity(0.9),
-                      Colors.black.withOpacity(0.6),
-                    ]
-                  : [theme.primaryColor, theme.primaryColor.withOpacity(0.8)],
+        backgroundColor: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+      ),
+      body: Column(
+        children: [
+          // Selector Area
+          Container(
+            color: theme.scaffoldBackgroundColor,
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              children: [
+                // Week Selector
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: semanas.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (ctx, idx) {
+                      final sem = semanas[idx];
+                      final isSelected = idx == _selectedWeekIdx;
+                      return _buildCapsuleTab(
+                        context,
+                        label: 'Semana ${sem.numero}',
+                        isSelected: isSelected,
+                        onTap: () => _handleWeekChange(idx),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Day Selector
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: dias.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (ctx, idx) {
+                      final dia = dias[idx];
+                      final isSelected = idx == _selectedDayIdx;
+                      return _buildCapsuleTab(
+                        context,
+                        label: dia.nombre,
+                        isSelected: isSelected,
+                        onTap: () => _handleDayChange(idx),
+                        isSecondary: true,
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        leading: BackButton(color: Colors.white),
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(color: theme.scaffoldBackgroundColor),
-        child: Column(
-          children: [
-            // Header with Gradient and Week Selector
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 110, 16, 20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                          Colors.black.withOpacity(0.9),
-                          Colors.black.withOpacity(0.6),
-                        ]
-                      : [
-                          theme.primaryColor,
-                          theme.primaryColor.withOpacity(0.8),
-                        ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(30),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Week Selector
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: semanas.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final sem = entry.value;
-                        final isSelected = idx == _selectedWeekIdx;
-                        return GestureDetector(
-                          onTap: () => _handleWeekChange(idx),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 12),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.white
-                                  : Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'Semana ${sem.numero}',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? theme.primaryColor
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Horizontal Day Selector
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: dias.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final dia = entry.value;
-                        final isSelected = idx == _selectedDayIdx;
-                        return GestureDetector(
-                          onTap: () => _handleDayChange(idx),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.only(right: 12),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? (isDark
-                                        ? theme.colorScheme.secondary
-                                        : Colors.white)
-                                  : (isDark
-                                        ? Colors.grey.shade900
-                                        : Colors.white.withOpacity(0.2)),
-                              borderRadius: BorderRadius.circular(16),
-                              border: !isSelected
-                                  ? Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                    )
-                                  : null,
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ]
-                                  : [],
-                            ),
-                            child: Text(
-                              dia.nombre,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? (isDark
-                                          ? Colors.white
-                                          : theme.primaryColor)
-                                    : Colors.white.withOpacity(0.9),
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
-                itemCount: currentDia.items.length + 1,
-                separatorBuilder: (_, __) => const SizedBox(height: 20),
-                itemBuilder: (context, index) {
-                  // Comment Card
-                  if (index == currentDia.items.length) {
-                    return _buildCommentCard(theme, isDark);
-                  }
-
-                  // Exercise Card
-                  final item = currentDia.items[index];
-                  final seriesData = _formData[index] ?? [];
-                  return _buildExerciseCard(
-                    theme,
-                    isDark,
-                    item,
-                    seriesData,
-                    index,
-                  );
-                },
-              ),
+          // Content List
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+              itemCount: currentDia.items.length + 1,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                // Comment Card
+                if (index == currentDia.items.length) {
+                  return _buildCommentCard(theme, isDark);
+                }
+                // Exercise Card
+                final item = currentDia.items[index];
+                final seriesData = _formData[index] ?? [];
+                return _buildExerciseCard(
+                  theme,
+                  isDark,
+                  item,
+                  seriesData,
+                  index,
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.cardColor,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              offset: const Offset(0, -4),
-              blurRadius: 16,
-            ),
-          ],
+          color: theme.scaffoldBackgroundColor,
+          border: Border(
+            top: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+          ),
         ),
         child: SafeArea(
-          // Ensure button is not behind home indicator
-          child: SizedBox(
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _handleSave,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                elevation: 4,
-                shadowColor: theme.primaryColor.withOpacity(0.4),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+          child: ElevatedButton(
+            onPressed: _isSaving ? null : _handleSave,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      'Finalizar y Guardar Sesión',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+              elevation: 0,
             ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'Finalizar y Guardar Sesión',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCapsuleTab(
+    BuildContext context, {
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool isSecondary = false,
+  }) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isSecondary ? primaryColor.withOpacity(0.1) : primaryColor)
+              : theme.cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? (isSecondary ? primaryColor : Colors.transparent)
+                : theme.dividerColor.withOpacity(0.1),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? (isSecondary ? primaryColor : Colors.white)
+                : theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: 13,
           ),
         ),
       ),
@@ -448,27 +374,21 @@ class _NotebookScreenState extends State<NotebookScreen> {
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.notes_rounded, color: theme.primaryColor, size: 24),
-              const SizedBox(width: 12),
+              Icon(Icons.notes_rounded, color: theme.primaryColor, size: 20),
+              const SizedBox(width: 8),
               Text(
                 'Notas Finales',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: theme.textTheme.titleLarge?.color,
+                  fontSize: 16,
+                  color: theme.textTheme.titleMedium?.color,
                 ),
               ),
             ],
@@ -480,12 +400,11 @@ class _NotebookScreenState extends State<NotebookScreen> {
               filled: true,
               fillColor: theme.scaffoldBackgroundColor,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.all(16),
             ),
-            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
             maxLines: 3,
             onChanged: (v) => _comentarios = v,
           ),
@@ -504,35 +423,37 @@ class _NotebookScreenState extends State<NotebookScreen> {
     return Container(
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: theme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.fitness_center_rounded,
                     color: theme.primaryColor,
-                    size: 22,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,10 +463,9 @@ class _NotebookScreenState extends State<NotebookScreen> {
                             item.ejercicio?.nombre ??
                             'Ejercicio',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: theme.textTheme.titleLarge?.color,
-                          letterSpacing: -0.3,
+                          color: theme.textTheme.titleMedium?.color,
                         ),
                       ),
                       if (item.ejercicio?.grupo != null)
@@ -555,7 +475,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
                             color: theme.hintColor,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
+                            letterSpacing: 0.5,
                           ),
                         ),
                     ],
@@ -564,18 +484,18 @@ class _NotebookScreenState extends State<NotebookScreen> {
               ],
             ),
           ),
-          Divider(height: 1, color: theme.dividerColor.withOpacity(0.5)),
+          Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
 
           // Table Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
                 SizedBox(
-                  width: 30,
+                  width: 24,
                   child: Center(child: Text('#', style: _headerStyle(theme))),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'PESO (KG)',
@@ -583,7 +503,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
                     style: _headerStyle(theme),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'REPS',
@@ -591,7 +511,7 @@ class _NotebookScreenState extends State<NotebookScreen> {
                     style: _headerStyle(theme),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'RIR',
@@ -605,49 +525,49 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
           // Series List
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: seriesData.asMap().entries.map((entry) {
                 final sIdx = entry.key;
                 final sData = entry.value;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 30,
+                        width: 24,
                         child: CircleAvatar(
-                          radius: 12,
+                          radius: 10,
                           backgroundColor: theme.scaffoldBackgroundColor,
                           child: Text(
                             '${sIdx + 1}',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: theme.hintColor,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _ModernInput(
                           value: sData['peso'],
-                          hint: 'kg',
+                          hint: '-',
                           onChanged: (v) =>
                               _updateSerie(exerciseIndex, sIdx, 'peso', v),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _ModernInput(
                           value: sData['reps'],
-                          hint: '0',
+                          hint: '-',
                           onChanged: (v) =>
                               _updateSerie(exerciseIndex, sIdx, 'reps', v),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _ModernInput(
                           value: sData['rir'],
@@ -669,8 +589,8 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
   TextStyle _headerStyle(ThemeData theme) {
     return TextStyle(
-      color: theme.hintColor,
-      fontSize: 11,
+      color: theme.hintColor.withOpacity(0.7),
+      fontSize: 10,
       fontWeight: FontWeight.w800,
       letterSpacing: 0.5,
     );
@@ -693,42 +613,32 @@ class _ModernInput extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      height: 44,
+      height: 40,
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.transparent,
-        ), // Placeholder for active border
+        borderRadius: BorderRadius.circular(10),
       ),
       child: TextFormField(
         initialValue: value,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [
-          if (hint == 'kg')
-            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-          else
-            FilteringTextInputFormatter.digitsOnly,
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
         ],
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
-          color: theme.textTheme.bodyMedium?.color,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: theme.textTheme.bodyLarge?.color,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: theme.disabledColor.withOpacity(0.3)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+          hintStyle: TextStyle(
+            color: theme.hintColor.withOpacity(0.3),
+            fontSize: 14,
           ),
-          filled: true,
-          fillColor: theme.scaffoldBackgroundColor,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 0,
-            horizontal: 8,
-          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.only(bottom: 8),
+          isDense: false,
         ),
         onChanged: onChanged,
       ),

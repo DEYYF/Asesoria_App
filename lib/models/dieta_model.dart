@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'macros_model.dart';
 
 class Dieta {
@@ -25,6 +26,32 @@ class Dieta {
     this.createdAt,
   });
 
+  Dieta copyWith({
+    String? id,
+    String? clienteId,
+    String? asesorId,
+    String? nombre,
+    String? objetivo,
+    String? estado,
+    String? notas,
+    Macros? macros,
+    List<Comida>? comidas,
+    DateTime? createdAt,
+  }) {
+    return Dieta(
+      id: id ?? this.id,
+      clienteId: clienteId ?? this.clienteId,
+      asesorId: asesorId ?? this.asesorId,
+      nombre: nombre ?? this.nombre,
+      objetivo: objetivo ?? this.objetivo,
+      estado: estado ?? this.estado,
+      notas: notas ?? this.notas,
+      macros: macros ?? this.macros,
+      comidas: comidas ?? this.comidas,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory Dieta.fromJson(Map<String, dynamic> json) {
     return Dieta(
       id: json['_id'],
@@ -47,7 +74,7 @@ class Dieta {
           : null,
     );
   }
-  // ... toJson ...
+
   Map<String, dynamic> toJson() {
     return {
       if (id != null) '_id': id,
@@ -70,6 +97,7 @@ class Comida {
   final String? notas;
   final List<OpcionDieta> opciones;
   final Macros totales;
+  final String? uniqueKey;
 
   Comida({
     required this.titulo,
@@ -77,7 +105,26 @@ class Comida {
     this.notas,
     required this.opciones,
     required this.totales,
+    this.uniqueKey,
   });
+
+  Comida copyWith({
+    String? titulo,
+    String? hora,
+    String? notas,
+    List<OpcionDieta>? opciones,
+    Macros? totales,
+    String? uniqueKey,
+  }) {
+    return Comida(
+      titulo: titulo ?? this.titulo,
+      hora: hora ?? this.hora,
+      notas: notas ?? this.notas,
+      opciones: opciones ?? this.opciones,
+      totales: totales ?? this.totales,
+      uniqueKey: uniqueKey ?? this.uniqueKey,
+    );
+  }
 
   factory Comida.fromJson(Map<String, dynamic> json) {
     return Comida(
@@ -92,9 +139,11 @@ class Comida {
       totales: json['totales'] != null
           ? Macros.fromJson(json['totales'])
           : Macros(),
+      uniqueKey:
+          '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(10000)}_${json['titulo'] ?? 'meal'}',
     );
   }
-  // ... toJson ...
+
   Map<String, dynamic> toJson() {
     return {
       'titulo': titulo,
@@ -114,7 +163,8 @@ class OpcionDieta {
   final double? gramos;
   final int? unidades;
   final List<CombinacionItem>? items;
-  final Macros? macrosTotales; // or just macros
+  final Macros? macrosTotales;
+  final String? uniqueKey;
 
   OpcionDieta({
     required this.tipo,
@@ -125,7 +175,32 @@ class OpcionDieta {
     this.unidades,
     this.items,
     this.macrosTotales,
+    this.uniqueKey,
   });
+
+  OpcionDieta copyWith({
+    String? tipo,
+    String? recetaId,
+    String? ingredienteId,
+    String? nombre,
+    double? gramos,
+    int? unidades,
+    List<CombinacionItem>? items,
+    Macros? macrosTotales,
+    String? uniqueKey,
+  }) {
+    return OpcionDieta(
+      tipo: tipo ?? this.tipo,
+      recetaId: recetaId ?? this.recetaId,
+      ingredienteId: ingredienteId ?? this.ingredienteId,
+      nombre: nombre ?? this.nombre,
+      gramos: gramos ?? this.gramos,
+      unidades: unidades ?? this.unidades,
+      items: items ?? this.items,
+      macrosTotales: macrosTotales ?? this.macrosTotales,
+      uniqueKey: uniqueKey ?? this.uniqueKey,
+    );
+  }
 
   factory OpcionDieta.fromJson(Map<String, dynamic> json) {
     String? rId;
@@ -133,10 +208,8 @@ class OpcionDieta {
 
     if (json['recetaId'] is Map) {
       rId = json['recetaId']['_id'];
-      // Always extract ingredients if present in the populated object
       if (json['recetaId']['ingredientes'] is List) {
         extractedItems = (json['recetaId']['ingredientes'] as List).map((i) {
-          // Recipe ingredient structure: { ingrediente: { _id, nombre }, gramos }
           final ingObj = i['ingrediente'] is Map ? i['ingrediente'] : {};
           final ingId =
               ingObj['_id'] ??
@@ -178,9 +251,11 @@ class OpcionDieta {
       macrosTotales: json['totales'] != null
           ? Macros.fromJson(json['totales'])
           : (json['macros'] != null ? Macros.fromJson(json['macros']) : null),
+      uniqueKey:
+          '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(10000)}_${iId ?? rId ?? 'opt'}',
     );
   }
-  // ... toJson ...
+
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {'tipo': tipo};
     if (recetaId != null) data['recetaId'] = recetaId;
@@ -204,6 +279,18 @@ class CombinacionItem {
     this.nombre,
     required this.gramos,
   });
+
+  CombinacionItem copyWith({
+    String? ingredienteId,
+    String? nombre,
+    double? gramos,
+  }) {
+    return CombinacionItem(
+      ingredienteId: ingredienteId ?? this.ingredienteId,
+      nombre: nombre ?? this.nombre,
+      gramos: gramos ?? this.gramos,
+    );
+  }
 
   factory CombinacionItem.fromJson(Map<String, dynamic> json) {
     String iId;

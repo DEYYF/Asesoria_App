@@ -139,4 +139,20 @@ class AuthService with ChangeNotifier {
     await prefs.remove('auth_user');
     notifyListeners();
   }
+
+  Future<Map<String, dynamic>> checkClientStatus(String email) async {
+    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/check-client-status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Check client status error: $e');
+      return {'error': e.toString()};
+    }
+  }
 }

@@ -82,6 +82,8 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
       'nombre': _nombreController.text.trim(),
       'link': _linkController.text.trim(),
       'ingredientes': _ingredientes.map((i) => i.toJson()).toList(),
+      'caloriasTotales': _totales.kcal,
+      'macrosTotales': _totales.toJson(),
     };
 
     try {
@@ -359,12 +361,25 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
                     isDense: true,
                   ),
                   onChanged: (val) {
-                    setState(() {
-                      _ingredientes[idx] = RecetaIngrediente(
-                        nombreLibre: val,
-                        gramos: _ingredientes[idx].gramos,
-                      );
-                    });
+                    // Only clear the ingredient ID if the user manually changes the text
+                    // and it no longer matches the selected ingredient's name.
+                    final currentIng = _ingredientes[idx];
+                    if (currentIng.ingredienteId != null &&
+                        val != currentIng.nombre) {
+                      setState(() {
+                        _ingredientes[idx] = RecetaIngrediente(
+                          nombreLibre: val,
+                          gramos: currentIng.gramos,
+                        );
+                      });
+                    } else if (currentIng.ingredienteId == null) {
+                      setState(() {
+                        _ingredientes[idx] = RecetaIngrediente(
+                          nombreLibre: val,
+                          gramos: currentIng.gramos,
+                        );
+                      });
+                    }
                   },
                 );
               },

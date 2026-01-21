@@ -571,7 +571,7 @@ class _ActionHeaderDelegate extends SliverPersistentHeaderDelegate {
   _ActionHeaderDelegate({required this.child});
 
   @override
-  double get minExtent => 115; // Increased to avoid overflow (90 was too small)
+  double get minExtent => 145; // Increased to avoid overflow
 
   @override
   double get maxExtent => minExtent;

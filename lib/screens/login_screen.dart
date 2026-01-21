@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isClientLogin = false;
   bool _localLoading = false;
   bool _obscurePass = true;
+  bool _showPassword = false; // Add for two-step client login
 
   @override
   void initState() {
@@ -29,6 +30,43 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleContinueEmail(AuthService auth) async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) return;
+
+    setState(() {
+      _localLoading = true;
+      _error = false;
+    });
+
+    try {
+      final status = await auth.checkClientStatus(email);
+      if (!mounted) return;
+
+      if (status['exists'] == true) {
+        if (status['requiresPasswordSetup'] == true) {
+          // Redirect to first login
+          context.go('/first-login?email=${Uri.encodeComponent(email)}');
+        } else {
+          // Show password field
+          setState(() => _showPassword = true);
+        }
+      } else {
+        setState(() {
+          _error = true;
+          _errorMessage = 'No se encontró ningún cliente con ese correo';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = true;
+        _errorMessage = 'Error al verificar el correo';
+      });
+    } finally {
+      if (mounted) setState(() => _localLoading = false);
+    }
   }
 
   Future<void> _handleLogin(AuthService auth) async {
@@ -210,28 +248,55 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.emailAddress,
                         isDark: isDark,
                         theme: theme,
+                        enabled:
+                            !(_isClientLogin &&
+                                _showPassword), // Disable if showing pass
                       ),
-                      const SizedBox(height: 20),
-                      _buildTextField(
-                        controller: _passCtrl,
-                        label: 'Contraseña',
-                        icon: Icons.lock_outline_rounded,
-                        obscureText: _obscurePass,
-                        isDark: isDark,
-                        theme: theme,
-                        suffix: IconButton(
-                          icon: Icon(
-                            _obscurePass
-                                ? Icons.visibility_off_rounded
-                                : Icons.visibility_rounded,
-                            color: theme.primaryColor.withOpacity(0.5),
-                            size: 20,
+
+                      if (!_isClientLogin || _showPassword) ...[
+                        const SizedBox(height: 20),
+                        _buildTextField(
+                          controller: _passCtrl,
+                          label: 'Contraseña',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: _obscurePass,
+                          isDark: isDark,
+                          theme: theme,
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscurePass
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              color: theme.primaryColor.withOpacity(0.5),
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() => _obscurePass = !_obscurePass);
+                            },
                           ),
-                          onPressed: () {
-                            setState(() => _obscurePass = !_obscurePass);
-                          },
                         ),
-                      ),
+                      ] else ...[
+                        // Option to clear and go back if it's the wrong email
+                        if (_emailCtrl.text.isNotEmpty)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showPassword = false;
+                                  _emailCtrl.clear();
+                                });
+                              },
+                              child: Text(
+                                '¿No es tu correo?',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.primaryColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
 
                       if (_error)
                         Padding(
@@ -289,7 +354,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           onPressed: _localLoading
                               ? null
-                              : () => _handleLogin(auth),
+                              : () {
+                                  if (_isClientLogin && !_showPassword) {
+                                    _handleContinueEmail(auth);
+                                  } else {
+                                    _handleLogin(auth);
+                                  }
+                                },
                           child: _localLoading
                               ? const SizedBox(
                                   height: 24,
@@ -299,9 +370,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Text(
-                                  'INICIAR SESIÓN',
-                                  style: TextStyle(
+                              : Text(
+                                  (_isClientLogin && !_showPassword)
+                                      ? 'CONTINUAR'
+                                      : 'INICIAR SESIÓN',
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 1.2,
                                     fontSize: 16,
@@ -330,6 +403,10 @@ class _LoginScreenState extends State<LoginScreen> {
         onTap: () {
           setState(() {
             _isClientLogin = (label == 'CLIENTE');
+            _showPassword = false;
+            _emailCtrl.clear();
+            _passCtrl.clear();
+            _error = false;
           });
         },
         child: AnimatedContainer(
@@ -375,10 +452,13 @@ class _LoginScreenState extends State<LoginScreen> {
     required bool isDark,
     required ThemeData theme,
     Widget? suffix,
+    bool enabled = true,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.08) : Colors.white,
+        color: !enabled
+            ? (isDark ? Colors.white.withOpacity(0.04) : Colors.grey[100])
+            : (isDark ? Colors.white.withOpacity(0.08) : Colors.white),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200]!,
@@ -396,6 +476,7 @@ class _LoginScreenState extends State<LoginScreen> {
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
+        enabled: enabled,
         textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           fontWeight: FontWeight.w600,
