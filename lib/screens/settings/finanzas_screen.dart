@@ -9,6 +9,7 @@ import '../../services/auth_service.dart';
 import '../../widgets/budget_detail_dialog.dart';
 import '../../providers/super_admin_provider.dart';
 import '../../widgets/advisor_selector.dart';
+import '../../utils/notification_helper.dart';
 
 class FinanzasScreen extends StatefulWidget {
   const FinanzasScreen({super.key});
@@ -103,8 +104,9 @@ class _FinanzasScreenState extends State<FinanzasScreen>
     } catch (e) {
       debugPrint('Error loading finanzas: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar datos financieros: $e')),
+        NotificationHelper.showError(
+          context,
+          'Error al cargar datos financieros: $e',
         );
       }
       setState(() => _isLoading = false);
@@ -976,9 +978,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
         if (loaderVisible) {
           Navigator.of(context, rootNavigator: true).pop();
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     }
   }
@@ -1184,9 +1184,7 @@ class _FinanzasScreenState extends State<FinanzasScreen>
                             _loadData();
                           }
                         } catch (e) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          NotificationHelper.showError(context, 'Error: $e');
                         }
                       },
                       child: const Text(

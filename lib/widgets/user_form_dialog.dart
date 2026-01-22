@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../utils/notification_helper.dart';
 
 class UserFormDialog extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -57,12 +58,9 @@ class _UserFormDialogState extends State<UserFormDialog> {
       if (widget.user == null) {
         // Create
         if (_passwordController.text.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'La contraseña es obligatoria para nuevos usuarios',
-              ),
-            ),
+          NotificationHelper.showError(
+            context,
+            'La contraseña es obligatoria para nuevos usuarios',
           );
           setState(() => _isLoading = false);
           return;
@@ -72,12 +70,16 @@ class _UserFormDialogState extends State<UserFormDialog> {
         // Update
         await api.put('/users/${widget.user!['_id']}', data);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        NotificationHelper.showSuccess(
+          context,
+          widget.user == null ? 'Asesor creado' : 'Asesor actualizado',
+        );
+        Navigator.pop(context, true);
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

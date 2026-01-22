@@ -106,6 +106,11 @@ class AppTheme {
         color: isDark ? const Color(0xFF38383A) : const Color(0xFFC6C6C8),
         thickness: 0.5,
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 6,
+      ),
     );
   }
 }

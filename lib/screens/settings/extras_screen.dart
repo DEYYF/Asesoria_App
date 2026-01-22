@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/extra_model.dart';
+import '../../utils/notification_helper.dart';
 
 class ExtrasScreen extends StatefulWidget {
   const ExtrasScreen({super.key});
@@ -141,13 +142,9 @@ class _ExtrasScreenState extends State<ExtrasScreen> {
                       ElevatedButton(
                         onPressed: () async {
                           if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Rellena los campos obligatorios',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
+                            NotificationHelper.showError(
+                              ctx,
+                              'Rellena los campos obligatorios',
                             );
                             return;
                           }
@@ -174,8 +171,9 @@ class _ExtrasScreenState extends State<ExtrasScreen> {
                             }
                           } catch (e) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')),
+                              NotificationHelper.showError(
+                                context,
+                                'Error: $e',
                               );
                             }
                           }
@@ -234,9 +232,7 @@ class _ExtrasScreenState extends State<ExtrasScreen> {
         _fetchExtras();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          NotificationHelper.showError(context, 'Error: $e');
         }
       }
     }

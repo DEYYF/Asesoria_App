@@ -8,6 +8,7 @@ import '../../services/automation_service.dart';
 import '../../providers/super_admin_provider.dart';
 import 'automation_form_sheet.dart';
 import '../../widgets/advisor_selector.dart';
+import '../../utils/notification_helper.dart';
 
 class AutomationScreen extends StatefulWidget {
   const AutomationScreen({super.key});
@@ -276,9 +277,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
                           });
                           _loadData();
                         } catch (e) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                          NotificationHelper.showError(context, 'Error: $e');
                         }
                       },
                     ),
@@ -623,15 +622,14 @@ class _AutomationScreenState extends State<AutomationScreen> {
                 await _service.deleteAutomation(auto['_id']);
                 _loadData();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Automatización eliminada')),
+                  NotificationHelper.showSuccess(
+                    context,
+                    'Automatización eliminada',
                   );
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  NotificationHelper.showError(context, 'Error: $e');
                 }
               }
             },
@@ -673,9 +671,7 @@ class _AutomationScreenState extends State<AutomationScreen> {
     } catch (e) {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error cargando asesores: $e')));
+        NotificationHelper.showError(context, 'Error cargando asesores: $e');
       }
       return;
     }
@@ -744,25 +740,19 @@ class _AutomationScreenState extends State<AutomationScreen> {
 
       if (mounted) {
         if (res.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Automatización transferida exitosamente'),
-              backgroundColor: Colors.green,
-            ),
+          NotificationHelper.showSuccess(
+            context,
+            'Automatización transferida exitosamente',
           );
           _loadData();
         } else {
           final err = jsonDecode(res.body)['error'] ?? 'Error desconocido';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
-          );
+          NotificationHelper.showError(context, 'Error: $err');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
+        NotificationHelper.showError(context, 'Error de conexión: $e');
       }
     }
   }

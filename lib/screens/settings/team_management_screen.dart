@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import '../../widgets/user_form_dialog.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
+import '../../utils/notification_helper.dart';
 
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
@@ -78,9 +79,17 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
       final api = Provider.of<ApiService>(context, listen: false);
       try {
         await api.delete('/users/$id');
+        if (mounted) {
+          NotificationHelper.showSuccess(context, 'Usuario eliminado');
+        }
         _loadUsers();
       } catch (e) {
-        debugPrint('Error deleting user: $e');
+        if (mounted) {
+          NotificationHelper.showError(
+            context,
+            'Error al eliminar usuario: $e',
+          );
+        }
       }
     }
   }

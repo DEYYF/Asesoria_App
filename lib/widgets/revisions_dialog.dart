@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
+import '../utils/notification_helper.dart';
 
 class RevisionsDialog extends StatefulWidget {
   final String dietaId;
@@ -47,9 +48,7 @@ class _RevisionsDialogState extends State<RevisionsDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar historial: $e')),
-        );
+        NotificationHelper.showError(context, 'Error al cargar historial: $e');
       }
     }
   }
@@ -68,8 +67,9 @@ class _RevisionsDialogState extends State<RevisionsDialog> {
           if (mounted) {
             Navigator.pop(context);
             widget.onRestored(newDieta['_id']);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Revisión restaurada con éxito')),
+            NotificationHelper.showSuccess(
+              context,
+              'Revisión restaurada con éxito',
             );
           }
         }
@@ -78,9 +78,7 @@ class _RevisionsDialogState extends State<RevisionsDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al restaurar: $e')));
+        NotificationHelper.showError(context, 'Error al restaurar: $e');
       }
     }
   }

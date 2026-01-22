@@ -12,6 +12,7 @@ import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
 import 'calendar_tab.dart';
+import 'pantry_screen.dart';
 
 class ClientViewLayout extends StatefulWidget {
   final Cliente cliente;
@@ -332,6 +333,23 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
             ),
             const SizedBox(width: 12),
           ],
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.kitchen_rounded,
+              label: 'NEVERA',
+              color: Colors.blue,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PantryScreen(clienteId: widget.cliente.id),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: _QuickActionButton(
               icon: Icons.add_chart_rounded,

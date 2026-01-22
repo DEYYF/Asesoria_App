@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 
 class Advisor {
   final String id;
@@ -61,9 +62,7 @@ class _TransferDataScreenState extends State<TransferDataScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error cargando asesores: $e')));
+        NotificationHelper.showError(context, 'Error cargando asesores: $e');
         setState(() => _isLoading = false);
       }
     }
@@ -71,17 +70,14 @@ class _TransferDataScreenState extends State<TransferDataScreen> {
 
   Future<void> _transferData() async {
     if (_fromAdvisorId == null || _toAdvisorId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona origen y destino')),
-      );
+      NotificationHelper.showInfo(context, 'Selecciona origen y destino');
       return;
     }
 
     if (_fromAdvisorId == _toAdvisorId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El origen y destino deben ser diferentes'),
-        ),
+      NotificationHelper.showInfo(
+        context,
+        'El origen y destino deben ser diferentes',
       );
       return;
     }
@@ -95,9 +91,7 @@ class _TransferDataScreenState extends State<TransferDataScreen> {
     if (_appointments) modules.add('appointments');
 
     if (modules.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos un módulo')),
-      );
+      NotificationHelper.showInfo(context, 'Selecciona al menos un módulo');
       return;
     }
 
@@ -139,11 +133,9 @@ class _TransferDataScreenState extends State<TransferDataScreen> {
 
       if (res.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Transferencia completada con éxito'),
-              backgroundColor: Colors.green,
-            ),
+          NotificationHelper.showSuccess(
+            context,
+            'Transferencia completada con éxito',
           );
           Navigator.pop(context);
         }
@@ -152,9 +144,7 @@ class _TransferDataScreenState extends State<TransferDataScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error en transferencia: $e')));
+        NotificationHelper.showError(context, 'Error en transferencia: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

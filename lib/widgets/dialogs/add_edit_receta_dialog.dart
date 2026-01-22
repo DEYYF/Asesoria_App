@@ -4,6 +4,7 @@ import '../../models/ingrediente_model.dart';
 import '../../models/receta_model.dart';
 import '../../models/macros_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 
 class AddEditRecetaDialog extends StatefulWidget {
   final Receta? receta;
@@ -96,9 +97,7 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

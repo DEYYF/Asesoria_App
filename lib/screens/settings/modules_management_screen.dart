@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/settings_model.dart';
 import '../../providers/settings_provider.dart';
+import '../../utils/notification_helper.dart';
 import 'widgets/settings_widgets.dart';
 
 class ModulesManagementScreen extends StatefulWidget {
@@ -85,21 +86,9 @@ class _ModulesManagementScreenState extends State<ModulesManagementScreen> {
     if (pass.toUpperCase() == 'GOLF') {
       Navigator.pop(dialogContext); // Close ONLY the dialog
       setState(() => _isUnlocked = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Modo edición habilitado'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      NotificationHelper.showSuccess(context, 'Modo edición habilitado');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contraseña incorrecta'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      NotificationHelper.showError(context, 'Contraseña incorrecta');
     }
   }
 
@@ -122,12 +111,7 @@ class _ModulesManagementScreenState extends State<ModulesManagementScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showError(context, 'Error al actualizar: $e');
       }
     }
   }

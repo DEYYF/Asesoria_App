@@ -5,6 +5,7 @@ import '../../models/cliente_model.dart';
 import '../../services/auth_service.dart';
 import '../../models/template_model.dart';
 import 'template_selector_dialog.dart';
+import '../../utils/notification_helper.dart';
 
 class BulkEmailDialog extends StatefulWidget {
   final List<Cliente> clientes;
@@ -33,19 +34,17 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
   void _handleSendClick() {
     if (_subjectController.text.trim().isEmpty ||
         _messageController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor completa el asunto y el mensaje'),
-        ),
+      NotificationHelper.showInfo(
+        context,
+        'Por favor completa el asunto y el mensaje',
       );
       return;
     }
 
     if (_clientsWithEmail.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay clientes con email en la lista actual'),
-        ),
+      NotificationHelper.showInfo(
+        context,
+        'No hay clientes con email en la lista actual',
       );
       return;
     }
@@ -131,24 +130,15 @@ class _BulkEmailDialogState extends State<BulkEmailDialog> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Email enviado correctamente a ${_clientsWithEmail.length} clientes',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        NotificationHelper.showSuccess(
+          context,
+          'Email enviado correctamente a ${_clientsWithEmail.length} clientes',
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al enviar el email: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showError(context, 'Error al enviar el email: $e');
       }
     } finally {
       if (mounted) {

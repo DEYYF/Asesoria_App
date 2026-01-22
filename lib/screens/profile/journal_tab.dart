@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/cliente_model.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../utils/isolate_utils.dart';
 import 'package:provider/provider.dart';
 
@@ -106,6 +107,60 @@ class _JournalTabState extends State<JournalTab> {
         _hiddenNotes.add(date);
       }
     });
+  }
+
+  Future<void> _cleanNotebook() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Borrar Libreta'),
+        content: const Text(
+          '¿Estás seguro de que deseas eliminar TODOS los registros de la libreta de este cliente? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      setState(() => _isLoading = true);
+
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        final res = await api.delete(
+          '/entrenamientos/registros/cliente/${widget.cliente.id}/all',
+        );
+
+        if (res.statusCode == 200) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Libreta vaciada correctamente')),
+            );
+          }
+          await _loadFullHistory();
+        } else {
+          throw Exception('Error cleaning notebook');
+        }
+      } catch (e) {
+        debugPrint('Error cleaning notebook: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al vaciar la libreta')),
+          );
+          setState(() => _isLoading = false);
+        }
+      }
+    }
   }
 
   @override
@@ -223,14 +278,27 @@ class _JournalTabState extends State<JournalTab> {
                 color: theme.primaryColor,
                 onPressed: _backToGrid,
               ),
-              Text(
-                _selectedMonth != null
-                    ? DateFormat(
-                        'MMMM yyyy',
-                        'es',
-                      ).format(_selectedMonth!).toUpperCase()
-                    : '',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  _selectedMonth != null
+                      ? DateFormat(
+                          'MMMM yyyy',
+                          'es',
+                        ).format(_selectedMonth!).toUpperCase()
+                      : '',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  if (auth.isClient) return const SizedBox.shrink();
+                  return IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                    tooltip: 'Vaciar Libreta',
+                    color: Colors.red.withOpacity(0.7),
+                    onPressed: _cleanNotebook,
+                  );
+                },
               ),
             ],
           ),

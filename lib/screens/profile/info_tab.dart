@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
+import 'pantry_screen.dart';
 import '../../services/api_service.dart';
+
 import '../../services/auth_service.dart';
 import '../../models/cliente_model.dart';
 import '../../models/extra_model.dart';
@@ -261,8 +263,6 @@ class _InfoTabState extends State<InfoTab> {
 
               return Column(
                 children: [
-                  const SizedBox(height: 32),
-                  _sectionTitle('ACCIONES DE GESTIÓN'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -317,6 +317,33 @@ class _InfoTabState extends State<InfoTab> {
               );
             },
           ),
+
+          const SizedBox(height: 32),
+          _sectionTitle('GESTIÓN DE ALIMENTOS'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _AppleButton(
+                  label: 'MI NEVERA',
+                  icon: Icons.kitchen_rounded,
+                  color: Colors.blue,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            PantryScreen(clienteId: widget.cliente.id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Spacer(),
+            ],
+          ),
+
           const SizedBox(height: 60),
         ],
       ),

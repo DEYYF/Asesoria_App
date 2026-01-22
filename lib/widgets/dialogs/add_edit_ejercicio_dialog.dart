@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../models/ejercicio_model.dart';
+import '../../utils/notification_helper.dart';
 
 class AddEditEjercicioDialog extends StatefulWidget {
   final Ejercicio? ejercicio;
@@ -110,9 +111,7 @@ class _AddEditEjercicioDialogState extends State<AddEditEjercicioDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
+        NotificationHelper.showError(context, 'Error al guardar: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

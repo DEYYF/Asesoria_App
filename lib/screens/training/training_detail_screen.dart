@@ -9,6 +9,9 @@ import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
 import '../../models/ejercicio_model.dart';
 import '../training/notebook_screen.dart';
+import '../../services/settings_service.dart';
+import '../../providers/settings_provider.dart';
+import '../../models/settings_model.dart';
 import '../../utils/training_pdf_generator.dart';
 
 class TrainingDetailScreen extends StatefulWidget {
@@ -90,7 +93,25 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   Future<void> _handleExportPDF() async {
     if (_ent == null) return;
     try {
-      await TrainingPdfGenerator.generatePDF(_ent!);
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      PdfSettings pdfSettings;
+
+      if (settingsProvider.settings != null) {
+        pdfSettings = settingsProvider.settings!.pdfSettings;
+      } else {
+        final settingsService = SettingsService(
+          Provider.of<ApiService>(context, listen: false),
+        );
+        final settings = await settingsService.getSettings(
+          userId: _ent!.asesorId,
+        );
+        pdfSettings = settings.pdfSettings;
+      }
+
+      await TrainingPdfGenerator.generatePDF(_ent!, pdfSettings);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PDF generado correctamente')),

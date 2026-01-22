@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/ingrediente_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 
 class AddEditIngredienteDialog extends StatefulWidget {
   final Ingrediente? ingrediente;
@@ -92,9 +93,7 @@ class _AddEditIngredienteDialogState extends State<AddEditIngredienteDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
+        NotificationHelper.showError(context, 'Error al guardar: $e');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../screens/settings/email_history_screen.dart';
 import 'dart:convert';
 import 'dart:io';
+import '../utils/notification_helper.dart';
 
 class DialogCorreo extends StatefulWidget {
   final Cliente cliente;
@@ -99,9 +100,7 @@ class _DialogCorreoState extends State<DialogCorreo> {
     if (_toCtrl.text.isEmpty ||
         _subjectCtrl.text.isEmpty ||
         _msgCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Rellena todos los campos')));
+      NotificationHelper.showInfo(context, 'Rellena todos los campos');
       return;
     }
 
@@ -131,17 +130,13 @@ class _DialogCorreoState extends State<DialogCorreo> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Correo enviado')));
+        NotificationHelper.showSuccess(context, 'Correo enviado');
         widget.onSuccess?.call();
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
         setState(() => _sending = false);
       }
     }

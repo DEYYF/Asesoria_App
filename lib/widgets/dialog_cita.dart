@@ -7,6 +7,7 @@ import '../models/cliente_model.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
+import '../utils/notification_helper.dart';
 
 class DialogCita extends StatefulWidget {
   final Cliente cliente;
@@ -259,10 +260,9 @@ class _DialogCitaState extends State<DialogCita> {
     final phone = _formatPhoneForWa(widget.cliente.telefono);
     if (phone == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El cliente no tiene teléfono válido para WhatsApp'),
-          ),
+        NotificationHelper.showError(
+          context,
+          'El cliente no tiene teléfono válido para WhatsApp',
         );
       }
       return;
@@ -287,9 +287,7 @@ class _DialogCitaState extends State<DialogCita> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo abrir WhatsApp')),
-          );
+          NotificationHelper.showError(context, 'No se pudo abrir WhatsApp');
         }
       }
     } catch (e) {
@@ -329,9 +327,7 @@ class _DialogCitaState extends State<DialogCita> {
 
   Future<void> _save() async {
     if (_titleCtrl.text.isEmpty || _dateCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Título y Fecha obligatorios')),
-      );
+      NotificationHelper.showInfo(context, 'Título y Fecha obligatorios');
       return;
     }
 
@@ -375,18 +371,14 @@ class _DialogCitaState extends State<DialogCita> {
       await _openWhatsApp();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Cita creada')));
+        NotificationHelper.showSuccess(context, 'Cita creada');
         widget.onSuccess?.call();
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     }
   }

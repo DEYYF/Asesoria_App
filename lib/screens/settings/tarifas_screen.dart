@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/tarifa_model.dart';
+import '../../utils/notification_helper.dart';
 
 class TarifasScreen extends StatefulWidget {
   const TarifasScreen({super.key});
@@ -173,13 +174,9 @@ class _TarifasScreenState extends State<TarifasScreen> {
                           if (nameCtrl.text.isEmpty ||
                               priceCtrl.text.isEmpty ||
                               daysCtrl.text.isEmpty) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Rellena los campos obligatorios',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
+                            NotificationHelper.showError(
+                              ctx,
+                              'Rellena los campos obligatorios',
                             );
                             return;
                           }
@@ -209,8 +206,9 @@ class _TarifasScreenState extends State<TarifasScreen> {
                             }
                           } catch (e) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')),
+                              NotificationHelper.showError(
+                                context,
+                                'Error: $e',
                               );
                             }
                           }
@@ -269,9 +267,7 @@ class _TarifasScreenState extends State<TarifasScreen> {
         _fetchTarifas();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          NotificationHelper.showError(context, 'Error: $e');
         }
       }
     }

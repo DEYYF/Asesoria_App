@@ -57,7 +57,7 @@ class SettingsService {
     }
 
     // 3. Return defaults
-    return UserSettings();
+    return UserSettings(pdfSettings: PdfSettings());
   }
 
   Future<void> updateSettings(UserSettings settings, {String? userId}) async {

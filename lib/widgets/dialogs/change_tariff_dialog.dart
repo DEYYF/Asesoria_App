@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 
 const opcionesDuracion = ["1 Mes", "3 Meses", "6 Meses", "12 Meses"];
 
@@ -70,9 +71,7 @@ class _ChangeTariffDialogState extends State<ChangeTariffDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     }
   }

@@ -39,6 +39,207 @@ class KanbanColumn {
   }
 }
 
+class PdfSettings {
+  final String primaryColor;
+  final String secondaryColor;
+  final String accentColor;
+  final String logoUrl;
+  final String headerTitle;
+  final String footerText;
+  final String footerContactInfo;
+  final String fontFamily;
+  final bool includeCoverPage;
+  final String headerStyle;
+  final bool showMacrosSummary;
+
+  // Layout & Spacing
+  final String pageMargins;
+  final double lineSpacing;
+  final double sectionSpacing;
+
+  // Typography
+  final double headerFontSize;
+  final double bodyFontSize;
+  final double tableFontSize;
+
+  // Table Styling
+  final String tableBorderStyle;
+  final bool alternateRowColors;
+  final String tableHeaderColor;
+
+  // Branding
+  final String watermarkText;
+  final double watermarkOpacity;
+  final String logoSize;
+  final String logoPosition;
+
+  // Advanced
+  final String pageOrientation;
+  final bool showPageNumbers;
+  final String dateFormat;
+  final String currencySymbol;
+
+  PdfSettings({
+    this.primaryColor = '#007AFF',
+    this.secondaryColor = '#34C759',
+    this.accentColor = '#FFD700',
+    this.logoUrl = '',
+    this.headerTitle = 'Asesoría Pro',
+    this.footerText = 'Gracias por confiar en nuestros servicios.',
+    this.footerContactInfo = '',
+    this.fontFamily = 'Helvetica',
+    this.includeCoverPage = false,
+    this.headerStyle = 'classic',
+    this.showMacrosSummary = true,
+    this.pageMargins = 'medium',
+    this.lineSpacing = 1.2,
+    this.sectionSpacing = 20,
+    this.headerFontSize = 18,
+    this.bodyFontSize = 10,
+    this.tableFontSize = 9,
+    this.tableBorderStyle = 'light',
+    this.alternateRowColors = false,
+    this.tableHeaderColor = '',
+    this.watermarkText = '',
+    this.watermarkOpacity = 0.1,
+    this.logoSize = 'medium',
+    this.logoPosition = 'header',
+    this.pageOrientation = 'auto',
+    this.showPageNumbers = true,
+    this.dateFormat = 'DD/MM/YYYY',
+    this.currencySymbol = '€',
+  });
+
+  factory PdfSettings.fromJson(Map<String, dynamic> json) {
+    return PdfSettings(
+      primaryColor: json['primaryColor'] ?? '#007AFF',
+      secondaryColor: json['secondaryColor'] ?? '#34C759',
+      accentColor: json['accentColor'] ?? '#FFD700',
+      logoUrl: json['logoUrl'] ?? '',
+      headerTitle: json['headerTitle'] ?? 'Asesoría Pro',
+      footerText:
+          json['footerText'] ?? 'Gracias por confiar en nuestros servicios.',
+      footerContactInfo: json['footerContactInfo'] ?? '',
+      fontFamily: json['fontFamily'] ?? 'Helvetica',
+      includeCoverPage: json['includeCoverPage'] ?? false,
+      headerStyle: json['headerStyle'] ?? 'classic',
+      showMacrosSummary: json['showMacrosSummary'] ?? true,
+      pageMargins: json['pageMargins'] ?? 'medium',
+      lineSpacing: (json['lineSpacing'] ?? 1.2).toDouble(),
+      sectionSpacing: (json['sectionSpacing'] ?? 20).toDouble(),
+      headerFontSize: (json['headerFontSize'] ?? 18).toDouble(),
+      bodyFontSize: (json['bodyFontSize'] ?? 10).toDouble(),
+      tableFontSize: (json['tableFontSize'] ?? 9).toDouble(),
+      tableBorderStyle: json['tableBorderStyle'] ?? 'light',
+      alternateRowColors: json['alternateRowColors'] ?? false,
+      tableHeaderColor: json['tableHeaderColor'] ?? '',
+      watermarkText: json['watermarkText'] ?? '',
+      watermarkOpacity: (json['watermarkOpacity'] ?? 0.1).toDouble(),
+      logoSize: json['logoSize'] ?? 'medium',
+      logoPosition: json['logoPosition'] ?? 'header',
+      pageOrientation: json['pageOrientation'] ?? 'auto',
+      showPageNumbers: json['showPageNumbers'] ?? true,
+      dateFormat: json['dateFormat'] ?? 'DD/MM/YYYY',
+      currencySymbol: json['currencySymbol'] ?? '€',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'primaryColor': primaryColor,
+      'secondaryColor': secondaryColor,
+      'accentColor': accentColor,
+      'logoUrl': logoUrl,
+      'headerTitle': headerTitle,
+      'footerText': footerText,
+      'footerContactInfo': footerContactInfo,
+      'fontFamily': fontFamily,
+      'includeCoverPage': includeCoverPage,
+      'headerStyle': headerStyle,
+      'showMacrosSummary': showMacrosSummary,
+      'pageMargins': pageMargins,
+      'lineSpacing': lineSpacing,
+      'sectionSpacing': sectionSpacing,
+      'headerFontSize': headerFontSize,
+      'bodyFontSize': bodyFontSize,
+      'tableFontSize': tableFontSize,
+      'tableBorderStyle': tableBorderStyle,
+      'alternateRowColors': alternateRowColors,
+      'tableHeaderColor': tableHeaderColor,
+      'watermarkText': watermarkText,
+      'watermarkOpacity': watermarkOpacity,
+      'logoSize': logoSize,
+      'logoPosition': logoPosition,
+      'pageOrientation': pageOrientation,
+      'showPageNumbers': showPageNumbers,
+      'dateFormat': dateFormat,
+      'currencySymbol': currencySymbol,
+    };
+  }
+
+  PdfSettings copyWith({
+    String? primaryColor,
+    String? secondaryColor,
+    String? accentColor,
+    String? logoUrl,
+    String? headerTitle,
+    String? footerText,
+    String? footerContactInfo,
+    String? fontFamily,
+    bool? includeCoverPage,
+    String? headerStyle,
+    bool? showMacrosSummary,
+    String? pageMargins,
+    double? lineSpacing,
+    double? sectionSpacing,
+    double? headerFontSize,
+    double? bodyFontSize,
+    double? tableFontSize,
+    String? tableBorderStyle,
+    bool? alternateRowColors,
+    String? tableHeaderColor,
+    String? watermarkText,
+    double? watermarkOpacity,
+    String? logoSize,
+    String? logoPosition,
+    String? pageOrientation,
+    bool? showPageNumbers,
+    String? dateFormat,
+    String? currencySymbol,
+  }) {
+    return PdfSettings(
+      primaryColor: primaryColor ?? this.primaryColor,
+      secondaryColor: secondaryColor ?? this.secondaryColor,
+      accentColor: accentColor ?? this.accentColor,
+      logoUrl: logoUrl ?? this.logoUrl,
+      headerTitle: headerTitle ?? this.headerTitle,
+      footerText: footerText ?? this.footerText,
+      footerContactInfo: footerContactInfo ?? this.footerContactInfo,
+      fontFamily: fontFamily ?? this.fontFamily,
+      includeCoverPage: includeCoverPage ?? this.includeCoverPage,
+      headerStyle: headerStyle ?? this.headerStyle,
+      showMacrosSummary: showMacrosSummary ?? this.showMacrosSummary,
+      pageMargins: pageMargins ?? this.pageMargins,
+      lineSpacing: lineSpacing ?? this.lineSpacing,
+      sectionSpacing: sectionSpacing ?? this.sectionSpacing,
+      headerFontSize: headerFontSize ?? this.headerFontSize,
+      bodyFontSize: bodyFontSize ?? this.bodyFontSize,
+      tableFontSize: tableFontSize ?? this.tableFontSize,
+      tableBorderStyle: tableBorderStyle ?? this.tableBorderStyle,
+      alternateRowColors: alternateRowColors ?? this.alternateRowColors,
+      tableHeaderColor: tableHeaderColor ?? this.tableHeaderColor,
+      watermarkText: watermarkText ?? this.watermarkText,
+      watermarkOpacity: watermarkOpacity ?? this.watermarkOpacity,
+      logoSize: logoSize ?? this.logoSize,
+      logoPosition: logoPosition ?? this.logoPosition,
+      pageOrientation: pageOrientation ?? this.pageOrientation,
+      showPageNumbers: showPageNumbers ?? this.showPageNumbers,
+      dateFormat: dateFormat ?? this.dateFormat,
+      currencySymbol: currencySymbol ?? this.currencySymbol,
+    );
+  }
+}
+
 class UserSettings {
   final bool pushNotifications;
   final bool emailNotifications;
@@ -60,6 +261,7 @@ class UserSettings {
   final bool enabledAutomation;
   final bool enabledFinanzas;
   final List<KanbanColumn> kanbanColumns;
+  final PdfSettings pdfSettings;
 
   UserSettings({
     this.pushNotifications = true,
@@ -82,6 +284,7 @@ class UserSettings {
     this.enabledAutomation = true,
     this.enabledFinanzas = true,
     this.kanbanColumns = const [],
+    required this.pdfSettings,
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -110,6 +313,9 @@ class UserSettings {
               ?.map((c) => KanbanColumn.fromJson(c))
               .toList() ??
           [],
+      pdfSettings: json['pdfSettings'] != null
+          ? PdfSettings.fromJson(json['pdfSettings'])
+          : PdfSettings(),
     );
   }
 
@@ -135,6 +341,7 @@ class UserSettings {
       'enabledAutomation': enabledAutomation,
       'enabledFinanzas': enabledFinanzas,
       'kanbanColumns': kanbanColumns.map((c) => c.toJson()).toList(),
+      'pdfSettings': pdfSettings.toJson(),
     };
   }
 
@@ -159,6 +366,7 @@ class UserSettings {
     bool? enabledAutomation,
     bool? enabledFinanzas,
     List<KanbanColumn>? kanbanColumns,
+    PdfSettings? pdfSettings,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -183,6 +391,7 @@ class UserSettings {
       enabledAutomation: enabledAutomation ?? this.enabledAutomation,
       enabledFinanzas: enabledFinanzas ?? this.enabledFinanzas,
       kanbanColumns: kanbanColumns ?? this.kanbanColumns,
+      pdfSettings: pdfSettings ?? this.pdfSettings,
     );
   }
 }

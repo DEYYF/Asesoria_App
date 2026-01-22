@@ -48,10 +48,20 @@ class Entrenamiento {
   }
 
   factory Entrenamiento.fromJson(Map<String, dynamic> json) {
+    String cId = '';
+    String? cName;
+
+    if (json['clienteId'] is Map) {
+      cId = json['clienteId']['_id'] ?? '';
+      cName = json['clienteId']['nombre'];
+    } else {
+      cId = json['clienteId'] ?? '';
+    }
+
     return Entrenamiento(
       id: json['_id'],
       asesorId: json['asesorid'] ?? json['asesorId'],
-      clienteId: json['clienteId'] ?? '',
+      clienteId: cId,
       titulo: json['titulo'] ?? 'Sin título',
       objetivo: json['objetivo'],
       activo: json['activo'] ?? true,
@@ -64,8 +74,10 @@ class Entrenamiento {
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : null,
-    );
+    )..clienteNombre = cName;
   }
+
+  String? clienteNombre;
 
   Map<String, dynamic> toJson() {
     return {

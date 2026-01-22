@@ -4,6 +4,7 @@ import '../../models/cliente_model.dart';
 import '../../models/template_model.dart';
 import '../../services/chat_service.dart';
 import 'template_selector_dialog.dart';
+import '../../utils/notification_helper.dart';
 
 class ComposeChatDialog extends StatefulWidget {
   final Cliente cliente;
@@ -43,12 +44,7 @@ class _ComposeChatDialogState extends State<ComposeChatDialog> {
 
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mensaje enviado'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          NotificationHelper.showSuccess(context, 'Mensaje enviado');
         }
       } else {
         throw Exception('No se pudo crear la conversación');
@@ -56,9 +52,7 @@ class _ComposeChatDialogState extends State<ComposeChatDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        NotificationHelper.showError(context, 'Error: $e');
       }
     }
   }

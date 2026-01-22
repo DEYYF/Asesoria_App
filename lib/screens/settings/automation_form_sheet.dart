@@ -4,6 +4,7 @@ import 'templates_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/automation_service.dart';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 
 class AutomationFormSheet extends StatefulWidget {
   final Map<String, dynamic>? automation;
@@ -1083,9 +1084,7 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       widget.onSave();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      NotificationHelper.showError(context, 'Error: $e');
     }
   }
 

@@ -9,6 +9,8 @@ import 'dialog_correo.dart';
 import 'dialogs/compose_chat_dialog.dart';
 import 'dialogs/communication_choice_dialog.dart';
 import '../services/settings_service.dart';
+import '../utils/batch_pdf_helper.dart';
+import '../utils/notification_helper.dart';
 
 class ClienteCard extends StatefulWidget {
   final Cliente cliente;
@@ -449,6 +451,8 @@ class _ClienteCardState extends State<ClienteCard> {
           onPressed: _openCitaDialog,
         ),
         const SizedBox(width: 8),
+        _buildPdfActionMenu(theme),
+        const SizedBox(width: 8),
         _CompactIconButton(
           icon: Icons.visibility_outlined,
           tooltip: 'Ver Perfil',
@@ -489,6 +493,440 @@ class _ClienteCardState extends State<ClienteCard> {
       builder: (_) => DialogCita(cliente: widget.cliente),
     );
   }
+
+  Widget _buildPdfActionMenu(ThemeData theme) {
+    return PopupMenuButton<String>(
+      offset: const Offset(0, 40),
+      elevation: 8,
+      shadowColor: theme.primaryColor.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: _CompactIconButton(
+        icon: Icons.picture_as_pdf_rounded,
+        tooltip: 'Reportes PDF',
+        onPressed: null,
+      ),
+      onSelected: (val) => _showPdfSelectionDialog(val == 'email'),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'download',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.download_rounded,
+                  size: 16,
+                  color: theme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Descargar reportes', style: TextStyle(fontSize: 14)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'email',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.email_rounded,
+                  size: 16,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Enviar por correo', style: TextStyle(fontSize: 14)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showPdfSelectionDialog(bool isEmail) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          _PdfSelectionDialog(cliente: widget.cliente, isEmail: isEmail),
+    );
+  }
+}
+
+class _PdfSelectionDialog extends StatefulWidget {
+  final Cliente cliente;
+  final bool isEmail;
+
+  const _PdfSelectionDialog({required this.cliente, required this.isEmail});
+
+  @override
+  State<_PdfSelectionDialog> createState() => _PdfSelectionDialogState();
+}
+
+class _PdfSelectionDialogState extends State<_PdfSelectionDialog> {
+  final Map<String, bool> _selected = {
+    'dieta': true,
+    'entrenamiento': true,
+    'corporal': true,
+    'rendimiento': true,
+  };
+
+  bool _isProcessing = false;
+
+  bool get _allSelected => _selected.values.every((v) => v);
+
+  void _toggleAll() {
+    final target = !_allSelected;
+    setState(() {
+      _selected.updateAll((key, value) => target);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 380,
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.05),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.isEmail
+                              ? 'Enviar Reportes'
+                              : 'Descargar Reportes',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          widget.cliente.nombre,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildSelectAllToggle(theme),
+                ],
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                children: [
+                  _buildCardOption(
+                    'Dieta',
+                    'dieta',
+                    Icons.restaurant_menu_rounded,
+                    theme,
+                    isDark,
+                  ),
+                  _buildCardOption(
+                    'Plan Entrenamiento',
+                    'entrenamiento',
+                    Icons.fitness_center_rounded,
+                    theme,
+                    isDark,
+                  ),
+                  _buildCardOption(
+                    'Informe Corporal',
+                    'corporal',
+                    Icons.accessibility_new_rounded,
+                    theme,
+                    isDark,
+                  ),
+                  _buildCardOption(
+                    'Evolución Rendimiento',
+                    'rendimiento',
+                    Icons.trending_up_rounded,
+                    theme,
+                    isDark,
+                  ),
+                ],
+              ),
+            ),
+
+            if (_isProcessing)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
+                child: Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        backgroundColor: theme.primaryColor.withOpacity(0.1),
+                        minHeight: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Generando documentos...',
+                      style: TextStyle(fontSize: 12, color: theme.primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Actions
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: _isProcessing
+                          ? null
+                          : () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'CANCELAR',
+                        style: TextStyle(color: theme.hintColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isProcessing ? null : _handleAction,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            widget.isEmail
+                                ? Icons.send_rounded
+                                : Icons.download_rounded,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(widget.isEmail ? 'ENVIAR' : 'DESCARGAR'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectAllToggle(ThemeData theme) {
+    return InkWell(
+      onTap: _toggleAll,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _allSelected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: _allSelected ? theme.primaryColor : theme.hintColor,
+              size: 20,
+            ),
+            const Text(
+              'Todos',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardOption(
+    String label,
+    String key,
+    IconData icon,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isSelected = _selected[key] ?? false;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => setState(() => _selected[key] = !isSelected),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.primaryColor.withOpacity(0.08)
+                : isDark
+                ? Colors.white.withOpacity(0.03)
+                : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? theme.primaryColor.withOpacity(0.3)
+                  : theme.dividerColor.withOpacity(0.05),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.primaryColor.withOpacity(0.1)
+                      : isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? theme.primaryColor : theme.hintColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? theme.textTheme.bodyLarge?.color
+                        : theme.hintColor,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: theme.primaryColor,
+                  size: 20,
+                )
+              else
+                Icon(
+                  Icons.circle_outlined,
+                  color: theme.hintColor.withOpacity(0.3),
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAction() async {
+    if (_selected.values.every((v) => !v)) {
+      NotificationHelper.showInfo(
+        context,
+        'Por favor, selecciona al menos un reporte',
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    try {
+      await BatchPdfHelper.processBatch(
+        context: context,
+        cliente: widget.cliente,
+        selectedReports: _selected,
+        isEmail: widget.isEmail,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        NotificationHelper.showError(context, 'Error: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
 }
 
 class _ObjectiveChip extends StatelessWidget {
@@ -519,12 +957,12 @@ class _ObjectiveChip extends StatelessWidget {
 class _CompactIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _CompactIconButton({
     required this.icon,
     required this.tooltip,
-    required this.onPressed,
+    this.onPressed,
   });
 
   @override
@@ -532,24 +970,25 @@ class _CompactIconButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
+    Widget content = Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
+      ),
+      child: Icon(icon, size: 16, color: theme.primaryColor),
+    );
+
+    if (onPressed != null) {
+      content = InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: theme.dividerColor.withOpacity(0.05)),
-          ),
-          child: Icon(icon, size: 16, color: theme.primaryColor),
-        ),
-      ),
-    );
+        child: content,
+      );
+    }
+
+    return Tooltip(message: tooltip, child: content);
   }
 }

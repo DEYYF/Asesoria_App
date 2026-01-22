@@ -16,6 +16,9 @@ import 'package:go_router/go_router.dart';
 import '../../widgets/muscle_mass_bar.dart';
 import '../../services/settings_service.dart';
 import '../../models/settings_model.dart';
+import '../../utils/progress_pdf_generator.dart';
+import '../../utils/pdf_export_helper.dart';
+import 'package:intl/intl.dart';
 
 class ProgressTab extends StatefulWidget {
   final Cliente cliente;
@@ -157,6 +160,178 @@ class _ProgressTabState extends State<ProgressTab> {
     return _historyData.where((d) => d.fecha.isAfter(cutoff)).toList();
   }
 
+  Future<Map<String, List<ExerciseHistoryRecord>>>
+  _fetchAllExerciseHistories() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final results = <String, List<ExerciseHistoryRecord>>{};
+
+    for (var ejercicio in _ejercicios) {
+      try {
+        final res = await api.get(
+          '/entrenamientos/registros/cliente/${widget.cliente.id}/historial?ejercicio=${Uri.encodeComponent(ejercicio)}',
+        );
+        if (res.statusCode == 200) {
+          final data = await parseJsonInIsolate(res.body);
+          final historyData = (data as List)
+              .map((x) => ExerciseHistoryRecord.fromJson(x))
+              .toList();
+          historyData.sort((a, b) => a.fecha.compareTo(b.fecha));
+          results[ejercicio] = historyData;
+        }
+      } catch (e) {
+        debugPrint('Error fetching history for $ejercicio: $e');
+      }
+    }
+    return results;
+  }
+
+  Future<void> _exportProgressPdf() async {
+    final rawHistorial = widget.cliente.historialProgreso;
+    final List<Progreso> historial = (rawHistorial != null)
+        ? rawHistorial
+              .whereType<Map>()
+              .map((json) => Progreso.fromJson(Map<String, dynamic>.from(json)))
+              .toList()
+        : [];
+
+    try {
+      final settings = await _settingsFuture;
+      final fileNameDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // 1. Export Corporal PDF
+      if (historial.isNotEmpty) {
+        final docCorporal = await ProgressPdfGenerator.generateDocument(
+          widget.cliente,
+          historial,
+          settings.pdfSettings,
+        );
+        final bytesCorporal = await docCorporal.save();
+        final nameCorporal =
+            'progreso_corporal_${widget.cliente.nombre.replaceAll(' ', '_')}_$fileNameDate';
+        await PdfExportHelper.exportPdf(
+          bytes: bytesCorporal,
+          fileName: nameCorporal,
+        );
+      }
+
+      // 2. Export Rendimiento PDF
+      if (_ejercicios.isNotEmpty) {
+        // Show a small loading indicator if possible, or just proceed
+        final performanceData = await _fetchAllExerciseHistories();
+        if (performanceData.isNotEmpty) {
+          final docRendimiento =
+              await ProgressPdfGenerator.generatePerformanceDocument(
+                widget.cliente,
+                performanceData,
+                settings.pdfSettings,
+              );
+          final bytesRendimiento = await docRendimiento.save();
+          final nameRendimiento =
+              'rendimiento_${widget.cliente.nombre.replaceAll(' ', '_')}_$fileNameDate';
+          await PdfExportHelper.exportPdf(
+            bytes: bytesRendimiento,
+            fileName: nameRendimiento,
+          );
+        }
+      }
+
+      if (historial.isEmpty && _ejercicios.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No hay datos de progreso ni rendimiento para exportar',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error exporting Progress PDFs: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al exportar los PDFs')),
+        );
+      }
+    }
+      }
+    }
+  }
+
+  Future<void> _cleanProgress() async {
+    final isRendimiento = _viewMode == 'rendimiento';
+    final title = isRendimiento ? 'Borrar Rendimiento' : 'Borrar Progreso Corporal';
+    final content = isRendimiento 
+        ? '¿Estás seguro de que deseas eliminar TODOS los registros de rendimiento de este cliente? Esta acción no se puede deshacer.'
+        : '¿Estás seguro de que deseas eliminar TODO el historial de medidas y peso de este cliente? Esta acción no se puede deshacer.';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      
+      final api = Provider.of<ApiService>(context, listen: false);
+      try {
+        final endpoint = isRendimiento
+            ? '/entrenamientos/registros/cliente/${widget.cliente.id}/all'
+            : '/clientes/${widget.cliente.id}/progress/all';
+            
+        final res = await api.delete(endpoint);
+        
+        if (res.statusCode == 200) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${isRendimiento ? 'Rendimiento' : 'Progreso'} eliminado correctamente')),
+            );
+          }
+          // Refresh data
+          if (isRendimiento) {
+             setState(() {
+               _historyData = [];
+               _ejercicios = [];
+               _selectedEjercicio = null;
+             });
+             _loadEjercicios();
+          } else {
+            // Force reload of client data or clear local state if possible
+            // For now specific reload might require callback or parent refresh
+            // We can try to reload the current tab content if it fetches data independently
+             setState(() {
+               // Update local client object if possible or just trigger rebuild
+                widget.cliente.historialProgreso = []; // Optimistically clear
+             });
+          }
+        } else {
+          throw Exception('Error cleaning progress');
+        }
+      } catch (e) {
+        debugPrint('Error cleaning progress: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al eliminar los datos')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -210,19 +385,37 @@ class _ProgressTabState extends State<ProgressTab> {
                     );
                   }
 
-                  if (widget.onAddProgress == null)
-                    return const SizedBox.shrink();
-
-                  return _buildHeaderAction(
-                    theme,
-                    _viewMode == 'rendimiento'
-                        ? Icons.fitness_center_rounded
-                        : Icons.add_rounded,
-                    _viewMode == 'rendimiento'
-                        ? _navigateToRegisterTraining
-                        : widget.onAddProgress!,
-                    _viewMode == 'rendimiento' ? 'Registrar' : 'Añadir',
-                    isPrimary: true,
+                  return Row(
+                    children: [
+                       _buildHeaderAction(
+                        theme,
+                        Icons.delete_outline_rounded,
+                        _cleanProgress,
+                        'Limpiar',
+                         // color: Colors.red.withOpacity(0.7), // Custom color handling needed in _buildHeaderAction if generic not enough
+                      ),
+                      const SizedBox(width: 8),
+                      _buildHeaderAction(
+                        theme,
+                        Icons.picture_as_pdf_rounded,
+                        _exportProgressPdf,
+                        'Exportar PDF',
+                      ),
+                      if (widget.onAddProgress != null) ...[
+                        const SizedBox(width: 12),
+                        _buildHeaderAction(
+                          theme,
+                          _viewMode == 'rendimiento'
+                              ? Icons.fitness_center_rounded
+                              : Icons.add_rounded,
+                          _viewMode == 'rendimiento'
+                              ? _navigateToRegisterTraining
+                              : widget.onAddProgress!,
+                          _viewMode == 'rendimiento' ? 'Registrar' : 'Añadir',
+                          isPrimary: true,
+                        ),
+                      ],
+                    ],
                   );
                 },
               ),
@@ -345,12 +538,23 @@ class _ProgressTabState extends State<ProgressTab> {
         final settings = snapshot.data;
         if (settings == null) return const SizedBox.shrink();
 
-        // Calculate last dates
+        // Calculate latest values and dates
+        double? latestWeightValue, latestFatValue, latestMuscleValue;
         DateTime? lastWeight, lastFat, lastMuscle, lastMeasures;
+
         for (var entry in historial) {
-          if (entry.peso != null) lastWeight = entry.fecha;
-          if (entry.grasaCorporal != null) lastFat = entry.fecha;
-          if (entry.masaMusculoEsqueletica != null) lastMuscle = entry.fecha;
+          if (entry.peso != null) {
+            latestWeightValue = entry.peso;
+            lastWeight = entry.fecha;
+          }
+          if (entry.grasaCorporal != null) {
+            latestFatValue = entry.grasaCorporal;
+            lastFat = entry.fecha;
+          }
+          if (entry.masaMusculoEsqueletica != null) {
+            latestMuscleValue = entry.masaMusculoEsqueletica;
+            lastMuscle = entry.fecha;
+          }
           if (entry.musculo != null && entry.musculo!.isNotEmpty) {
             lastMeasures = entry.fecha;
           }
@@ -407,7 +611,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   Expanded(
                     child: _buildSummaryCard(
                       'PESO',
-                      '${historial.last.peso ?? '-'}',
+                      latestWeightValue != null ? '$latestWeightValue' : '-',
                       'kg',
                       Icons.fitness_center_rounded,
                       theme.primaryColor,
@@ -417,7 +621,7 @@ class _ProgressTabState extends State<ProgressTab> {
                   Expanded(
                     child: _buildSummaryCard(
                       'GRASA',
-                      '${historial.last.grasaCorporal ?? '-'}',
+                      latestFatValue != null ? '$latestFatValue' : '-',
                       '%',
                       Icons.water_drop_rounded,
                       Colors.pink,
@@ -428,7 +632,7 @@ class _ProgressTabState extends State<ProgressTab> {
               const SizedBox(height: 12),
               _buildSummaryCard(
                 'MÚSCULO',
-                '${historial.last.masaMusculoEsqueletica ?? '-'}',
+                latestMuscleValue != null ? '$latestMuscleValue' : '-',
                 'kg',
                 Icons.monitor_weight_outlined,
                 Colors.teal,
@@ -468,8 +672,8 @@ class _ProgressTabState extends State<ProgressTab> {
               ),
               const SizedBox(height: 24),
               MuscleMassBar(
-                weight: historial.last.peso ?? 0,
-                muscleMass: historial.last.masaMusculoEsqueletica ?? 0,
+                weight: latestWeightValue ?? 0,
+                muscleMass: latestMuscleValue ?? 0,
                 height: widget.cliente.altura,
                 gender: widget.cliente.sexo,
               ),
@@ -624,6 +828,51 @@ class _ProgressTabState extends State<ProgressTab> {
 
         const SizedBox(height: 32),
 
+        // Latest Session Section
+        if (_historyData.isNotEmpty) ...[
+          _sectionTitle('DESTACADOS ÚLTIMA SESIÓN'),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSmallHighlightCard(
+                  'PESO MÁX',
+                  '${_historyData.last.maxWeight.toStringAsFixed(1)}kg',
+                  theme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSmallHighlightCard(
+                  '1RM EST.',
+                  '${_historyData.last.estimated1RM.toStringAsFixed(1)}kg',
+                  const Color(0xFFFFB800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSmallHighlightCard(
+                  'VOLUMEN',
+                  '${_historyData.last.totalVolume.toInt()}kg',
+                  const Color(0xFFAF52DE),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSmallHighlightCard(
+                  'REPS MÁX',
+                  '${_historyData.last.maxReps}',
+                  const Color(0xFF30D158),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+        ],
+
         // Chart Section
         if (data.isNotEmpty) ...[
           // Controls Row (Metric + Time)
@@ -768,7 +1017,12 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
-  Widget _buildStatusBox(String label, DateTime? lastDate, String frequency, IconData icon) {
+  Widget _buildStatusBox(
+    String label,
+    DateTime? lastDate,
+    String frequency,
+    IconData icon,
+  ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -827,7 +1081,12 @@ class _ProgressTabState extends State<ProgressTab> {
                 ),
                 child: Text(
                   isPending ? 'PENDIENTE' : 'AL DÍA',
-                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color, letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -835,35 +1094,52 @@ class _ProgressTabState extends State<ProgressTab> {
           const SizedBox(height: 16),
           Text(
             label,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: theme.hintColor.withOpacity(0.5), letterSpacing: 1),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: theme.hintColor.withOpacity(0.5),
+              letterSpacing: 1,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
-            lastDate != null ? 'Hace ${DateTime.now().difference(lastDate).inDays} días' : 'Sin datos',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: theme.textTheme.bodyLarge?.color),
+            lastDate != null
+                ? 'Hace ${DateTime.now().difference(lastDate).inDays} días'
+                : 'Sin datos',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTrendCard(String title, List<Progreso> historial, double? Function(Progreso) getValue, String unit) {
-    if (historial.length < 2) return const SizedBox.shrink();
-
-    final latest = historial.last;
-    final latestVal = getValue(latest);
-    if (latestVal == null) return const SizedBox.shrink();
-
+  Widget _buildTrendCard(
+    String title,
+    List<Progreso> historial,
+    double? Function(Progreso) getValue,
+    String unit,
+  ) {
+    Progreso? latest;
     Progreso? previous;
-    for (var i = historial.length - 2; i >= 0; i--) {
+
+    for (var i = historial.length - 1; i >= 0; i--) {
       if (getValue(historial[i]) != null) {
-        previous = historial[i];
-        break;
+        if (latest == null) {
+          latest = historial[i];
+        } else {
+          previous = historial[i];
+          break;
+        }
       }
     }
 
-    if (previous == null) return const SizedBox.shrink();
+    if (latest == null || previous == null) return const SizedBox.shrink();
 
+    final latestVal = getValue(latest)!;
     final prevVal = getValue(previous)!;
     final diff = latestVal - prevVal;
     final theme = Theme.of(context);
@@ -912,7 +1188,12 @@ class _ProgressTabState extends State<ProgressTab> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: theme.hintColor.withOpacity(0.5), letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    color: theme.hintColor.withOpacity(0.5),
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -926,12 +1207,21 @@ class _ProgressTabState extends State<ProgressTab> {
               children: [
                 Text(
                   "${diff > 0 ? '+' : ''}${diff.toStringAsFixed(1)}$unit",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: theme.textTheme.titleLarge?.color),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: theme.textTheme.titleLarge?.color,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color.withOpacity(0.8), letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    color: color.withOpacity(0.8),
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ],
             ),
@@ -970,6 +1260,50 @@ class _ProgressTabState extends State<ProgressTab> {
                 : theme.hintColor,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSmallHighlightCard(String title, String value, Color color) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.1), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: theme.hintColor.withOpacity(0.5),
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../../models/cliente_model.dart';
 import '../../models/template_model.dart';
 import '../../services/chat_service.dart';
 import 'template_selector_dialog.dart';
+import '../../utils/notification_helper.dart';
 
 class BulkChatDialog extends StatefulWidget {
   final List<Cliente> clientes;
@@ -71,14 +72,12 @@ class _BulkChatDialogState extends State<BulkChatDialog> {
         _statusMessage = 'Finalizado';
       });
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Mensajes enviados: $successCount, Fallidos: $failCount',
-          ),
-          backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
-        ),
-      );
+      final message = 'Mensajes enviados: $successCount, Fallidos: $failCount';
+      if (failCount > 0) {
+        NotificationHelper.showInfo(context, message);
+      } else {
+        NotificationHelper.showSuccess(context, message);
+      }
     }
   }
 

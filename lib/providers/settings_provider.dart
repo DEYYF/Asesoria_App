@@ -20,7 +20,7 @@ class SettingsProvider with ChangeNotifier {
       _settings = await _settingsService.getSettings(userId: userId);
     } catch (e) {
       debugPrint('Error loading settings in provider: $e');
-      _settings = UserSettings();
+      _settings = UserSettings(pdfSettings: PdfSettings());
     } finally {
       _isLoading = false;
       notifyListeners();

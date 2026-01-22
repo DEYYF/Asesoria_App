@@ -38,6 +38,7 @@ import 'screens/tasks/kanban_screen.dart';
 import 'services/task_service.dart';
 import 'screens/settings/team_management_screen.dart';
 import 'screens/settings/advisor_detail_screen.dart';
+import 'services/google_calendar_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -83,6 +84,12 @@ void main() async {
             Provider.of<ApiService>(context, listen: false),
           ),
           update: (_, api, previous) => previous ?? SuperAdminProvider(api),
+        ),
+        ChangeNotifierProxyProvider<ApiService, GoogleCalendarService>(
+          create: (context) => GoogleCalendarService(
+            Provider.of<ApiService>(context, listen: false),
+          ),
+          update: (_, api, previous) => previous ?? GoogleCalendarService(api),
         ),
       ],
       child: const MyApp(),

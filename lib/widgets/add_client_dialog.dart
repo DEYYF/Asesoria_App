@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/tarifa_model.dart';
 import '../../models/extra_model.dart';
+import '../utils/notification_helper.dart';
 
 class AddClientDialog extends StatefulWidget {
   final ValueChanged<String?> onSuccess;
@@ -155,15 +156,11 @@ class _AddClientDialogState extends State<AddClientDialog> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_objetivos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Añade al menos un objetivo')),
-      );
+      NotificationHelper.showInfo(context, 'Añade al menos un objetivo');
       return;
     }
     if (_selectedTarifaId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona una tarifa')));
+      NotificationHelper.showInfo(context, 'Selecciona una tarifa');
       return;
     }
 
@@ -367,81 +364,67 @@ class _AddClientDialogState extends State<AddClientDialog> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Row(
+                      const SizedBox(height: 24),
+                      _buildSectionTitle(
+                        theme,
+                        "DATOS ANTROPOMÉTRICOS & IDENTIDAD",
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            flex: 1,
-                            child: _buildTextField(
-                              controller: _edadCtrl,
-                              label: "Edad",
-                              icon: Icons.cake_outlined,
-                              theme: theme,
-                              isDark: isDark,
-                              inputType: TextInputType.number,
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4, bottom: 8),
+                            child: Text(
+                              "Sexo",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.hintColor,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 4,
-                                    bottom: 8,
-                                  ),
-                                  child: Text(
-                                    "Sexo",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.hintColor,
-                                    ),
-                                  ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(
+                                  value: 'Hombre',
+                                  label: Text('Hombre'),
+                                  icon: Icon(Icons.male_rounded),
                                 ),
-                                SegmentedButton<String>(
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: 'Hombre',
-                                      label: Text('Hombre'),
-                                      icon: Icon(Icons.male_rounded),
-                                    ),
-                                    ButtonSegment(
-                                      value: 'Mujer',
-                                      label: Text('Mujer'),
-                                      icon: Icon(Icons.female_rounded),
-                                    ),
-                                    ButtonSegment(
-                                      value: 'Otro',
-                                      label: Text('Otro'),
-                                    ),
-                                  ],
-                                  selected: {_sexo},
-                                  onSelectionChanged:
-                                      (Set<String> newSelection) {
-                                        setState(() {
-                                          _sexo = newSelection.first;
-                                        });
-                                      },
-                                  style: ButtonStyle(
-                                    visualDensity: VisualDensity.compact,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    side: MaterialStateProperty.all(
-                                      BorderSide(
-                                        color: theme.dividerColor.withOpacity(
-                                          0.2,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                ButtonSegment(
+                                  value: 'Mujer',
+                                  label: Text('Mujer'),
+                                  icon: Icon(Icons.female_rounded),
+                                ),
+                                ButtonSegment(
+                                  value: 'Otro',
+                                  label: Text('Otro'),
+                                  icon: Icon(Icons.transgender_rounded),
                                 ),
                               ],
+                              selected: {_sexo},
+                              onSelectionChanged: (Set<String> newSelection) {
+                                setState(() {
+                                  _sexo = newSelection.first;
+                                });
+                              },
+                              style: SegmentedButton.styleFrom(
+                                visualDensity: VisualDensity.comfortable,
+                                side: BorderSide(
+                                  color: theme.dividerColor.withOpacity(0.2),
+                                ),
+                                selectedBackgroundColor: theme.primaryColor
+                                    .withOpacity(0.1),
+                                selectedForegroundColor: theme.primaryColor,
+                              ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 24),
                       const SizedBox(height: 32),
 
                       const SizedBox(height: 16),

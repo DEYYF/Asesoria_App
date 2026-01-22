@@ -53,9 +53,19 @@ class Dieta {
   }
 
   factory Dieta.fromJson(Map<String, dynamic> json) {
+    String cId = '';
+    String? cName;
+
+    if (json['clienteId'] is Map) {
+      cId = json['clienteId']['_id'] ?? '';
+      cName = json['clienteId']['nombre'];
+    } else {
+      cId = json['clienteId'] ?? '';
+    }
+
     return Dieta(
       id: json['_id'],
-      clienteId: json['clienteId'] ?? '',
+      clienteId: cId,
       asesorId: json['asesorId'] ?? '',
       nombre: json['nombre'] ?? '',
       objetivo: json['objetivo'],
@@ -72,8 +82,10 @@ class Dieta {
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'])
           : null,
-    );
+    )..clienteNombre = cName;
   }
+
+  String? clienteNombre;
 
   Map<String, dynamic> toJson() {
     return {

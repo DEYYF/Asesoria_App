@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/notification_helper.dart';
 
 class VideoPlayerDialog extends StatefulWidget {
   final String videoUrl;
@@ -47,9 +48,7 @@ class _VideoPlayerDialogState extends State<VideoPlayerDialog> {
     final Uri url = Uri.parse(widget.videoUrl);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el enlace')),
-        );
+        NotificationHelper.showError(context, 'No se pudo abrir el enlace');
       }
     }
   }

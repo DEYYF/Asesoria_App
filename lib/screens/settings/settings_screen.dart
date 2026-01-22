@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'pdf_designer_screen.dart';
 import 'email_history_screen.dart';
 import '../../services/settings_service.dart';
 import '../../services/api_service.dart';
@@ -16,6 +17,8 @@ import '../../providers/settings_provider.dart';
 import 'tarifas_screen.dart';
 import 'extras_screen.dart';
 import 'transfer_data_screen.dart';
+import '../../utils/notification_helper.dart';
+import '../../services/google_calendar_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -24,7 +27,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   UserSettings? _settings;
   bool _loading = true;
   final String _appVersion = '1.0.1';
@@ -32,7 +36,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<GoogleCalendarService>(context, listen: false).loadStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      Provider.of<GoogleCalendarService>(context, listen: false).loadStatus();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -60,21 +81,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await settingsProvider.updateSettings(newSettings);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Configuración guardada correctamente'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
+      NotificationHelper.showSuccess(
+        context,
+        'Configuración guardada correctamente',
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _settings = oldSettings);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al sincronizar con el servidor: $e'),
-          backgroundColor: Colors.red,
-        ),
+      NotificationHelper.showError(
+        context,
+        'Error al sincronizar con el servidor: $e',
       );
     }
   }
@@ -227,6 +243,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       MaterialPageRoute(builder: (_) => const ExtrasScreen()),
                     ),
                   ),
+                  SettingsNavigationTile(
+                    title: 'Diseñador de PDF',
+                    subtitle: 'Personaliza tus documentos',
+                    icon: Icons.picture_as_pdf_outlined,
+                    iconColor: Colors.blue,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PdfDesignerScreen(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
 
@@ -342,6 +370,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ],
+
+              // Google Calendar Synchronization section
+              const SettingsSectionHeader(title: 'Sincronización'),
+              Consumer<GoogleCalendarService>(
+                builder: (context, googleCalendar, _) {
+                  return SettingsGroup(
+                    children: [
+                      SettingsNavigationTile(
+                        title: 'Google Calendar',
+                        subtitle: googleCalendar.isConnected
+                            ? 'Conectado como ${googleCalendar.email}'
+                            : 'Sincroniza tus citas automáticamente',
+                        icon: Icons.calendar_today_rounded,
+                        iconColor: Colors.blue,
+                        trailing: googleCalendar.isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: googleCalendar.isConnected
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  googleCalendar.isConnected
+                                      ? 'Conectado'
+                                      : 'Desconectado',
+                                  style: TextStyle(
+                                    color: googleCalendar.isConnected
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                        onTap: () =>
+                            _showGoogleCalendarConnectionDialog(googleCalendar),
+                      ),
+                    ],
+                  );
+                },
+              ),
 
               // Module Management section
               const SettingsSectionHeader(title: 'Sistema de Módulos'),
@@ -713,16 +794,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final settingsService = SettingsService(
                 Provider.of<ApiService>(context, listen: false),
               );
-              final messenger = ScaffoldMessenger.of(context);
               try {
                 await settingsService.exportData();
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Exportación iniciada. Revisa tu email.'),
-                  ),
-                );
+                if (context.mounted) {
+                  NotificationHelper.showSuccess(
+                    context,
+                    'Exportación iniciada. Revisa tu email.',
+                  );
+                }
               } catch (e) {
-                messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                if (context.mounted) {
+                  NotificationHelper.showError(context, 'Error: $e');
+                }
               }
             },
             child: const Text('Exportar'),
@@ -768,9 +851,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error al eliminar cuenta: $e')));
+        NotificationHelper.showError(context, 'Error al eliminar cuenta: $e');
       }
     }
   }
@@ -793,6 +874,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             child: const Text('Salir', style: TextStyle(color: Colors.red)),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showGoogleCalendarConnectionDialog(
+    GoogleCalendarService googleCalendar,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Google Calendar'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Al conectar tu Google Calendar, todas las citas que crees en la aplicación se sincronizarán automáticamente con tu calendario personal.',
+            ),
+            if (googleCalendar.isConnected) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Conectado como: ${googleCalendar.email}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ] else if (!googleCalendar.isLoading) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => googleCalendar.loadStatus(),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Comprobar conexión'),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          if (googleCalendar.isConnected)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await googleCalendar.disconnect();
+                  if (mounted) {
+                    NotificationHelper.showSuccess(
+                      context,
+                      'Google Calendar desconectado',
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    NotificationHelper.showError(context, 'Error: $e');
+                  }
+                }
+              },
+              child: const Text(
+                'Desconectar',
+                style: TextStyle(color: Colors.red),
+              ),
+            )
+          else
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await googleCalendar.connect();
+                  // We don't show success here because it redirects to browser
+                } catch (e) {
+                  if (mounted) {
+                    NotificationHelper.showError(context, 'Error: $e');
+                  }
+                }
+              },
+              child: const Text('Conectar'),
+            ),
         ],
       ),
     );

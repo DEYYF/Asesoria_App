@@ -140,6 +140,32 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     }
   }
 
+  Future<void> _addToPantry(String name, String category) async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.post('/despensa', {
+        'clienteId': widget.clienteId,
+        'nombreIngrediente': name,
+        'categoria': category,
+        'cantidad': 0, // Placeholder
+      });
+      if (res.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$name añadido a la despensa'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+        _loadShoppingList(); // Refresh to show "In Pantry"
+      }
+    } catch (e) {
+      debugPrint('Error adding to pantry: $e');
+    }
+  }
+
   Map<String, List<dynamic>> _groupByCategory() {
     final grouped = <String, List<dynamic>>{};
     for (var item in _ingredients) {
@@ -339,7 +365,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   Widget _buildIngredientItem(dynamic item) {
     final name = item['name'];
     final grams = item['grams'] as num;
-    final isChecked = _checkedItems.contains(name);
+    final inPantry = item['inPantry'] == true;
+    final isChecked = _checkedItems.contains(name) || inPantry;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -394,16 +421,41 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        decoration: isChecked
-                            ? TextDecoration.lineThrough
-                            : null,
-                        color: isChecked ? theme.hintColor : null,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              decoration: isChecked
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: isChecked ? theme.hintColor : null,
+                            ),
+                          ),
+                        ),
+                        if (item['inPantry'] == true)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'EN DESPENSA',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     if (grams > 0)
                       Text(
@@ -417,6 +469,14 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                   ],
                 ),
               ),
+              if (item['inPantry'] != true)
+                IconButton(
+                  icon: const Icon(Icons.inventory_2_outlined, size: 20),
+                  tooltip: 'Tengo esto / Añadir a despensa',
+                  color: theme.primaryColor.withOpacity(0.5),
+                  onPressed: () =>
+                      _addToPantry(name, item['category'] ?? 'General'),
+                ),
             ],
           ),
         ),

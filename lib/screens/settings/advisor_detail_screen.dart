@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/notification_helper.dart';
 import 'dart:convert';
 
 class AdvisorDetailScreen extends StatefulWidget {
@@ -149,16 +150,12 @@ class _AdvisorDetailScreenState extends State<AdvisorDetailScreen>
     try {
       await api.put('/users/${widget.advisorId}', data);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Información general guardada')),
-        );
+        NotificationHelper.showSuccess(context, 'Información general guardada');
         _loadAdvisor(); // Reload to update UI
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     } finally {
       setState(() => _isSaving = false);
@@ -176,15 +173,11 @@ class _AdvisorDetailScreenState extends State<AdvisorDetailScreen>
     try {
       await api.put('/users/${widget.advisorId}', {'settings': _settings});
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Configuración guardada')));
+        NotificationHelper.showSuccess(context, 'Configuración guardada');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     } finally {
       setState(() => _isSaving = false);
@@ -200,15 +193,11 @@ class _AdvisorDetailScreenState extends State<AdvisorDetailScreen>
         'calendarSettings': _calendarSettings,
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Calendario guardado')));
+        NotificationHelper.showSuccess(context, 'Calendario guardado');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     } finally {
       setState(() => _isSaving = false);

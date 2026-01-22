@@ -6,6 +6,9 @@ import '../../services/auth_service.dart';
 import '../../models/dieta_model.dart';
 import '../../models/macros_model.dart';
 import '../../services/api_service.dart';
+import '../../services/settings_service.dart';
+import '../../providers/settings_provider.dart';
+import '../../models/settings_model.dart';
 import '../../utils/diet_pdf_generator.dart';
 import '../../widgets/revisions_dialog.dart';
 import 'create_diet_screen.dart';
@@ -59,7 +62,28 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
 
   Future<void> _handleExportPDF(Dieta dieta) async {
     try {
-      await DietPdfGenerator.generatePDF(dieta);
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      PdfSettings pdfSettings;
+
+      // If we already have settings and they belong to the advisor (or we are the advisor)
+      if (settingsProvider.settings != null) {
+        pdfSettings = settingsProvider.settings!.pdfSettings;
+      } else {
+        // Fallback: Fetch them specifically if needed, or use defaults
+        // For now, let's try to get them from the service if we want to be very precise
+        final settingsService = SettingsService(
+          Provider.of<ApiService>(context, listen: false),
+        );
+        final settings = await settingsService.getSettings(
+          userId: dieta.asesorId,
+        );
+        pdfSettings = settings.pdfSettings;
+      }
+
+      await DietPdfGenerator.generatePDF(dieta, pdfSettings);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

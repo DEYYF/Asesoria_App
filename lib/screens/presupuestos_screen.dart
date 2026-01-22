@@ -4,14 +4,16 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../widgets/budget_detail_dialog.dart';
 import '../widgets/add_draft_dialog.dart';
 import '../widgets/add_client_dialog.dart';
 import '../widgets/advisor_selector.dart';
 import '../providers/super_admin_provider.dart';
+import '../providers/settings_provider.dart';
+import '../models/settings_model.dart';
+import '../utils/budget_pdf_generator.dart';
+import '../utils/pdf_export_helper.dart';
+import '../services/settings_service.dart';
 
 class PresupuestosScreen extends StatefulWidget {
   const PresupuestosScreen({super.key});
@@ -695,11 +697,38 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
 
   Future<void> _handleDownloadPdf(dynamic p) async {
     try {
-      final doc = await _generatePdf(p);
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      PdfSettings pdfSettings;
+
+      final advisorId = p['asesorId'] is Map
+          ? p['asesorId']['_id']
+          : p['asesorId'];
+
+      if (settingsProvider.settings != null &&
+          (advisorId == null ||
+              advisorId ==
+                  Provider.of<AuthService>(context, listen: false).userId)) {
+        pdfSettings = settingsProvider.settings!.pdfSettings;
+      } else if (advisorId != null) {
+        final settingsService = SettingsService(
+          Provider.of<ApiService>(context, listen: false),
+        );
+        final settings = await settingsService.getSettings(userId: advisorId);
+        pdfSettings = settings.pdfSettings;
+      } else {
+        pdfSettings = PdfSettings();
+      }
+
+      final doc = await BudgetPdfGenerator.generateDocument(p, pdfSettings);
       final name = p['clienteId']?['nombre'] ?? p['nombreCliente'] ?? "Cliente";
-      await Printing.sharePdf(
+      final fileName = 'Presupuesto_${name.replaceAll(' ', '_')}.pdf';
+
+      await PdfExportHelper.exportPdf(
         bytes: await doc.save(),
-        filename: 'Presupuesto_${name.replaceAll(' ', '_')}.pdf',
+        fileName: fileName,
       );
     } catch (e) {
       if (mounted) {
@@ -745,7 +774,30 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
 
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final doc = await _generatePdf(p);
+      final settingsProvider = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      );
+      PdfSettings pdfSettings;
+
+      final advisorId = p['asesorId'] is Map
+          ? p['asesorId']['_id']
+          : p['asesorId'];
+
+      if (settingsProvider.settings != null &&
+          (advisorId == null ||
+              advisorId ==
+                  Provider.of<AuthService>(context, listen: false).userId)) {
+        pdfSettings = settingsProvider.settings!.pdfSettings;
+      } else if (advisorId != null) {
+        final settingsService = SettingsService(api);
+        final settings = await settingsService.getSettings(userId: advisorId);
+        pdfSettings = settings.pdfSettings;
+      } else {
+        pdfSettings = PdfSettings();
+      }
+
+      final doc = await BudgetPdfGenerator.generateDocument(p, pdfSettings);
       final pdfBytes = await doc.save();
       final base64Pdf = base64Encode(pdfBytes);
 
@@ -783,220 +835,6 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
         ).showSnackBar(SnackBar(content: Text('Error al enviar email: $e')));
       }
     }
-  }
-
-  Future<pw.Document> _generatePdf(dynamic p) async {
-    final doc = pw.Document();
-    final primaryColor = PdfColor.fromHex('#2980b9');
-    final name = p['clienteId']?['nombre'] ?? p['nombreCliente'] ?? "N/A";
-    final email = p['clienteId']?['email'] ?? p['emailCliente'] ?? "";
-
-    doc.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'PRESUPUESTO',
-                        style: pw.TextStyle(
-                          fontSize: 26,
-                          fontWeight: pw.FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                      pw.Text(
-                        'ID: ${p['_id']}',
-                        style: const pw.TextStyle(
-                          color: PdfColors.grey,
-                          fontSize: 10,
-                        ),
-                      ),
-                      pw.Text(
-                        'Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.parse(p['createdAt']))}',
-                        style: const pw.TextStyle(
-                          color: PdfColors.grey,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 30),
-
-              // Cliente Box
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                decoration: const pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  border: pw.Border(
-                    left: pw.BorderSide(color: PdfColors.grey, width: 2),
-                  ),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'Datos del Cliente:',
-                      style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                    pw.Text(name, style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(email, style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 30),
-
-              // Table
-              pw.Table(
-                border: pw.TableBorder.all(color: PdfColors.grey300),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(3),
-                  1: const pw.FlexColumnWidth(1),
-                },
-                children: [
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(color: primaryColor),
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          'CONCEPTO',
-                          style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          'PRECIO',
-                          style: pw.TextStyle(
-                            color: PdfColors.white,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                          textAlign: pw.TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          p['tarifaId']?['nombre'] ?? 'Tarifa Base',
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '${p['tarifaId']?['precio'] ?? 0} €',
-                          textAlign: pw.TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ...(p['extras'] as List).map(
-                    (e) => pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            'Extra: ${e['extraId']?['nombre'] ?? 'Extra'}',
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            '${e['precioTotal'] ?? 0} €',
-                            textAlign: pw.TextAlign.right,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-
-              // Totals
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      if ((p['descuento'] ?? 0) > 0)
-                        pw.Text(
-                          'Descuento (${p['descuento']}%): - ${((p['total'] * 100 / (100 - p['descuento'])) - p['total']).toStringAsFixed(2)} €',
-                          style: const pw.TextStyle(color: PdfColors.red),
-                        ),
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        'TOTAL: ${p['total']} €',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              pw.Spacer(),
-              pw.Divider(color: PdfColors.grey300),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'ASESORIA ENTERPRISE',
-                        style: const pw.TextStyle(
-                          fontSize: 8,
-                          color: PdfColors.grey,
-                        ),
-                      ),
-                      pw.Text(
-                        'asesoriaenterprise@gmail.com',
-                        style: const pw.TextStyle(
-                          fontSize: 8,
-                          color: PdfColors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.Text(
-                    'Gracias por confiar en nuestros servicios.',
-                    style: const pw.TextStyle(
-                      fontSize: 8,
-                      color: PdfColors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    return doc;
   }
 
   Future<void> _handleDelete(dynamic p) async {

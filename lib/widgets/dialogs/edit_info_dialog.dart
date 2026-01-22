@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
 import '../../models/cliente_model.dart';
+import '../../utils/notification_helper.dart';
 
 class EditInfoDialog extends StatefulWidget {
   final Cliente cliente;
@@ -105,9 +106,7 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        NotificationHelper.showError(context, 'Error: $e');
       }
     }
   }
@@ -201,35 +200,44 @@ class _EditInfoDialogState extends State<EditInfoDialog> {
                     ),
                   ),
                 ),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'Hombre',
-                      label: Text('Hombre'),
-                      icon: Icon(Icons.male_rounded),
-                    ),
-                    ButtonSegment(
-                      value: 'Mujer',
-                      label: Text('Mujer'),
-                      icon: Icon(Icons.female_rounded),
-                    ),
-                    ButtonSegment(value: 'Otro', label: Text('Otro')),
-                  ],
-                  selected: {_selectedSex ?? 'Hombre'},
-                  onSelectionChanged: (Set<String> newSelection) {
-                    setState(() {
-                      _selectedSex = newSelection.first;
-                    });
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    side: MaterialStateProperty.all(
-                      BorderSide(
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: 'Hombre',
+                        label: Text('Hombre'),
+                        icon: Icon(Icons.male_rounded),
+                      ),
+                      ButtonSegment(
+                        value: 'Mujer',
+                        label: Text('Mujer'),
+                        icon: Icon(Icons.female_rounded),
+                      ),
+                      ButtonSegment(
+                        value: 'Otro',
+                        label: Text('Otro'),
+                        icon: Icon(Icons.transgender_rounded),
+                      ),
+                    ],
+                    selected: {_selectedSex ?? 'Hombre'},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setState(() {
+                        _selectedSex = newSelection.first;
+                      });
+                    },
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.comfortable,
+                      side: BorderSide(
                         color: _errors['sexo'] != null
                             ? Colors.red
                             : theme.dividerColor.withOpacity(0.2),
                       ),
+                      selectedBackgroundColor: theme.primaryColor.withOpacity(
+                        0.1,
+                      ),
+                      selectedForegroundColor: theme.primaryColor,
                     ),
                   ),
                 ),
