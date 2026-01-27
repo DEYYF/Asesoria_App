@@ -351,6 +351,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         cliente: _cliente!,
         hasDieta: _hasDieta,
         hasEntrenamiento: _hasEntrenamiento,
+        showLibreta: _settings?.enabledTrainingLog ?? true,
         canEditFeatures: _canEditFeatures,
         onRenovar: _handleRenovar,
         onDelete: _handleDelete,
@@ -403,10 +404,6 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         if (_canEditFeatures) {
           tabs.add(const Tab(text: 'Entrenamiento'));
           tabViews.add(TrainingTab(clienteId: _cliente!.id));
-          if (_settings?.enabledTrainingLog ?? true) {
-            tabs.add(const Tab(text: 'Libreta'));
-            tabViews.add(JournalTab(cliente: _cliente!));
-          }
         } else {
           tabs.add(
             const Tab(
@@ -421,6 +418,15 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             ),
           );
           tabViews.add(const Center(child: Icon(Icons.lock)));
+        }
+      }
+
+      // Add Libreta (Journal) independently of service type
+      if (_settings?.enabledTrainingLog ?? true) {
+        if (_canEditFeatures) {
+          tabs.add(const Tab(text: 'Libreta'));
+          tabViews.add(JournalTab(cliente: _cliente!));
+        } else {
           tabs.add(
             const Tab(
               child: Row(

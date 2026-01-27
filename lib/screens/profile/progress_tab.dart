@@ -47,13 +47,36 @@ class _ProgressTabState extends State<ProgressTab> {
 
   late Future<UserSettings> _settingsFuture;
 
+  List<Progreso> _corporalHistory = [];
+
   @override
   void initState() {
     super.initState();
+    _corporalHistory = _parseHistorial(widget.cliente.historialProgreso);
     _loadEjercicios();
     _settingsFuture = SettingsService(
       Provider.of<ApiService>(context, listen: false),
     ).getSettings();
+  }
+
+  @override
+  void didUpdateWidget(ProgressTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.cliente.historialProgreso !=
+        oldWidget.cliente.historialProgreso) {
+      setState(() {
+        _corporalHistory = _parseHistorial(widget.cliente.historialProgreso);
+      });
+    }
+  }
+
+  List<Progreso> _parseHistorial(List<dynamic>? rawHistorial) {
+    return (rawHistorial != null)
+        ? rawHistorial
+              .whereType<Map>()
+              .map((json) => Progreso.fromJson(Map<String, dynamic>.from(json)))
+              .toList()
+        : [];
   }
 
   Future<void> _loadEjercicios() async {
@@ -186,13 +209,7 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   Future<void> _exportProgressPdf() async {
-    final rawHistorial = widget.cliente.historialProgreso;
-    final List<Progreso> historial = (rawHistorial != null)
-        ? rawHistorial
-              .whereType<Map>()
-              .map((json) => Progreso.fromJson(Map<String, dynamic>.from(json)))
-              .toList()
-        : [];
+    final List<Progreso> historial = _corporalHistory;
 
     try {
       final settings = await _settingsFuture;
@@ -254,14 +271,14 @@ class _ProgressTabState extends State<ProgressTab> {
         );
       }
     }
-      }
-    }
   }
 
   Future<void> _cleanProgress() async {
     final isRendimiento = _viewMode == 'rendimiento';
-    final title = isRendimiento ? 'Borrar Rendimiento' : 'Borrar Progreso Corporal';
-    final content = isRendimiento 
+    final title = isRendimiento
+        ? 'Borrar Rendimiento'
+        : 'Borrar Progreso Corporal';
+    final content = isRendimiento
         ? '¿Estás seguro de que deseas eliminar TODOS los registros de rendimiento de este cliente? Esta acción no se puede deshacer.'
         : '¿Estás seguro de que deseas eliminar TODO el historial de medidas y peso de este cliente? Esta acción no se puede deshacer.';
 
@@ -286,37 +303,37 @@ class _ProgressTabState extends State<ProgressTab> {
 
     if (confirm == true) {
       if (!mounted) return;
-      
+
       final api = Provider.of<ApiService>(context, listen: false);
       try {
         final endpoint = isRendimiento
             ? '/entrenamientos/registros/cliente/${widget.cliente.id}/all'
             : '/clientes/${widget.cliente.id}/progress/all';
-            
+
         final res = await api.delete(endpoint);
-        
+
         if (res.statusCode == 200) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${isRendimiento ? 'Rendimiento' : 'Progreso'} eliminado correctamente')),
+              SnackBar(
+                content: Text(
+                  '${isRendimiento ? 'Rendimiento' : 'Progreso'} eliminado correctamente',
+                ),
+              ),
             );
           }
           // Refresh data
           if (isRendimiento) {
-             setState(() {
-               _historyData = [];
-               _ejercicios = [];
-               _selectedEjercicio = null;
-             });
-             _loadEjercicios();
+            setState(() {
+              _historyData = [];
+              _ejercicios = [];
+              _selectedEjercicio = null;
+            });
+            _loadEjercicios();
           } else {
-            // Force reload of client data or clear local state if possible
-            // For now specific reload might require callback or parent refresh
-            // We can try to reload the current tab content if it fetches data independently
-             setState(() {
-               // Update local client object if possible or just trigger rebuild
-                widget.cliente.historialProgreso = []; // Optimistically clear
-             });
+            setState(() {
+              _corporalHistory = [];
+            });
           }
         } else {
           throw Exception('Error cleaning progress');
@@ -387,12 +404,12 @@ class _ProgressTabState extends State<ProgressTab> {
 
                   return Row(
                     children: [
-                       _buildHeaderAction(
+                      _buildHeaderAction(
                         theme,
                         Icons.delete_outline_rounded,
                         _cleanProgress,
                         'Limpiar',
-                         // color: Colors.red.withOpacity(0.7), // Custom color handling needed in _buildHeaderAction if generic not enough
+                        // color: Colors.red.withOpacity(0.7), // Custom color handling needed in _buildHeaderAction if generic not enough
                       ),
                       const SizedBox(width: 8),
                       _buildHeaderAction(
@@ -519,14 +536,7 @@ class _ProgressTabState extends State<ProgressTab> {
 
   Widget _buildCorporalView() {
     final theme = Theme.of(context);
-    final rawHistorial = widget.cliente.historialProgreso;
-
-    final List<Progreso> historial = (rawHistorial != null)
-        ? rawHistorial
-              .whereType<Map>()
-              .map((json) => Progreso.fromJson(Map<String, dynamic>.from(json)))
-              .toList()
-        : [];
+    final List<Progreso> historial = _corporalHistory;
 
     if (historial.isEmpty) {
       return _buildEmptyState('No hay registros corporales.');

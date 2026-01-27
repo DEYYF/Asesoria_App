@@ -12,12 +12,14 @@ import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../models/entrenamiento_model.dart';
 import 'calendar_tab.dart';
+import 'journal_tab.dart';
 import 'pantry_screen.dart';
 
 class ClientViewLayout extends StatefulWidget {
   final Cliente cliente;
   final bool hasDieta;
   final bool hasEntrenamiento;
+  final bool showLibreta; // Add field
   final bool canEditFeatures;
   // Methods to open specific tabs
   final VoidCallback onRenovar;
@@ -35,6 +37,7 @@ class ClientViewLayout extends StatefulWidget {
     required this.cliente,
     required this.hasDieta,
     required this.hasEntrenamiento,
+    required this.showLibreta, // Add param
     required this.canEditFeatures,
     required this.onRenovar,
     required this.onDelete,
@@ -62,8 +65,10 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
     // 0: Info (Home)
     // 1: Diet
     // 2: Training
-    // 3: Progress
-    // 4: Chat
+    // 3: Journal (Libreta) - NEW
+    // 4: Calendar
+    // 5: Progress
+    // 6: Chat
 
     // We build the body dynamically to show content
     Widget content;
@@ -90,13 +95,20 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
           content = const Center(child: Text("Servicio no contratado"));
         }
         break;
-      case 3: // Calendario
+      case 3: // Libreta
+        if (widget.showLibreta) {
+          content = JournalTab(cliente: widget.cliente);
+        } else {
+          content = const Center(child: Text("Libreta no habilitada"));
+        }
+        break;
+      case 4: // Calendario
         content = CalendarTab(
           cliente: widget.cliente,
           onPlanSession: () => _handleRegisterSession(context),
         );
         break;
-      case 4: // Progreso
+      case 5: // Progreso
         if (widget.hasDieta || widget.hasEntrenamiento) {
           content = widget.canEditFeatures
               ? ProgressTab(
@@ -108,7 +120,7 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
           content = const Center(child: Text("Sin progreso disponible"));
         }
         break;
-      case 5: // Chat
+      case 6: // Chat
         content = widget.chatTabWidget;
         break;
       default:
@@ -256,6 +268,14 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
               label: 'Entreno',
             ),
             const NavigationDestination(
+              icon: Icon(Icons.auto_stories_rounded), // Libreta Icon
+              selectedIcon: Icon(
+                Icons.auto_stories_rounded,
+                color: Colors.teal,
+              ),
+              label: 'Libreta',
+            ),
+            const NavigationDestination(
               icon: Icon(Icons.calendar_month_rounded),
               selectedIcon: Icon(
                 Icons.calendar_month_rounded,
@@ -306,7 +326,7 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
               label: 'CHAT',
               color: const Color(0xFF007AFF),
               onPressed: () {
-                setState(() => _selectedIndex = 5);
+                setState(() => _selectedIndex = 6); // Updated index
               },
             ),
           ),
@@ -356,7 +376,7 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
               label: 'PROGRESO',
               color: const Color(0xFFFF9500),
               onPressed: () {
-                setState(() => _selectedIndex = 4);
+                setState(() => _selectedIndex = 5); // Updated index
               },
             ),
           ),
