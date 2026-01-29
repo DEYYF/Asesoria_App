@@ -11,11 +11,13 @@ import 'widgets/settings_widgets.dart';
 import 'widgets/business_settings_dialog.dart';
 import 'widgets/support_dialog.dart';
 import 'templates_screen.dart';
+import 'email_templates_screen.dart';
 import 'automation_screen.dart';
 import 'modules_management_screen.dart';
 import '../../providers/settings_provider.dart';
 import 'tarifas_screen.dart';
 import 'extras_screen.dart';
+import '../facturas/facturas_list_screen.dart';
 import 'transfer_data_screen.dart';
 import '../../utils/notification_helper.dart';
 import '../../services/google_calendar_service.dart';
@@ -98,6 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -244,6 +247,18 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                   ),
                   SettingsNavigationTile(
+                    title: 'Facturas',
+                    subtitle: 'Gestión de facturación',
+                    icon: Icons.receipt_long_rounded,
+                    iconColor: Colors.deepPurple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FacturasListScreen(),
+                      ),
+                    ),
+                  ),
+                  SettingsNavigationTile(
                     title: 'Diseñador de PDF',
                     subtitle: 'Personaliza tus documentos',
                     icon: Icons.picture_as_pdf_outlined,
@@ -312,6 +327,24 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                     onTap: _showThemePicker,
                   ),
+                  SettingsNavigationTile(
+                    title: 'Color de Acento',
+                    subtitle: 'Color principal de la interfaz',
+                    icon: Icons.colorize_rounded,
+                    iconColor: themeProvider.accentColor,
+                    trailing: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: themeProvider.accentColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                        ),
+                      ),
+                    ),
+                    onTap: _showAccentColorPicker,
+                  ),
                 ],
               ),
 
@@ -325,9 +358,9 @@ class _SettingsScreenState extends State<SettingsScreen>
                   children: [
                     if (_settings!.enabledTemplateManagement)
                       SettingsNavigationTile(
-                        title: 'Plantillas de Mensajes',
-                        subtitle: 'Gestionar respuestas rápidas',
-                        icon: Icons.auto_awesome_motion_rounded,
+                        title: 'Plantillas de Mensajes (Chat)',
+                        subtitle: 'Respuestas rápidas para el chat',
+                        icon: Icons.chat_bubble_outline_rounded,
                         iconColor: Colors.teal,
                         onTap: () {
                           Navigator.push(
@@ -338,6 +371,20 @@ class _SettingsScreenState extends State<SettingsScreen>
                           );
                         },
                       ),
+                    SettingsNavigationTile(
+                      title: 'Plantillas de Correo',
+                      subtitle: 'Configura notificaciones automáticas',
+                      icon: Icons.mail_outline_rounded,
+                      iconColor: Colors.orange,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const EmailTemplatesScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     SettingsNavigationTile(
                       title: 'Historial de Correos',
                       subtitle: 'Registro de correos enviados',
@@ -772,6 +819,84 @@ class _SettingsScreenState extends State<SettingsScreen>
         themeProvider.setTheme(value);
         _updateSettings(_settings!.copyWith(theme: value));
       },
+    );
+  }
+
+  void _showAccentColorPicker() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final colors = [
+      {'name': 'Azul iOS', 'hex': '#007AFF', 'color': const Color(0xFF007AFF)},
+      {'name': 'Verde', 'hex': '#34C759', 'color': const Color(0xFF34C759)},
+      {'name': 'Naranja', 'hex': '#FF9500', 'color': const Color(0xFFFF9500)},
+      {'name': 'Rojo', 'hex': '#FF3B30', 'color': const Color(0xFFFF3B30)},
+      {'name': 'Morado', 'hex': '#5856D6', 'color': const Color(0xFF5856D6)},
+      {'name': 'Rosa', 'hex': '#FF2D55', 'color': const Color(0xFFFF2D55)},
+      {'name': 'Teal', 'hex': '#5AC8FA', 'color': const Color(0xFF5AC8FA)},
+      {'name': 'Indigo', 'hex': '#AF52DE', 'color': const Color(0xFFAF52DE)},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Color de Acento',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              ),
+            ),
+            SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: colors.length,
+                itemBuilder: (context, index) {
+                  final c = colors[index];
+                  final isSelected = _settings!.accentColor == c['hex'];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      themeProvider.setAccentColor(c['hex'] as String);
+                      _updateSettings(
+                        _settings!.copyWith(accentColor: c['hex'] as String),
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: c['color'] as Color,
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 3)
+                            : null,
+                        boxShadow: isSelected
+                            ? [BoxShadow(color: Colors.black26, blurRadius: 8)]
+                            : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check, color: Colors.white)
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
     );
   }
 

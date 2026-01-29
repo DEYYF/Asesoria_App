@@ -37,6 +37,7 @@ class _ClienteCardState extends State<ClienteCard> {
   int? _ultimaDietaDias;
   Color _statusColor = Colors.grey;
   bool _isProgressOverdue = false;
+  bool _isStalled = false;
   String _overdueMetric = '';
 
   @override
@@ -109,6 +110,25 @@ class _ClienteCardState extends State<ClienteCard> {
 
       final settingsService = SettingsService(api);
       final settings = await settingsService.getSettings();
+
+      // Stall detection logic (last 3 entries)
+      if (c.historialProgreso != null && c.historialProgreso!.length >= 3) {
+        final history = c.historialProgreso!;
+        final latest = history.last;
+        final prev = history[history.length - 2];
+        final previousPrev = history[history.length - 3];
+
+        final w1 = (latest['peso'] as num?)?.toDouble() ?? 0;
+        final w2 = (prev['peso'] as num?)?.toDouble() ?? 0;
+        final w3 = (previousPrev['peso'] as num?)?.toDouble() ?? 0;
+
+        if (w1 > 0 && w2 > 0 && w3 > 0) {
+          if ((w1 - w2).abs() < 0.2 && (w2 - w3).abs() < 0.2) {
+            setState(() => _isStalled = true);
+          }
+        }
+      }
+
       if (settings.enabledProgressFrequencies &&
           c.historialProgreso != null &&
           c.historialProgreso!.isNotEmpty) {
@@ -194,6 +214,8 @@ class _ClienteCardState extends State<ClienteCard> {
                               if (val == 'baja') widget.onToggleStatus();
                               if (val == 'delete') widget.onDelete();
                               if (val == 'transfer') widget.onTransfer?.call();
+                              if (val == 'password')
+                                _showChangePasswordDialog();
                             },
                             itemBuilder: (context) => [
                               PopupMenuItem(
@@ -211,6 +233,20 @@ class _ClienteCardState extends State<ClienteCard> {
                                           ? 'Dar de alta'
                                           : 'Dar de baja',
                                     ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'password',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.lock_reset_rounded,
+                                      size: 18,
+                                      color: theme.primaryColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('Cambiar Contraseña'),
                                   ],
                                 ),
                               ),
@@ -384,6 +420,30 @@ class _ClienteCardState extends State<ClienteCard> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (_isStalled)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            margin: const EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.orange.withOpacity(0.5)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.bolt_rounded, size: 10, color: Colors.orange),
+                SizedBox(width: 2),
+                Text(
+                  'ESTANCADO',
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (_isProgressOverdue)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -558,6 +618,112 @@ class _ClienteCardState extends State<ClienteCard> {
       context: context,
       builder: (context) =>
           _PdfSelectionDialog(cliente: widget.cliente, isEmail: isEmail),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final ctrl = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Cambiar Contraseña'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Ingresa la nueva contraseña para ${widget.cliente.nombre}.',
+                style: TextStyle(fontSize: 13, color: theme.hintColor),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: ctrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Nueva Contraseña',
+                  hintText: 'Mínimo 6 caracteres',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  filled: true,
+                  fillColor: isDark
+                      ? Colors.white.withOpacity(0.05)
+                      : Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final pass = ctrl.text.trim();
+                      if (pass.length < 6) {
+                        NotificationHelper.showError(
+                          context,
+                          'La contraseña es demasiado corta',
+                        );
+                        return;
+                      }
+
+                      setStateDialog(() => isLoading = true);
+                      try {
+                        final api = Provider.of<ApiService>(
+                          context,
+                          listen: false,
+                        );
+                        final res = await api.put(
+                          '/clientes/${widget.cliente.id}/password',
+                          {'newPassword': pass},
+                        );
+
+                        if (!mounted) return;
+
+                        if (res.statusCode == 200) {
+                          Navigator.pop(ctx);
+                          NotificationHelper.showSuccess(
+                            context,
+                            'Contraseña actualizada correctamente',
+                          );
+                        } else {
+                          final msg =
+                              jsonDecode(res.body)['error'] ??
+                              'Error desconocido';
+                          NotificationHelper.showError(context, msg);
+                          setStateDialog(() => isLoading = false);
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          NotificationHelper.showError(context, 'Error: $e');
+                          setStateDialog(() => isLoading = false);
+                        }
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

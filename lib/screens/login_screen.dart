@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../services/auth_service.dart';
+import '../providers/theme_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -104,6 +105,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (success) {
           if (context.mounted) {
+            // Sync theme settings after login
+            final settings = auth.user?['settings'];
+            if (settings != null) {
+              Provider.of<ThemeProvider>(
+                context,
+                listen: false,
+              ).syncWithSettings(settings);
+            }
             context.go('/');
           }
         } else {

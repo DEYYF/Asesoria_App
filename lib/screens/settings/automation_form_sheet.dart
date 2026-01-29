@@ -5,6 +5,7 @@ import '../../services/auth_service.dart';
 import '../../services/automation_service.dart';
 import '../../services/api_service.dart';
 import '../../utils/notification_helper.dart';
+import '../../providers/super_admin_provider.dart';
 
 class AutomationFormSheet extends StatefulWidget {
   final Map<String, dynamic>? automation;
@@ -40,6 +41,7 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
   int selectedHour = 10;
   int selectedMinute = 0;
   DateTime selectedDate = DateTime.now();
+  String? _selectedAdvisorId;
 
   String selectedActionType = 'SEND_CHAT';
   String? selectedTemplateId;
@@ -65,7 +67,13 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
     _service = AutomationService(
       Provider.of<ApiService>(context, listen: false),
     );
+
+    final saProv = Provider.of<SuperAdminProvider>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+
     final auto = widget.automation;
+    _selectedAdvisorId =
+        auto?['advisorId'] ?? saProv.selectedAdvisorId ?? auth.userId;
 
     // Initialize controllers
     nameController = TextEditingController(text: auto?['name'] ?? '');
@@ -237,6 +245,59 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  if (Provider.of<AuthService>(
+                    context,
+                    listen: false,
+                  ).isSuperAdmin) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline_rounded,
+                          size: 20,
+                          color: Colors.grey[700],
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Asesor Asignado:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Consumer<SuperAdminProvider>(
+                      builder: (context, saProv, _) {
+                        final bool hasValue = saProv.advisors.any(
+                          (adv) => adv['_id'] == _selectedAdvisorId,
+                        );
+                        return DropdownButtonFormField<String>(
+                          value: hasValue ? _selectedAdvisorId : null,
+                          decoration: InputDecoration(
+                            hintText: 'Selecciona un asesor',
+                            prefixIcon: const Icon(Icons.person_search_rounded),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                          ),
+                          items: saProv.advisors.map((adv) {
+                            return DropdownMenuItem<String>(
+                              value: adv['_id'],
+                              child: Text(adv['nombre'] ?? 'Sin nombre'),
+                            );
+                          }).toList(),
+                          onChanged: (val) =>
+                              setState(() => _selectedAdvisorId = val),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Type Section
                   Row(
@@ -1037,7 +1098,6 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
   Future<void> _saveAutomation() async {
     if (nameController.text.isEmpty) return;
 
-    final auth = Provider.of<AuthService>(context, listen: false);
     final action = {
       'type': selectedActionType,
       'templateId': selectedTemplateId,
@@ -1058,7 +1118,7 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       'allClients': allClients,
       'targetClientIds': selectedClients,
       'actions': [action],
-      'advisorId': auth.userId,
+      'advisorId': _selectedAdvisorId,
     };
 
     if (selectedType == 'EVENT') {

@@ -50,6 +50,19 @@ class _TarifasScreenState extends State<TarifasScreen> {
       text: tarifa?.duracionDias.toString() ?? '',
     );
     final descCtrl = TextEditingController(text: tarifa?.descripcion ?? '');
+    String selectedTipo = tarifa?.tipoServicio ?? 'Mensual';
+
+    final tiposServicio = [
+      "Mensual",
+      "Trimestral",
+      "Semestral",
+      "Anual",
+      "Dieta",
+      "Dieta y Asesoramiento",
+      "Rutina",
+      "Rutina y asesoramiento",
+      "Dieta y Rutina",
+    ];
 
     await showDialog(
       context: context,
@@ -138,6 +151,29 @@ class _TarifasScreenState extends State<TarifasScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  // Service Type Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedTipo,
+                    decoration: InputDecoration(
+                      labelText: 'Tipo de Servicio',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.category_outlined),
+                      filled: true,
+                      fillColor: isDark ? Colors.grey[800] : Colors.grey[50],
+                    ),
+                    items: tiposServicio.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) selectedTipo = val;
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   // Description Input
                   TextFormField(
                     controller: descCtrl,
@@ -191,6 +227,7 @@ class _TarifasScreenState extends State<TarifasScreen> {
                             'nombre': nameCtrl.text.trim(),
                             'precio': double.tryParse(priceCtrl.text) ?? 0,
                             'duracionDias': int.tryParse(daysCtrl.text) ?? 30,
+                            'tipoServicio': selectedTipo,
                             'descripcion': descCtrl.text.trim(),
                           };
 
@@ -316,7 +353,7 @@ class _TarifasScreenState extends State<TarifasScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
-                      '${t.duracionDias} días${t.descripcion != null ? ' • ${t.descripcion}' : ''}',
+                      '${t.tipoServicio} • ${t.duracionDias} días${t.descripcion != null && t.descripcion!.isNotEmpty ? ' • ${t.descripcion}' : ''}',
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../models/tarifa_model.dart';
 import '../../models/extra_model.dart';
 import '../utils/notification_helper.dart';
+import '../providers/super_admin_provider.dart';
 
 class AddClientDialog extends StatefulWidget {
   final ValueChanged<String?> onSuccess;
@@ -59,6 +60,7 @@ class _AddClientDialogState extends State<AddClientDialog> {
   bool _isLoading = false;
   bool _loadingData = true;
   String? _error;
+  String? _asesorIdOverride;
 
   @override
   void initState() {
@@ -172,7 +174,8 @@ class _AddClientDialogState extends State<AddClientDialog> {
     try {
       final api = Provider.of<ApiService>(context, listen: false);
       final auth = Provider.of<AuthService>(context, listen: false);
-      final asesorId = auth.user?['_id'];
+      final defaultAsesorId = auth.user?['_id'];
+      final asesorId = _asesorIdOverride ?? defaultAsesorId;
 
       if (asesorId == null) {
         throw Exception(
@@ -596,14 +599,12 @@ class _AddClientDialogState extends State<AddClientDialog> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: _selectedTarifaId,
-                        isExpanded: true, // Prevent overflow for long items
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: "Seleccionar Tarifa",
-                          labelStyle: TextStyle(color: theme.hintColor),
                           prefixIcon: Icon(
-                            Icons.calendar_today_rounded,
-                            color: theme.primaryColor.withOpacity(0.7),
-                            size: 20,
+                            Icons.local_offer_outlined,
+                            color: theme.primaryColor,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -632,14 +633,77 @@ class _AddClientDialogState extends State<AddClientDialog> {
                             .map(
                               (t) => DropdownMenuItem(
                                 value: t.id,
-                                child: Text(
-                                  '${t.nombre} - ${t.precio}€ (${t.duracionDias} días)',
-                                ),
+                                child: Text("${t.nombre} (${t.precio}€)"),
                               ),
                             )
                             .toList(),
-                        onChanged: (v) => setState(() => _selectedTarifaId = v),
+                        onChanged: (val) =>
+                            setState(() => _selectedTarifaId = val),
+                        validator: (v) => v == null ? 'Requerido' : null,
                       ),
+                      const SizedBox(height: 16),
+
+                      if (Provider.of<AuthService>(
+                        context,
+                        listen: false,
+                      ).isSuperAdmin) ...[
+                        _buildSectionTitle(theme, "ASIGNACIÓN"),
+                        const SizedBox(height: 16),
+                        Consumer<SuperAdminProvider>(
+                          builder: (context, saProv, _) {
+                            final userId = Provider.of<AuthService>(
+                              context,
+                              listen: false,
+                            ).user?['_id'];
+                            final initialValue = _asesorIdOverride ?? userId;
+                            final bool hasValue = saProv.advisors.any(
+                              (adv) => adv['_id'] == initialValue,
+                            );
+
+                            return DropdownButtonFormField<String>(
+                              value: hasValue ? initialValue : null,
+                              isExpanded: true,
+                              hint: const Text("Selecciona un asesor"),
+                              decoration: InputDecoration(
+                                labelText: "Asesor Asignado",
+                                prefixIcon: Icon(
+                                  Icons.person_outline_rounded,
+                                  color: theme.primaryColor,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.dividerColor.withOpacity(0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: theme.primaryColor,
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: isDark
+                                    ? Colors.white.withOpacity(0.05)
+                                    : Colors.grey.shade50,
+                              ),
+                              dropdownColor: theme.cardColor,
+                              items: saProv.advisors.map((adv) {
+                                return DropdownMenuItem<String>(
+                                  value: adv['_id'],
+                                  child: Text(adv['nombre'] ?? 'Sin nombre'),
+                                );
+                              }).toList(),
+                              onChanged: (val) =>
+                                  setState(() => _asesorIdOverride = val),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                      ],
                       const SizedBox(height: 24),
                       Text(
                         "Extras Mensuales",

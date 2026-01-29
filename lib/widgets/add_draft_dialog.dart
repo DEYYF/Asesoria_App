@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../providers/super_admin_provider.dart';
 
 class AddDraftDialog extends StatefulWidget {
   final List<dynamic> tarifas;
@@ -27,6 +28,7 @@ class _AddDraftDialogState extends State<AddDraftDialog> {
   String? _selectedTarifaId;
   final List<String> _selectedExtras = [];
   DateTime _selectedDate = DateTime.now();
+  String? _selectedAdvisorId;
 
   bool _isLoading = false;
 
@@ -63,7 +65,7 @@ class _AddDraftDialogState extends State<AddDraftDialog> {
         'tarifaId': _selectedTarifaId,
         'extras': _selectedExtras,
         'fechaInicio': _selectedDate.toIso8601String().split('T')[0],
-        'usuarioId': auth.userId,
+        'usuarioId': _selectedAdvisorId ?? auth.userId,
       });
 
       widget.onSuccess();
@@ -284,6 +286,50 @@ class _AddDraftDialogState extends State<AddDraftDialog> {
                           );
                         }).toList(),
                       ),
+
+                    if (Provider.of<AuthService>(
+                      context,
+                      listen: false,
+                    ).isSuperAdmin) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionTitle(theme, "ASIGNACIÓN"),
+                      const SizedBox(height: 12),
+                      Consumer<SuperAdminProvider>(
+                        builder: (context, saProv, _) {
+                          _selectedAdvisorId ??=
+                              saProv.selectedAdvisorId ??
+                              Provider.of<AuthService>(
+                                context,
+                                listen: false,
+                              ).userId;
+
+                          final bool hasValue = saProv.advisors.any(
+                            (adv) => adv['_id'] == _selectedAdvisorId,
+                          );
+
+                          return DropdownButtonFormField<String>(
+                            value: hasValue ? _selectedAdvisorId : null,
+                            isExpanded: true,
+                            hint: const Text("Selecciona un asesor"),
+                            decoration: _inputDecoration(
+                              theme,
+                              isDark,
+                              "Asesor Asignado",
+                              Icons.person_outline_rounded,
+                            ),
+                            dropdownColor: theme.cardColor,
+                            items: saProv.advisors.map((adv) {
+                              return DropdownMenuItem<String>(
+                                value: adv['_id'],
+                                child: Text(adv['nombre'] ?? 'Sin nombre'),
+                              );
+                            }).toList(),
+                            onChanged: (val) =>
+                                setState(() => _selectedAdvisorId = val),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -39,6 +39,7 @@ import 'services/task_service.dart';
 import 'screens/settings/team_management_screen.dart';
 import 'screens/settings/advisor_detail_screen.dart';
 import 'services/google_calendar_service.dart';
+import 'services/smart_insights_service.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -91,6 +92,9 @@ void main() async {
           ),
           update: (_, api, previous) => previous ?? GoogleCalendarService(api),
         ),
+        ProxyProvider<ApiService, SmartInsightsService>(
+          update: (_, api, __) => SmartInsightsService(api),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -113,6 +117,23 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _auth = Provider.of<AuthService>(context, listen: false);
     _router = _buildRouter();
+
+    // Sync theme settings on app start if already logged in
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_auth.isAuthenticated) {
+        final settingsProvider = Provider.of<SettingsProvider>(
+          context,
+          listen: false,
+        );
+        await settingsProvider.loadSettings();
+        if (mounted && settingsProvider.settings != null) {
+          Provider.of<ThemeProvider>(
+            context,
+            listen: false,
+          ).syncWithSettings(settingsProvider.settings!.toJson());
+        }
+      }
+    });
   }
 
   GoRouter _buildRouter() {

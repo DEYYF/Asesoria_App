@@ -9,6 +9,8 @@ import '../../providers/super_admin_provider.dart';
 import 'automation_form_sheet.dart';
 import '../../widgets/advisor_selector.dart';
 import '../../utils/notification_helper.dart';
+import 'intelligence_settings_dialog.dart';
+import '../../services/settings_service.dart';
 
 class AutomationScreen extends StatefulWidget {
   const AutomationScreen({super.key});
@@ -101,7 +103,17 @@ class _AutomationScreenState extends State<AutomationScreen> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context); // Listen to auth changes
     return Scaffold(
-      appBar: AppBar(title: const Text('Automatización'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Automatización'),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.psychology_rounded), // Brain icon
+            tooltip: 'Configurar IA',
+            onPressed: _showIntelligenceConfig,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           if (auth.isSuperAdmin) const AdvisorSelector(),
@@ -581,6 +593,28 @@ class _AutomationScreenState extends State<AutomationScreen> {
 
   void _showCreateDialog() {
     _showAutomationForm();
+  }
+
+  Future<void> _showIntelligenceConfig() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    final settingsService = SettingsService(api);
+    try {
+      final currentSettings = await settingsService
+          .getSettingsMap(); // You might need to implement this in service if not exists or use getSettings and convert to map
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (_) => IntelligenceSettingsDialog(
+          currentSettings: currentSettings,
+          onSaved: () {
+            // Optional: Reload anything if needed
+          },
+        ),
+      );
+    } catch (e) {
+      NotificationHelper.showError(context, 'Error cargando configuración: $e');
+    }
   }
 
   void _showEditDialog(dynamic auto) {

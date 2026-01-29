@@ -381,26 +381,82 @@ class _KanbanScreenState extends State<KanbanScreen> {
                     ),
                   ),
                 ],
-                if (task.dueAt != null) ...[
+                if (task.dueAt != null ||
+                    task.createdByName != null ||
+                    task.assigneeName != null) ...[
                   const SizedBox(height: 12),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 14,
-                        color: _isOverdue(task.dueAt!)
-                            ? Colors.red
-                            : theme.hintColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        DateFormat('dd MMM').format(task.dueAt!),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _isOverdue(task.dueAt!)
-                              ? Colors.red
-                              : theme.hintColor,
+                      if (task.dueAt != null)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time_rounded,
+                              size: 14,
+                              color: _isOverdue(task.dueAt!)
+                                  ? Colors.red
+                                  : theme.hintColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat('dd MMM').format(task.dueAt!),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _isOverdue(task.dueAt!)
+                                    ? Colors.red
+                                    : theme.hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      Expanded(
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: [
+                            if (task.createdByName != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'BY: ${task.createdByName}',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                              ),
+                            if (task.assigneeName != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'FOR: ${task.assigneeName}',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ],
@@ -433,6 +489,12 @@ class _KanbanScreenState extends State<KanbanScreen> {
     final notesController = TextEditingController(text: task?.notes);
     DateTime? selectedDate = task?.dueAt;
     String selectedStatus = task?.status ?? 'todo';
+
+    final auth = Provider.of<AuthService>(this.context, listen: false);
+    final saProv = Provider.of<SuperAdminProvider>(this.context, listen: false);
+    String? selectedAssigneeId =
+        task?.assigneeId ??
+        (auth.isSuperAdmin ? saProv.selectedAdvisorId : auth.userId);
 
     showModalBottomSheet(
       context: context,
@@ -545,6 +607,51 @@ class _KanbanScreenState extends State<KanbanScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (auth.isSuperAdmin) ...[
+                const Text(
+                  'Asignar a',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value:
+                          saProv.advisors.any(
+                            (adv) => adv['_id'] == selectedAssigneeId,
+                          )
+                          ? selectedAssigneeId
+                          : null,
+                      isExpanded: true,
+                      hint: const Text('Global / Todos'),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Sin asignar (Global)'),
+                        ),
+                        ...saProv.advisors.map(
+                          (adv) => DropdownMenuItem<String>(
+                            value: adv['_id'],
+                            child: Text(adv['nombre'] ?? 'Sin nombre'),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() => selectedAssigneeId = val);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               const Text(
                 'Estado',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -642,6 +749,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
                       'notes': notesController.text.trim(),
                       'dueAt': selectedDate?.toIso8601String(),
                       'status': selectedStatus,
+                      'assigneeId': selectedAssigneeId,
                     };
 
                     if (isEdit) {

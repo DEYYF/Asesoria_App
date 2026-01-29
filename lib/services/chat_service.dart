@@ -14,8 +14,12 @@ class ChatService {
   final _messageController = StreamController<ChatMessage>.broadcast();
   Stream<ChatMessage> get messages => _messageController.stream;
 
+  final _messageDeletedController = StreamController<String>.broadcast();
+  Stream<String> get messageDeleted => _messageDeletedController.stream;
+
   final _unreadCountController = StreamController<int>.broadcast();
   Stream<int> get unreadCountStream => _unreadCountController.stream;
+
   int _unreadCount = 0;
   String? _activeConversationId;
 
@@ -61,6 +65,14 @@ class ChatService {
             _unreadCountController.add(_unreadCount);
           }
         }
+      }
+    });
+
+    _socket!.on('messageDeleted', (data) {
+      if (_messageDeletedController.isClosed) return;
+      final messageId = data['messageId'];
+      if (messageId != null) {
+        _messageDeletedController.add(messageId);
       }
     });
   }
@@ -178,9 +190,17 @@ class ChatService {
     return null;
   }
 
+  Future<void> deleteMessage(String messageId) async {
+    final res = await _api.delete('/chat/messages/$messageId');
+    if (res.statusCode != 200) {
+      throw Exception('Failed to delete message');
+    }
+  }
+
   void dispose() {
     _messageController.close();
     _unreadCountController.close();
+    _messageDeletedController.close();
     disconnect();
   }
 }

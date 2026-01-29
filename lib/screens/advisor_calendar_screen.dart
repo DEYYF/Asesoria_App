@@ -274,6 +274,17 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
   }
 
   Widget _buildGoalsSection() {
+    final dayKey = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final dayCitas = _citasMap[dayKey] ?? [];
+
+    final total = dayCitas.length;
+    final completas = dayCitas.where((c) => c['asistio'] == true).length;
+    final pendientes = dayCitas.where((c) => c['asistio'] == null).length;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: IntrinsicHeight(
@@ -283,7 +294,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
               child: _buildGoalCard(
                 Icons.calendar_today_rounded,
                 'Citas',
-                '${_citasTodayCount()}',
+                '$total',
                 const [Color(0xFF64748B), Color(0xFF475569)],
               ),
             ),
@@ -292,7 +303,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
               child: _buildGoalCard(
                 Icons.check_circle_rounded,
                 'Completas',
-                '0',
+                '$completas',
                 const [Color(0xFF10B981), Color(0xFF059669)],
               ),
             ),
@@ -301,7 +312,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
               child: _buildGoalCard(
                 Icons.timer_rounded,
                 'Pendientes',
-                '${_citasTodayCount()}',
+                '$pendientes',
                 const [Color(0xFF3B82F6), Color(0xFF2563EB)],
               ),
             ),
@@ -309,12 +320,6 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
         ),
       ),
     );
-  }
-
-  int _citasTodayCount() {
-    final today = DateTime.now();
-    final key = DateTime(today.year, today.month, today.day);
-    return (_citasMap[key] ?? []).length;
   }
 
   Widget _buildGoalCard(
@@ -382,7 +387,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
     return Row(
       children: [
         Text(
-          'Junio 2024', // TODO: Make dynamic
+          DateFormat('MMMM yyyy', 'es').format(_selectedDate).toUpperCase(),
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -773,12 +778,11 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
 
   Future<void> _toggleAttendance(String id, bool asistio) async {
     final api = Provider.of<ApiService>(context, listen: false);
-    final auth = Provider.of<AuthService>(context, listen: false);
 
     try {
       await api.put('/citas/$id/asistencia', {
         'asistio': asistio,
-        'asesorId': auth.userId,
+        'asesorId': Provider.of<AuthService>(context, listen: false).userId,
       });
       _loadCitas();
     } catch (e) {
@@ -1225,10 +1229,49 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
   Future<void> _showCreateCitaDialog() async {
     final _titleController = TextEditingController();
     final _notesController = TextEditingController();
+    final saProv = Provider.of<SuperAdminProvider>(context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+
+    String? _selectedAsesorId = saProv.selectedAdvisorId ?? auth.userId;
     DateTime _tempDate = _selectedDate;
     List<String> _tempSlots = _getAvailableSlots(_tempDate);
     String? _selectedSlot = _tempSlots.isNotEmpty ? _tempSlots.first : null;
     String? _selectedClientId;
+
+    // Local function to refresh slots if advisor/date changes
+    Future<void> _refreshDialogSlots(
+      String asesorId,
+      DateTime date,
+      StateSetter setStateDialog,
+    ) async {
+      // 1. Fetch settings for this specific advisor
+      final api = Provider.of<ApiService>(context, listen: false);
+      final res = await api.get('/users/$asesorId/calendar-settings');
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        // We temporarily update the main state's settings to use _getAvailableSlots
+        // or we could refactor _getAvailableSlots to accept settings.
+        // For simplicity, we update the main state.
+        if (mounted) {
+          setState(() {
+            _calendarSettings = data;
+            _blocks = List.from(data['bloques'] ?? []);
+            _vacations = List<String>.from(data['vacationDays'] ?? []);
+          });
+        }
+      }
+
+      // 2. Fetch citations for this advisor to know taken slots
+      // We'll just rely on the already loaded _citasMap for now OR reload it.
+      // Reloading might be too much. Let's assume _citasMap is mostly okay or just reload it too.
+
+      setStateDialog(() {
+        _tempSlots = _getAvailableSlots(date);
+        if (_selectedSlot == null || !_tempSlots.contains(_selectedSlot)) {
+          _selectedSlot = _tempSlots.isNotEmpty ? _tempSlots.first : null;
+        }
+      });
+    }
 
     await showDialog(
       context: context,
@@ -1260,7 +1303,42 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                       style: theme.textTheme.bodyMedium,
                       decoration: const InputDecoration(labelText: 'Notas'),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+
+                    if (auth.isSuperAdmin) ...[
+                      DropdownButtonFormField<String>(
+                        value:
+                            saProv.advisors.any(
+                              (adv) => adv['_id'] == _selectedAsesorId,
+                            )
+                            ? _selectedAsesorId
+                            : null,
+                        dropdownColor: theme.cardColor,
+                        style: theme.textTheme.bodyMedium,
+                        decoration: const InputDecoration(
+                          labelText: 'Asignar a Asesor',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
+                        items: saProv.advisors.map((adv) {
+                          return DropdownMenuItem<String>(
+                            value: adv['_id'],
+                            child: Text(
+                              adv['nombre'] ?? 'Sin nombre',
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            _selectedAsesorId = val;
+                            _refreshDialogSlots(val, _tempDate, setStateDialog);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     // Date Selection Strip
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1468,10 +1546,6 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                           context,
                           listen: false,
                         );
-                        final auth = Provider.of<AuthService>(
-                          context,
-                          listen: false,
-                        );
 
                         try {
                           await api.post('/citas', {
@@ -1480,7 +1554,7 @@ class _AdvisorCalendarScreenState extends State<AdvisorCalendarScreen> {
                             'date': dateStr,
                             'hora': _selectedSlot,
                             'clienteId': _selectedClientId,
-                            'asesorId': auth.userId,
+                            'asesorId': _selectedAsesorId,
                           });
 
                           // Send chat message

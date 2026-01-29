@@ -1,14 +1,15 @@
-
 class Presupuesto {
   final String id;
   final String clienteId;
   final List<ExtraItem> extras;
+  final String? facturaId;
   final DateTime createdAt;
 
   Presupuesto({
     required this.id,
     required this.clienteId,
     required this.extras,
+    this.facturaId,
     required this.createdAt,
   });
 
@@ -26,6 +27,7 @@ class Presupuesto {
       extras: (json['extras'] as List? ?? [])
           .map((i) => ExtraItem.fromJson(i))
           .toList(),
+      facturaId: json['facturaId'],
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),

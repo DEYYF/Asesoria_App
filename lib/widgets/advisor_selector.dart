@@ -55,7 +55,12 @@ class _AdvisorSelectorState extends State<AdvisorSelector> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
-          value: saProvider.selectedAdvisorId,
+          value:
+              saProvider.advisors.any(
+                (a) => a['_id'] == saProvider.selectedAdvisorId,
+              )
+              ? saProvider.selectedAdvisorId
+              : null,
           isExpanded: true,
           icon: Icon(
             Icons.keyboard_arrow_down_rounded,

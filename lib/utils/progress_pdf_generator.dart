@@ -1031,8 +1031,16 @@ class ProgressPdfGenerator {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            _buildHighlightCard('PESO MÁX', '${last.maxWeight}kg', secondary),
-            _buildHighlightCard('1RM EST.', '${last.estimated1RM}kg', primary),
+            _buildHighlightCard(
+              'PESO MÁX',
+              '${last.maxWeight.toStringAsFixed(1)}kg',
+              secondary,
+            ),
+            _buildHighlightCard(
+              '1RM EST.',
+              '${last.estimated1RM.toStringAsFixed(1)}kg',
+              primary,
+            ),
             _buildHighlightCard(
               'VOLUMEN',
               '${last.totalVolume.toInt()}kg',
@@ -1118,29 +1126,32 @@ class ProgressPdfGenerator {
   ) {
     return pw.Container(
       width: 120,
-      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: pw.BoxDecoration(
         color: _withOpacity(color, 0.1),
         borderRadius: pw.BorderRadius.circular(6),
-        border: pw.Border.all(color: color, width: 0.5),
+        border: pw.Border.all(color: color, width: 1),
       ),
       child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
         children: [
           pw.Text(
-            title,
+            title.toUpperCase(),
+            textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-              fontSize: 6,
+              fontSize: 10,
               fontWeight: pw.FontWeight.bold,
-              color: color,
+              color: PdfColors.black, // Force black for visibility
             ),
           ),
           pw.SizedBox(height: 4),
           pw.Text(
             value,
+            textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: pw.FontWeight.bold,
-              color: PdfColors.black,
+              color: PdfColors.black, // Force black for visibility
             ),
           ),
         ],

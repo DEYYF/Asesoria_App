@@ -10,6 +10,8 @@ class Tarea {
   final String origin;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? createdByName;
+  final String? assigneeName;
 
   Tarea({
     required this.id,
@@ -23,6 +25,8 @@ class Tarea {
     this.origin = 'manual',
     required this.createdAt,
     required this.updatedAt,
+    this.createdByName,
+    this.assigneeName,
   });
 
   factory Tarea.fromJson(Map<String, dynamic> json) {
@@ -36,8 +40,16 @@ class Tarea {
           ? json['clientId']['_id']
           : json['clientId'],
       clientName: json['clientName'],
-      assigneeId: json['assigneeId'],
+      assigneeId: json['assigneeId'] is Map
+          ? json['assigneeId']['_id']
+          : json['assigneeId'],
+      assigneeName: json['assigneeId'] is Map
+          ? json['assigneeId']['nombre']
+          : null,
       origin: json['origin'] ?? 'manual',
+      createdByName: json['createdBy'] is Map
+          ? json['createdBy']['nombre']
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../../models/chat_models.dart';
 import '../../services/chat_service.dart';
@@ -27,6 +28,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Conversation? _conversation;
   bool _isLoading = true;
 
+  StreamSubscription? _deleteSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +39,58 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     chatService.connect();
     chatService.setActiveConversation(widget.conversationId);
     chatService.messages.listen(_handleNewMessage);
+    _deleteSubscription = chatService.messageDeleted.listen(
+      _handleMessageDeleted,
+    );
+  }
+
+  void _handleMessageDeleted(String messageId) {
+    setState(() {
+      _messages.removeWhere((msg) => msg.id == messageId);
+      // If we removed the last message, we might want to update conversation preview,
+      // but that's handled by generic load or socket event elsewhere.
+      // For this screen, removing from list is enough.
+    });
+  }
+
+  Future<void> _showDeleteDialog(String messageId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar mensaje'),
+        content: const Text(
+          '¿Estás seguro de que quieres eliminar este mensaje?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await Provider.of<ChatService>(
+          context,
+          listen: false,
+        ).deleteMessage(messageId);
+        // The socket event will trigger the removal from UI,
+        // but we can also do it optimistically if we trust the API call success
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
+        }
+      }
+    }
   }
 
   Future<void> _loadData() async {
@@ -308,81 +363,90 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final isDark = theme.brightness == Brightness.dark;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: EdgeInsets.only(bottom: isLastInGroup ? 16 : 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        decoration: BoxDecoration(
-          gradient: isMe
-              ? LinearGradient(
-                  colors: [
-                    theme.primaryColor,
-                    theme.primaryColor.withBlue(
-                      (theme.primaryColor.blue + 30).clamp(0, 255),
-                    ),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isMe
-              ? null
-              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(22),
-            topRight: const Radius.circular(22),
-            bottomLeft: Radius.circular(isMe ? 22 : (isLastInGroup ? 6 : 22)),
-            bottomRight: Radius.circular(isMe ? (isLastInGroup ? 6 : 22) : 22),
+      child: GestureDetector(
+        onLongPress: () {
+          if (isMe) {
+            _showDeleteDialog(msg.id);
+          }
+        },
+        child: Container(
+          margin: EdgeInsets.only(bottom: isLastInGroup ? 16 : 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isMe ? 0.08 : 0.03),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: isMe
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            Text(
-              msg.text,
-              style: TextStyle(
-                color: isMe ? Colors.white : theme.textTheme.bodyLarge?.color,
-                fontSize: 15,
-                height: 1.4,
-                letterSpacing: -0.2,
+          decoration: BoxDecoration(
+            gradient: isMe
+                ? LinearGradient(
+                    colors: [
+                      theme.primaryColor,
+                      theme.primaryColor.withBlue(
+                        (theme.primaryColor.blue + 30).clamp(0, 255),
+                      ),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isMe
+                ? null
+                : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(22),
+              topRight: const Radius.circular(22),
+              bottomLeft: Radius.circular(isMe ? 22 : (isLastInGroup ? 6 : 22)),
+              bottomRight: Radius.circular(
+                isMe ? (isLastInGroup ? 6 : 22) : 22,
               ),
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  DateFormat('HH:mm').format(msg.createdAt),
-                  style: TextStyle(
-                    color: isMe
-                        ? Colors.white.withOpacity(0.6)
-                        : theme.hintColor.withOpacity(0.6),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isMe ? 0.08 : 0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              Text(
+                msg.text,
+                style: TextStyle(
+                  color: isMe ? Colors.white : theme.textTheme.bodyLarge?.color,
+                  fontSize: 15,
+                  height: 1.4,
+                  letterSpacing: -0.2,
                 ),
-                if (isMe) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.done_all_rounded,
-                    size: 14,
-                    color: Colors.white.withOpacity(0.6),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DateFormat('HH:mm').format(msg.createdAt),
+                    style: TextStyle(
+                      color: isMe
+                          ? Colors.white.withOpacity(0.6)
+                          : theme.hintColor.withOpacity(0.6),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                  if (isMe) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.done_all_rounded,
+                      size: 14,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -520,6 +584,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _deleteSubscription?.cancel();
     Provider.of<ChatService>(
       context,
       listen: false,

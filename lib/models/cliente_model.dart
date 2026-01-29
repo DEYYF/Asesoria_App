@@ -23,6 +23,7 @@ class Cliente {
   final List<String>? objetivos;
   final String? asesorId;
   final List<String>? etiquetas;
+  final Map<String, dynamic>? gamification;
 
   Cliente({
     required this.id,
@@ -49,6 +50,7 @@ class Cliente {
     this.objetivos,
     this.asesorId,
     this.etiquetas,
+    this.gamification,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
@@ -87,6 +89,7 @@ class Cliente {
       etiquetas: (json['etiquetas'] as List?)
           ?.map((e) => e.toString())
           .toList(),
+      gamification: json['gamification'] as Map<String, dynamic>?,
     );
   }
 
@@ -138,6 +141,7 @@ class Cliente {
     String? avatarUrl,
     List<String>? objetivos,
     List<String>? etiquetas,
+    Map<String, dynamic>? gamification,
   }) {
     return Cliente(
       id: id ?? this.id,
@@ -164,6 +168,7 @@ class Cliente {
       objetivos: objetivos ?? this.objetivos,
       asesorId: asesorId ?? asesorId,
       etiquetas: etiquetas ?? this.etiquetas,
+      gamification: gamification ?? this.gamification,
     );
   }
 }

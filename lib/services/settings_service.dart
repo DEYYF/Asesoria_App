@@ -32,7 +32,8 @@ class SettingsService {
           return UserSettings.fromJson(jsonMap);
         }
       } catch (e) {
-        // Parse error
+        // Parse error or schema mismatch, clear cache
+        await prefs.remove(storageKey);
       }
     }
 
@@ -58,6 +59,45 @@ class SettingsService {
 
     // 3. Return defaults
     return UserSettings(pdfSettings: PdfSettings());
+  }
+
+  /// Get settings as raw map (useful for dynamic/new fields like intelligence)
+  Future<Map<String, dynamic>> getSettingsMap({String? userId}) async {
+    final endpoint = userId != null
+        ? '/usuarios/$userId/settings'
+        : '/usuarios/me/settings';
+    try {
+      final response = await _api.get(endpoint);
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('Error getting settings map: $e');
+    }
+    return {};
+  }
+
+  /// Update settings from raw map
+  Future<void> updateSettingsMap(
+    Map<String, dynamic> settings, {
+    String? userId,
+  }) async {
+    final endpoint = userId != null
+        ? '/usuarios/$userId/settings'
+        : '/usuarios/me/settings';
+    try {
+      await _api.put(endpoint, settings);
+
+      // Update local cache if possible (requires re-fetching or optimistic update)
+      // For simplicity, we just clear cache to force refetch next time
+      final prefs = await SharedPreferences.getInstance();
+      final storageKey = userId != null
+          ? '${_storageKey}_$userId'
+          : _storageKey;
+      await prefs.remove(storageKey);
+    } catch (e) {
+      throw Exception('Failed to update settings map: $e');
+    }
   }
 
   Future<void> updateSettings(UserSettings settings, {String? userId}) async {

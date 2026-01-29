@@ -52,6 +52,44 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> syncWithSettings(Map<String, dynamic>? settings) async {
+    if (settings == null) return;
+
+    bool changed = false;
+
+    // Sync theme
+    if (settings.containsKey('theme')) {
+      final themeName = settings['theme'];
+      final newMode = _getThemeModeFromString(themeName);
+      if (_themeMode != newMode) {
+        _themeMode = newMode;
+        changed = true;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('theme', themeName);
+      }
+    }
+
+    // Sync accent color
+    if (settings.containsKey('accentColor')) {
+      final colorHex = settings['accentColor'];
+      try {
+        final newColor = Color(int.parse(colorHex.replaceFirst('#', '0xFF')));
+        if (_accentColor != newColor) {
+          _accentColor = newColor;
+          changed = true;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('accent_color', colorHex);
+        }
+      } catch (e) {
+        // Ignore invalid hex
+      }
+    }
+
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
   ThemeMode _getThemeModeFromString(String themeName) {
     switch (themeName) {
       case 'light':

@@ -15,6 +15,9 @@ import 'calendar_tab.dart';
 import 'journal_tab.dart';
 import 'pantry_screen.dart';
 
+import '../../widgets/gamification/gamification_stats_card.dart';
+import '../gamification/leaderboard_screen.dart';
+
 class ClientViewLayout extends StatefulWidget {
   final Cliente cliente;
   final bool hasDieta;
@@ -303,15 +306,30 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
   }
 
   Widget _buildHomeTab(BuildContext context) {
-    return InfoTab(
-      cliente: widget.cliente,
-      onRenovar: widget.onRenovar,
-      onDelete: widget.onDelete,
-      onAddProgress: widget.onAddProgress,
-      onManageExtras: widget.onManageExtras,
-      onChangeTariff: widget.onChangeTariff,
-      onEditInfo: widget.onEditInfo,
-      onSessionAction: widget.onSessionAction,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          GamificationStatsCard(
+            clientId: widget.cliente.id,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+              );
+            },
+          ),
+          InfoTab(
+            cliente: widget.cliente,
+            onRenovar: widget.onRenovar,
+            onDelete: widget.onDelete,
+            onAddProgress: widget.onAddProgress,
+            onManageExtras: widget.onManageExtras,
+            onChangeTariff: widget.onChangeTariff,
+            onEditInfo: widget.onEditInfo,
+            onSessionAction: widget.onSessionAction,
+          ),
+        ],
+      ),
     );
   }
 

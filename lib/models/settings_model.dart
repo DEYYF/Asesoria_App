@@ -240,6 +240,38 @@ class PdfSettings {
   }
 }
 
+class EmailTemplateConfig {
+  final String subject;
+  final String body;
+  final bool enabled;
+
+  EmailTemplateConfig({
+    required this.subject,
+    required this.body,
+    required this.enabled,
+  });
+
+  factory EmailTemplateConfig.fromJson(Map<String, dynamic> json) {
+    return EmailTemplateConfig(
+      subject: json['subject'] ?? '',
+      body: json['body'] ?? '',
+      enabled: json['enabled'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'subject': subject, 'body': body, 'enabled': enabled};
+  }
+
+  EmailTemplateConfig copyWith({String? subject, String? body, bool? enabled}) {
+    return EmailTemplateConfig(
+      subject: subject ?? this.subject,
+      body: body ?? this.body,
+      enabled: enabled ?? this.enabled,
+    );
+  }
+}
+
 class UserSettings {
   final bool pushNotifications;
   final bool emailNotifications;
@@ -262,6 +294,7 @@ class UserSettings {
   final bool enabledFinanzas;
   final List<KanbanColumn> kanbanColumns;
   final PdfSettings pdfSettings;
+  final Map<String, EmailTemplateConfig> emailTemplates;
 
   UserSettings({
     this.pushNotifications = true,
@@ -285,6 +318,7 @@ class UserSettings {
     this.enabledFinanzas = true,
     this.kanbanColumns = const [],
     required this.pdfSettings,
+    this.emailTemplates = const {},
   });
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -316,6 +350,11 @@ class UserSettings {
       pdfSettings: json['pdfSettings'] != null
           ? PdfSettings.fromJson(json['pdfSettings'])
           : PdfSettings(),
+      emailTemplates:
+          (json['emailTemplates'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, EmailTemplateConfig.fromJson(v)),
+          ) ??
+          {},
     );
   }
 
@@ -342,6 +381,7 @@ class UserSettings {
       'enabledFinanzas': enabledFinanzas,
       'kanbanColumns': kanbanColumns.map((c) => c.toJson()).toList(),
       'pdfSettings': pdfSettings.toJson(),
+      'emailTemplates': emailTemplates.map((k, v) => MapEntry(k, v.toJson())),
     };
   }
 
@@ -367,6 +407,7 @@ class UserSettings {
     bool? enabledFinanzas,
     List<KanbanColumn>? kanbanColumns,
     PdfSettings? pdfSettings,
+    Map<String, EmailTemplateConfig>? emailTemplates,
   }) {
     return UserSettings(
       pushNotifications: pushNotifications ?? this.pushNotifications,
@@ -392,6 +433,7 @@ class UserSettings {
       enabledFinanzas: enabledFinanzas ?? this.enabledFinanzas,
       kanbanColumns: kanbanColumns ?? this.kanbanColumns,
       pdfSettings: pdfSettings ?? this.pdfSettings,
+      emailTemplates: emailTemplates ?? this.emailTemplates,
     );
   }
 }

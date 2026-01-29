@@ -3,6 +3,11 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'pantry_screen.dart';
 import '../../services/api_service.dart';
+import '../../widgets/smart_insights_widget.dart';
+import '../../widgets/gamification/level_circle_widget.dart';
+import '../../widgets/gamification/streak_indicator_widget.dart';
+import '../../widgets/gamification/points_graph_widget.dart';
+import '../../widgets/gamification/achievements_grid_widget.dart';
 
 import '../../services/auth_service.dart';
 import '../../models/cliente_model.dart';
@@ -93,6 +98,8 @@ class _InfoTabState extends State<InfoTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (!Provider.of<AuthService>(context, listen: false).isClient)
+            SmartInsightsWidget(clientId: widget.cliente.id),
           _buildPersonalHeader(theme),
           _buildGroup([
             _appleRow(
@@ -343,6 +350,9 @@ class _InfoTabState extends State<InfoTab> {
               const Spacer(),
             ],
           ),
+
+          const SizedBox(height: 32),
+          _buildGamificationSection(theme),
 
           const SizedBox(height: 60),
         ],
@@ -628,6 +638,31 @@ class _InfoTabState extends State<InfoTab> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildGamificationSection(ThemeData theme) {
+    final gamification = widget.cliente.gamification;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('GAMIFICACIÓN'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: LevelCircleWidget(gamification: gamification, size: 120),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: StreakIndicatorWidget(gamification: gamification)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        PointsGraphWidget(history: gamification?['history']),
+        const SizedBox(height: 16),
+        AchievementsGridWidget(gamification: gamification),
+      ],
     );
   }
 

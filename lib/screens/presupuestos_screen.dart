@@ -14,6 +14,7 @@ import '../models/settings_model.dart';
 import '../utils/budget_pdf_generator.dart';
 import '../utils/pdf_export_helper.dart';
 import '../services/settings_service.dart';
+import 'facturas/factura_detail_screen.dart';
 
 class PresupuestosScreen extends StatefulWidget {
   const PresupuestosScreen({super.key});
@@ -403,7 +404,6 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final status = p['estado'] as String;
-    final isPaid = status == 'pagado';
 
     Color statusColor;
     IconData statusIcon;
@@ -550,6 +550,9 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                         final isBorrador =
                             (p['estado'] == 'borrador' ||
                             p['clienteId'] == null);
+                        final isAceptado = p['estado'] == 'aceptado';
+                        final isPagado = p['estado'] == 'pagado';
+                        final isLocked = isAceptado || isPagado;
 
                         if (isBorrador) {
                           return [
@@ -599,18 +602,30 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                          const PopupMenuItem(
-                            value: 'edit_status',
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.swap_horiz,
-                                color: Colors.teal,
+                          if (p['facturaId'] != null)
+                            const PopupMenuItem(
+                              value: 'view_invoice',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.receipt_long_rounded,
+                                  color: Colors.deepPurple,
+                                ),
+                                title: Text('Ver Factura'),
+                                contentPadding: EdgeInsets.zero,
                               ),
-                              title: Text('Cambiar Estado'),
-                              contentPadding: EdgeInsets.zero,
                             ),
-                          ),
-                          if (!isPaid) // Logic restriction: hide discount if paid
+                          if (!isLocked) ...[
+                            const PopupMenuItem(
+                              value: 'edit_status',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.swap_horiz,
+                                  color: Colors.teal,
+                                ),
+                                title: Text('Cambiar Estado'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
                             const PopupMenuItem(
                               value: 'add_discount',
                               child: ListTile(
@@ -622,6 +637,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
+                          ],
                           const PopupMenuItem(
                             value: 'pdf',
                             child: ListTile(
@@ -641,18 +657,20 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                          const PopupMenuDivider(),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: ListTile(
-                              leading: Icon(Icons.delete, color: Colors.red),
-                              title: Text(
-                                'Eliminar',
-                                style: TextStyle(color: Colors.red),
+                          if (!isLocked) ...[
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                leading: Icon(Icons.delete, color: Colors.red),
+                                title: Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                contentPadding: EdgeInsets.zero,
                               ),
-                              contentPadding: EdgeInsets.zero,
                             ),
-                          ),
+                          ],
                         ];
                       },
                     ),
@@ -691,6 +709,16 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
         break;
       case 'email':
         _handleSendEmail(p);
+        break;
+      case 'view_invoice':
+        if (p['facturaId'] != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FacturaDetailScreen(facturaId: p['facturaId']),
+            ),
+          );
+        }
         break;
     }
   }
