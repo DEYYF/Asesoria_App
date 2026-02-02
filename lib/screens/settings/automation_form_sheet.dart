@@ -403,6 +403,18 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
                             'INACTIVE_7_DAYS',
                           ]),
                           Divider(height: 1, color: Colors.grey.shade300),
+                          _buildTriggerCategory('🎯 Logros y Rachas', [
+                            'WEIGHT_GOAL_REACHED',
+                            'STREAK_7_DAYS',
+                            'WORKOUT_COMPLETED',
+                          ]),
+                          Divider(height: 1, color: Colors.grey.shade300),
+                          _buildTriggerCategory('😴 Inactividad', [
+                            'INACTIVE_3_DAYS',
+                            'INACTIVE_5_DAYS',
+                            'INACTIVE_7_DAYS',
+                          ]),
+                          Divider(height: 1, color: Colors.grey.shade300),
                           _buildTriggerCategory('📅 Fechas Especiales', [
                             'PLAN_EXPIRED',
                             'BIRTHDAY',
@@ -1849,6 +1861,14 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
         return 'Cliente completó entrenamiento';
       case 'INACTIVE_7_DAYS':
         return 'Inactivo por 7 días';
+      case 'INACTIVE_3_DAYS':
+        return 'Inactivo por 3 días';
+      case 'INACTIVE_5_DAYS':
+        return 'Inactivo por 5 días';
+      case 'WEIGHT_GOAL_REACHED':
+        return 'Meta de peso alcanzada';
+      case 'STREAK_7_DAYS':
+        return 'Racha de 7 días entrenando';
 
       // Fechas
       case 'PLAN_EXPIRED':
