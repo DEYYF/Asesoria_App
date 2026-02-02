@@ -79,12 +79,35 @@ class Conversation {
   }
 }
 
+class ChatButton {
+  final String text;
+  final String action;
+  final Map<String, dynamic>? payload;
+
+  ChatButton({required this.text, required this.action, this.payload});
+
+  factory ChatButton.fromJson(Map<String, dynamic> json) {
+    return ChatButton(
+      text: json['text'],
+      action: json['action'],
+      payload: json['payload'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'action': action,
+    'payload': payload,
+  };
+}
+
 class ChatMessage {
   final String id;
   final String conversationId;
   final String senderType; // 'ASESOR' | 'CLIENTE'
   final String senderId;
   final String text;
+  final List<ChatButton> buttons;
   final DateTime createdAt;
 
   ChatMessage({
@@ -93,6 +116,7 @@ class ChatMessage {
     required this.senderType,
     required this.senderId,
     required this.text,
+    this.buttons = const [],
     required this.createdAt,
   });
 
@@ -103,6 +127,11 @@ class ChatMessage {
       senderType: json['senderType'],
       senderId: json['senderId'],
       text: json['text'],
+      buttons:
+          (json['buttons'] as List?)
+              ?.map((b) => ChatButton.fromJson(b))
+              .toList() ??
+          [],
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -110,5 +139,6 @@ class ChatMessage {
   Map<String, dynamic> toJson() => {
     'conversationId': conversationId,
     'text': text,
+    'buttons': buttons.map((b) => b.toJson()).toList(),
   };
 }

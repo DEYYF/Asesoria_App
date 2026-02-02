@@ -18,6 +18,7 @@ class Cliente {
   final String? sexo;
   final double? altura;
   final List<dynamic>? historialProgreso;
+  final String? nif;
   String? estado;
   final String? avatarUrl;
   final List<String>? objetivos;
@@ -50,6 +51,7 @@ class Cliente {
     this.objetivos,
     this.asesorId,
     this.etiquetas,
+    this.nif,
     this.gamification,
   });
 
@@ -89,6 +91,7 @@ class Cliente {
       etiquetas: (json['etiquetas'] as List?)
           ?.map((e) => e.toString())
           .toList(),
+      nif: json['nif'],
       gamification: json['gamification'] as Map<String, dynamic>?,
     );
   }
@@ -113,6 +116,7 @@ class Cliente {
       'sesionesLastMonth': sesionesLastMonth,
       'historialProgreso': historialProgreso,
       'asesorId': asesorId,
+      'nif': nif,
       'etiquetas': etiquetas,
     };
   }
@@ -141,6 +145,7 @@ class Cliente {
     String? avatarUrl,
     List<String>? objetivos,
     List<String>? etiquetas,
+    String? nif,
     Map<String, dynamic>? gamification,
   }) {
     return Cliente(
@@ -168,6 +173,7 @@ class Cliente {
       objetivos: objetivos ?? this.objetivos,
       asesorId: asesorId ?? asesorId,
       etiquetas: etiquetas ?? this.etiquetas,
+      nif: nif ?? this.nif,
       gamification: gamification ?? this.gamification,
     );
   }

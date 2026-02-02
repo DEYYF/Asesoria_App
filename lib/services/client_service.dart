@@ -17,4 +17,17 @@ class ClientService {
       throw Exception('Error al cargar clientes: ${response.body}');
     }
   }
+
+  Future<void> addProgress(
+    String clientId,
+    Map<String, dynamic> progressData,
+  ) async {
+    final response = await _api.put(
+      '/clientes/$clientId/historial',
+      progressData,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Error al guardar progreso: ${response.body}');
+    }
+  }
 }

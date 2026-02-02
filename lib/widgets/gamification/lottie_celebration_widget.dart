@@ -1,5 +1,12 @@
+import 'dart:ui' as ui;
+import 'dart:io';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Reusable widget for displaying Lottie celebration animations
 /// for gamification events (level-ups, achievements, tasks, streaks)
@@ -33,16 +40,51 @@ class LottieCelebrationWidget extends StatefulWidget {
 class _LottieCelebrationWidgetState extends State<LottieCelebrationWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final GlobalKey _globalKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this);
+    _playSound();
+  }
+
+  Future<void> _playSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/success.mp3'));
+    } catch (e) {
+      debugPrint('Error playing sound: $e');
+    }
+  }
+
+  Future<void> _shareImage() async {
+    try {
+      final boundary =
+          _globalKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final tempDir = await getTemporaryDirectory();
+      final file = await File('${tempDir.path}/logro.png').create();
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: '¡He desbloqueado un nuevo logro! 🚀🔥');
+    } catch (e) {
+      debugPrint('Error sharing: $e');
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -105,138 +147,145 @@ class _LottieCelebrationWidgetState extends State<LottieCelebrationWidget>
           widget.onComplete?.call();
           Navigator.of(context).pop();
         },
-        child: Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                accentColor.withOpacity(0.1),
-                accentColor.withOpacity(0.05),
+        child: RepaintBoundary(
+          key: _globalKey,
+          child: Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accentColor.withOpacity(0.1),
+                  accentColor.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withOpacity(0.3),
+                  blurRadius: 40,
+                  spreadRadius: 10,
+                ),
               ],
             ),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: accentColor.withOpacity(0.3),
-                blurRadius: 40,
-                spreadRadius: 10,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Lottie Animation or Fallback Icon
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.elasticOut,
-                builder: (context, value, child) {
-                  return Transform.scale(scale: value, child: child);
-                },
-                child: Container(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Lottie Animation or Fallback Icon
+                // Lottie Animation
+                Lottie.asset(
+                  _getAnimationPath(),
                   width: 200,
                   height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        accentColor.withOpacity(0.3),
-                        accentColor.withOpacity(0.1),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
+                  repeat: false,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
                       _getFallbackIcon(),
-                      size: 120,
+                      size: 100,
                       color: accentColor,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Title
-              if (widget.title != null)
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 600),
-                  curve: Curves.easeOut,
-                  builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value,
-                      child: Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: child,
-                      ),
                     );
                   },
-                  child: Text(
-                    widget.title!,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w900,
-                      color: theme.textTheme.titleLarge?.color,
-                      letterSpacing: -0.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
                 ),
 
-              // Subtitle
-              if (widget.subtitle != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 24),
+
+                // Title
+                if (widget.title != null)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) {
+                      return Opacity(
+                        opacity: value,
+                        child: Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      widget.title!,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: theme.textTheme.titleLarge?.color,
+                        letterSpacing: -0.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                // Subtitle
+                if (widget.subtitle != null) ...[
+                  const SizedBox(height: 8),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) {
+                      return Opacity(
+                        opacity: value,
+                        child: Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      widget.subtitle!,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: theme.hintColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
+
+                // Dismiss hint
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 800),
+                  duration: const Duration(milliseconds: 1000),
                   curve: Curves.easeOut,
                   builder: (context, value, child) {
-                    return Opacity(
-                      opacity: value,
-                      child: Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: child,
-                      ),
-                    );
+                    return Opacity(opacity: value * 0.6, child: child);
                   },
                   child: Text(
-                    widget.subtitle!,
+                    'Toca para continuar',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: theme.hintColor,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _shareImage,
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Compartir Logro'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
               ],
-
-              const SizedBox(height: 32),
-
-              // Dismiss hint
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOut,
-                builder: (context, value, child) {
-                  return Opacity(opacity: value * 0.6, child: child);
-                },
-                child: Text(
-                  'Toca para continuar',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: theme.hintColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -245,6 +294,7 @@ class _LottieCelebrationWidgetState extends State<LottieCelebrationWidget>
 }
 
 /// Helper function to show celebration dialog
+
 void showCelebration(
   BuildContext context, {
   required String type,
@@ -252,6 +302,7 @@ void showCelebration(
   String? subtitle,
   VoidCallback? onComplete,
 }) {
+  HapticFeedback.mediumImpact();
   showDialog(
     context: context,
     barrierDismissible: true,

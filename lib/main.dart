@@ -367,9 +367,17 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp.router(
       title: 'Asesoría App',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.getTheme(themeProvider.accentColor, isDark: false),
-      darkTheme: AppTheme.getTheme(themeProvider.accentColor, isDark: true),
-      themeMode: themeProvider.themeMode,
+      theme: AppTheme.getTheme(
+        themeProvider.accentColor,
+        isDark: false,
+        preset: themeProvider.preset,
+      ),
+      darkTheme: AppTheme.getTheme(
+        themeProvider.accentColor,
+        isDark: true,
+        preset: themeProvider.preset,
+      ),
+      themeMode: themeProvider.effectiveThemeMode,
       routerConfig: _router,
       localizationsDelegates: [
         GlobalMaterialLocalizations.delegate,

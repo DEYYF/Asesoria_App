@@ -140,6 +140,34 @@ class AuthService with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/users/me/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode == 200) {
+        final updatedUser = jsonDecode(response.body);
+        _user = {..._user!, ...updatedUser};
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_user', jsonEncode(_user));
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Update profile error: $e');
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> checkClientStatus(String email) async {
     final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
     try {

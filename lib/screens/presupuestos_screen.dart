@@ -103,8 +103,8 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
   Map<String, dynamic> _getGroupedPresupuestos() {
     final isBorradores = _tabController.index == 1;
     final filtered = _presupuestos.where((p) {
-      final hasClient = p['clienteId'] != null;
-      return isBorradores ? !hasClient : hasClient;
+      final isBorrador = p['estado'] == 'borrador';
+      return isBorradores ? isBorrador : !isBorrador;
     }).toList();
 
     if (!_isGrouped) {
@@ -547,9 +547,8 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                         borderRadius: BorderRadius.circular(12),
                       ),
                       itemBuilder: (context) {
-                        final isBorrador =
-                            (p['estado'] == 'borrador' ||
-                            p['clienteId'] == null);
+                        final isBorrador = p['estado'] == 'borrador';
+                        final isPendiente = p['estado'] == 'pendiente';
                         final isAceptado = p['estado'] == 'aceptado';
                         final isPagado = p['estado'] == 'pagado';
                         final isLocked = isAceptado || isPagado;
@@ -593,6 +592,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                           ];
                         }
 
+                        // Menu for Pendiente, Aceptado, Pagado, Rechazado
                         return [
                           const PopupMenuItem(
                             value: 'detail',
@@ -602,6 +602,26 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
+                          if (isPendiente)
+                            PopupMenuItem(
+                              value: p['clienteId'] == null
+                                  ? 'accept_create'
+                                  : 'edit_status',
+                              child: ListTile(
+                                leading: Icon(
+                                  p['clienteId'] == null
+                                      ? Icons.person_add
+                                      : Icons.check_circle_outline,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  p['clienteId'] == null
+                                      ? 'Aceptar y Crear Cliente'
+                                      : 'Cambiar a Aceptado',
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
                           if (p['facturaId'] != null)
                             const PopupMenuItem(
                               value: 'view_invoice',
@@ -614,30 +634,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
-                          if (!isLocked) ...[
-                            const PopupMenuItem(
-                              value: 'edit_status',
-                              child: ListTile(
-                                leading: Icon(
-                                  Icons.swap_horiz,
-                                  color: Colors.teal,
-                                ),
-                                title: Text('Cambiar Estado'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'add_discount',
-                              child: ListTile(
-                                leading: Icon(
-                                  Icons.discount,
-                                  color: Colors.orange,
-                                ),
-                                title: Text('Añadir Descuento'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
+                          const PopupMenuDivider(),
                           const PopupMenuItem(
                             value: 'pdf',
                             child: ListTile(
@@ -657,7 +654,8 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                          if (!isLocked) ...[
+                          // Only allow delete if not locked (not accepted/paid) AND NOT pending
+                          if (!isLocked && !isPendiente) ...[
                             const PopupMenuDivider(),
                             const PopupMenuItem(
                               value: 'delete',
@@ -1034,18 +1032,8 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
   }
 
   void _handleAcceptAndCreate(dynamic p) async {
-    // 1. Update status to 'pendiente' (User request: put as PENDING in registered clients)
-    final api = Provider.of<ApiService>(context, listen: false);
-    try {
-      await api.put('/presupuestos/${p['_id']}', {'estado': 'pendiente'});
-      // Don't call _fetchData here instantly to avoid potential UI jump, wait for client creation logic
-    } catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error al aceptar: $e")));
-      return;
-    }
+    // 1. Initial cleanup (optional, but keep for consistency)
+    // No explicit status update needed here anymore, we'll do once client is created
 
     // 2. Open Create Client Dialog
     if (!mounted) return;
@@ -1122,15 +1110,19 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
 
   void _showStatusDialog(dynamic p) {
     String currentStatus = p['estado'] ?? 'pendiente';
+
+    // If status is 'pendiente', user can ONLY move it to 'aceptado'
+    final List<String> availableStatuses = currentStatus == 'pendiente'
+        ? ['aceptado']
+        : ['pendiente', 'aceptado', 'pagado', 'rechazado'];
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cambiar Estado'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: ['pendiente', 'aceptado', 'pagado', 'rechazado'].map((
-            status,
-          ) {
+          children: availableStatuses.map((status) {
             return RadioListTile<String>(
               title: Text(status.toUpperCase()),
               value: status,
@@ -1180,6 +1172,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
         initialEmail: email,
         initialTarifaId: tarifaId,
         initialExtras: extras,
+        skipBudgetCreation: true, // IMPORTANT: Don't create a new budget
         onSuccess: (id) => Navigator.pop(ctx, id), // Return ID when closing
       ),
     );
@@ -1192,7 +1185,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
           'clienteId': newClientId,
           'nombreCliente': null,
           'emailCliente': null,
-          'estado': 'pendiente', // Reinforce status as PENDING
+          'estado': 'aceptado', // Trigger auto-invoice!
         });
 
         if (mounted) {

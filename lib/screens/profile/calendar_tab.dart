@@ -296,6 +296,9 @@ class _CalendarTabState extends State<CalendarTab> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
+                    // Visual indicator for events
+                    const SizedBox(height: 4),
+                    _buildEventDots(date, isSelected, isDark),
                   ],
                 ),
               ),
@@ -468,6 +471,39 @@ class _CalendarTabState extends State<CalendarTab> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEventDots(DateTime date, bool isSelected, bool isDark) {
+    final dayKey = DateTime(date.year, date.month, date.day);
+    final hasCita = _citasMap.containsKey(dayKey);
+    final hasSession = _sessionsMap.entries.any((e) => _isSameDay(e.key, date));
+
+    if (!hasCita && !hasSession) return const SizedBox(height: 6);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (hasCita)
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.black : const Color(0xFFFFD700),
+              shape: BoxShape.circle,
+            ),
+          ),
+        if (hasCita && hasSession) const SizedBox(width: 2),
+        if (hasSession)
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.black.withOpacity(0.5) : Colors.green,
+              shape: BoxShape.circle,
+            ),
+          ),
+      ],
     );
   }
 }

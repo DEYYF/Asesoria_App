@@ -6,9 +6,12 @@ import '../../services/api_service.dart';
 import '../../services/client_service.dart';
 import '../../services/auth_service.dart';
 import '../../providers/super_admin_provider.dart';
+import '../../models/factura_model.dart';
 
 class CreateFacturaScreen extends StatefulWidget {
-  const CreateFacturaScreen({super.key});
+  final String? facturaId; // Null for create mode
+
+  const CreateFacturaScreen({super.key, this.facturaId});
 
   @override
   State<CreateFacturaScreen> createState() => _CreateFacturaScreenState();
@@ -25,6 +28,15 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
   final _conceptoController = TextEditingController();
   final _notasController = TextEditingController();
 
+  // Receptor controllers
+  final _receptorNombreController = TextEditingController();
+  final _receptorNifController = TextEditingController();
+  final _receptorDireccionController = TextEditingController();
+  final _receptorCPController = TextEditingController();
+  final _receptorCiudadController = TextEditingController();
+  final _receptorProvinciaController = TextEditingController();
+
+  bool get _isEdit => widget.facturaId != null;
   bool get _isAdmin =>
       Provider.of<AuthService>(context, listen: false).isSuperAdmin;
 
@@ -36,6 +48,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
   bool _isLoading = false;
   bool _loadingClientes = true;
   String? _selectedAsesorId;
+  Factura? _editingFactura;
 
   @override
   void initState() {
@@ -51,7 +64,56 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     _selectedAsesorId = saProv.selectedAdvisorId ?? auth.userId;
 
-    _loadClientes();
+    if (_isEdit) {
+      _loadFacturaToEdit();
+    } else {
+      _loadClientes();
+    }
+  }
+
+  Future<void> _loadFacturaToEdit() async {
+    setState(() => _isLoading = true);
+    try {
+      final factura = await _facturaService.getFacturaById(widget.facturaId!);
+      setState(() {
+        _editingFactura = factura;
+        _conceptoController.text = factura.concepto;
+        _notasController.text = factura.notas ?? '';
+        _vencimiento = factura.vencimiento;
+        _metodoPago = factura.metodoPago;
+        _selectedAsesorId = factura.asesorId;
+
+        // Load items
+        _items = factura.items.map((it) {
+          final form = FacturaItemForm();
+          form.descripcion = it.descripcion;
+          form.cantidad = it.cantidad;
+          form.precioUnitario = it.precioUnitario;
+          form.iva = it.iva;
+          return form;
+        }).toList();
+
+        // Load receptor
+        _receptorNombreController.text = factura.datosReceptor.nombre;
+        _receptorNifController.text = factura.datosReceptor.nif;
+        _receptorDireccionController.text = factura.datosReceptor.direccion;
+        _receptorCPController.text = factura.datosReceptor.codigoPostal;
+        _receptorCiudadController.text = factura.datosReceptor.ciudad;
+        _receptorProvinciaController.text =
+            factura.datosReceptor.provincia ?? '';
+
+        _isLoading = false;
+        _loadingClientes =
+            false; // No need to load all clients in edit mode usually
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al cargar factura: $e')));
+      }
+    }
   }
 
   Future<void> _loadClientes() async {
@@ -83,9 +145,9 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
 
   double get _total => _subtotal + _totalIVA;
 
-  Future<void> _createFactura() async {
+  Future<void> _saveFactura() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCliente == null) {
+    if (!_isEdit && _selectedCliente == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Selecciona un cliente')));
@@ -96,18 +158,19 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
 
     try {
       final facturaData = {
-        'clienteId': _selectedCliente!.id,
+        if (!_isEdit) 'clienteId': _selectedCliente!.id,
         'concepto': _conceptoController.text,
         'items': _items.map((item) {
           final base = (item.cantidad ?? 0) * (item.precioUnitario ?? 0);
-          final iva = base * ((item.iva ?? 21) / 100);
+          final ivaVal = item.iva ?? 21;
+          final ivaImporte = base * (ivaVal / 100);
           return {
             'descripcion': item.descripcion,
             'cantidad': item.cantidad,
             'precioUnitario': item.precioUnitario,
-            'iva': item.iva ?? 21,
+            'iva': ivaVal,
             'descuento': 0,
-            'total': base + iva,
+            'total': base + ivaImporte,
           };
         }).toList(),
         'vencimiento': _vencimiento.toIso8601String(),
@@ -116,13 +179,31 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
             ? _notasController.text
             : null,
         'asesorId': _selectedAsesorId,
+        'datosReceptor': {
+          'nombre': _receptorNombreController.text,
+          'nif': _receptorNifController.text,
+          'direccion': _receptorDireccionController.text,
+          'codigoPostal': _receptorCPController.text,
+          'ciudad': _receptorCiudadController.text,
+          'provincia': _receptorProvinciaController.text,
+        },
       };
 
-      await _facturaService.createFactura(facturaData);
+      if (_isEdit) {
+        await _facturaService.updateFactura(widget.facturaId!, facturaData);
+      } else {
+        await _facturaService.createFactura(facturaData);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✓ Factura creada correctamente')),
+          SnackBar(
+            content: Text(
+              _isEdit
+                  ? '✓ Factura actualizada correctamente'
+                  : '✓ Factura creada correctamente',
+            ),
+          ),
         );
         Navigator.pop(context, true);
       }
@@ -146,41 +227,47 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
           ? const Color(0xFF000000)
           : const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text(
-          'Nueva Factura',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          _isEdit ? 'Editar Factura' : 'Nueva Factura',
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
+      body: _isLoading && _isEdit
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: Column(
                 children: [
-                  _buildClienteCard(theme, isDark),
-                  const SizedBox(height: 16),
-                  _buildConceptoCard(theme, isDark),
-                  const SizedBox(height: 16),
-                  _buildDetallesCard(theme, isDark),
-                  const SizedBox(height: 16),
-                  _buildItemsSection(theme, isDark),
-                  const SizedBox(height: 16),
-                  if (_isAdmin)
-                    _buildAsesorCard(theme, isDark), // Only show if admin
-                  const SizedBox(height: 16),
-                  _buildNotasCard(theme, isDark),
-                  const SizedBox(height: 100),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        if (!_isEdit) ...[
+                          _buildClienteCard(theme, isDark),
+                          const SizedBox(height: 16),
+                        ],
+                        _buildReceptorCard(theme, isDark),
+                        const SizedBox(height: 16),
+                        _buildConceptoCard(theme, isDark),
+                        const SizedBox(height: 16),
+                        _buildDetallesCard(theme, isDark),
+                        const SizedBox(height: 16),
+                        _buildItemsSection(theme, isDark),
+                        const SizedBox(height: 16),
+                        if (_isAdmin)
+                          _buildAsesorCard(theme, isDark), // Only show if admin
+                        const SizedBox(height: 16),
+                        _buildNotasCard(theme, isDark),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
+                  _buildBottomBar(theme, isDark),
                 ],
               ),
             ),
-            _buildBottomBar(theme, isDark),
-          ],
-        ),
-      ),
     );
   }
 
@@ -323,11 +410,139 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                   child: Text(cliente.nombre),
                 );
               }).toList(),
-              onChanged: (value) => setState(() => _selectedCliente = value),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCliente = value;
+                  if (value != null) {
+                    // Autofill receptor data from selected client
+                    _receptorNombreController.text = value.nombre;
+                    _receptorNifController.text = value.nif ?? '';
+                    _receptorDireccionController.text = value.direccion ?? '';
+                    _receptorCPController.text = value.codigoPostal ?? '';
+                    _receptorCiudadController.text = value.ciudad ?? '';
+                    _receptorProvinciaController.text = value.provincia ?? '';
+                  }
+                });
+              },
               validator: (value) => value == null ? 'Requerido' : null,
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReceptorCard(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.business_outlined,
+                  color: Colors.teal,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Datos del Receptor',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildReceptorField(
+            controller: _receptorNombreController,
+            label: 'Nombre / Razón Social',
+            icon: Icons.person_outline,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+          _buildReceptorField(
+            controller: _receptorNifController,
+            label: 'NIF / CIF',
+            icon: Icons.badge_outlined,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+          _buildReceptorField(
+            controller: _receptorDireccionController,
+            label: 'Dirección',
+            icon: Icons.location_on_outlined,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildReceptorField(
+                  controller: _receptorCPController,
+                  label: 'C.P.',
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 3,
+                child: _buildReceptorField(
+                  controller: _receptorCiudadController,
+                  label: 'Ciudad',
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildReceptorField(
+            controller: _receptorProvinciaController,
+            label: 'Provincia',
+            isDark: isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceptorField({
+    required TextEditingController controller,
+    required String label,
+    IconData? icon,
+    required bool isDark,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: icon != null ? Icon(icon, size: 20) : null,
+        filled: true,
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.all(16),
+      ),
+      validator: (value) => value?.isEmpty ?? true ? 'Requerido' : null,
     );
   }
 
@@ -679,26 +894,45 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: TextFormField(
-                  initialValue: item.iva?.toString() ?? '21',
-                  decoration: InputDecoration(
-                    labelText: 'IVA %',
-                    filled: true,
-                    fillColor: isDark
-                        ? Colors.white.withOpacity(0.05)
-                        : Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'IVA %',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.all(12),
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    item.iva = double.tryParse(value) ?? 21;
-                    setState(() {});
-                  },
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<double>(
+                          value: item.iva ?? 21,
+                          isExpanded: true,
+                          items: [0.0, 4.0, 10.0, 21.0].map((val) {
+                            return DropdownMenuItem<double>(
+                              value: val,
+                              child: Text(
+                                '${val.toInt()}%',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() => item.iva = val ?? 21);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -806,7 +1040,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                   ],
                 ),
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _createFactura,
+                  onPressed: _isLoading ? null : _saveFactura,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
                     foregroundColor: Colors.white,
@@ -830,13 +1064,13 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                             ),
                           ),
                         )
-                      : const Row(
+                      : Row(
                           children: [
-                            Icon(Icons.check_circle_outline, size: 20),
-                            SizedBox(width: 8),
+                            const Icon(Icons.check_circle_outline, size: 20),
+                            const SizedBox(width: 8),
                             Text(
-                              'Crear Factura',
-                              style: TextStyle(
+                              _isEdit ? 'Actualizar' : 'Crear Factura',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -871,6 +1105,12 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
   void dispose() {
     _conceptoController.dispose();
     _notasController.dispose();
+    _receptorNombreController.dispose();
+    _receptorNifController.dispose();
+    _receptorDireccionController.dispose();
+    _receptorCPController.dispose();
+    _receptorCiudadController.dispose();
+    _receptorProvinciaController.dispose();
     super.dispose();
   }
 }

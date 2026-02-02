@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../services/api_service.dart';
 
 class SmartInsightsService {
@@ -10,7 +11,10 @@ class SmartInsightsService {
       final response = await _apiService.get(
         '/clientes/$clientId/intelligent-insights',
       );
-      return response as Map<String, dynamic>;
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+      return {'hasInsights': false};
     } catch (e) {
       print('Error fetching smart insights: $e');
       return {'hasInsights': false};

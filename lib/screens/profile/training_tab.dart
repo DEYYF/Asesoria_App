@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
+import '../../widgets/training/muscle_heatmap_widget.dart';
 
 class TrainingTab extends StatefulWidget {
   final String clienteId;
@@ -17,6 +18,8 @@ class TrainingTab extends StatefulWidget {
 class _TrainingTabState extends State<TrainingTab> {
   List<Entrenamiento> _entrenamientos = [];
   bool _isLoading = true;
+  bool _showFront = true;
+  Map<String, double> _muscleIntensity = {};
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _TrainingTabState extends State<TrainingTab> {
             _entrenamientos = list
                 .map((e) => Entrenamiento.fromJson(e))
                 .toList();
+            _calculateIntensities();
             _isLoading = false;
           });
         } else {
@@ -169,7 +173,11 @@ class _TrainingTabState extends State<TrainingTab> {
             ),
             const SizedBox(height: 30),
 
-            // 2. Training Dashboard
+            // 2. Heatmap & Intensity
+            _buildHeatmapSection(theme),
+            const SizedBox(height: 30),
+
+            // 3. Training Dashboard
             _buildTrainingDashboard(currentPlan, theme),
             const SizedBox(height: 40),
 
@@ -455,6 +463,214 @@ class _TrainingTabState extends State<TrainingTab> {
         ),
       ),
     );
+  }
+
+  void _calculateIntensities() {
+    final Map<String, int> counts = {};
+    int total = 0;
+
+    for (var ent in _entrenamientos) {
+      if (!ent.activo) continue;
+      for (var sem in ent.semanas) {
+        for (var dia in sem.dias) {
+          for (var item in dia.items) {
+            final grupo = item.ejercicio?.grupo ?? item.ejercicioNombre ?? '';
+            final normalized = _normalizeMuscleGroup(grupo);
+            if (normalized != null) {
+              counts[normalized] = (counts[normalized] ?? 0) + 1;
+              total++;
+            }
+          }
+        }
+      }
+    }
+
+    if (total == 0) {
+      setState(() {
+        _muscleIntensity = {};
+      });
+      return;
+    }
+
+    int maxCount = 0;
+    counts.values.forEach((v) {
+      if (v > maxCount) maxCount = v;
+    });
+
+    setState(() {
+      _muscleIntensity = counts.map(
+        (key, value) => MapEntry(key, value / (maxCount > 0 ? maxCount : 1)),
+      );
+    });
+  }
+
+  String? _normalizeMuscleGroup(String group) {
+    group = group.toLowerCase();
+    if (group.contains('pecho')) return 'Pecho';
+    if (group.contains('abdo') || group.contains('core')) return 'Abdominales';
+    if (group.contains('pierna') || group.contains('cuad')) return 'Cuádriceps';
+    if (group.contains('bicep')) return 'Bíceps';
+    if (group.contains('hombro') || group.contains('delto')) return 'Hombros';
+    if (group.contains('espalda') || group.contains('dorsal')) return 'Espalda';
+    if (group.contains('gluteo')) return 'Glúteos';
+    if (group.contains('isquio') || group.contains('femoral')) return 'Isquios';
+    if (group.contains('tricep')) return 'Tríceps';
+    if (group.contains('gemelo') || group.contains('pantorrilla')) {
+      return 'Gemelos';
+    }
+    return null;
+  }
+
+  Widget _buildHeatmapSection(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'MAPA DE CALOR',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Distribución de Carga',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: theme.textTheme.titleLarge?.color,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  onPressed: () => setState(() => _showFront = !_showFront),
+                  icon: Icon(
+                    Icons.flip_camera_android_rounded,
+                    color: theme.primaryColor,
+                  ),
+                  tooltip: 'Rotar Vista',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Center(
+                  child: MuscleHeatmapWidget(
+                    muscleIntensity: _muscleIntensity,
+                    showFront: _showFront,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Resumen de Intensidad',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ..._buildIntensityList(theme),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildIntensityList(ThemeData theme) {
+    final sorted = _muscleIntensity.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (sorted.isEmpty) {
+      return [
+        Text(
+          'Registra entrenamientos para ver el mapa de calor muscular.',
+          style: TextStyle(color: theme.hintColor, fontSize: 12),
+        ),
+      ];
+    }
+
+    return sorted.take(4).map((e) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  e.key,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${(e.value * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: e.value,
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
+                minHeight: 4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 }
 

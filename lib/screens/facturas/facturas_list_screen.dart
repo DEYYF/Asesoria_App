@@ -274,8 +274,8 @@ class _FacturasListScreenState extends State<FacturasListScreen> {
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: () async {
           final result = await Navigator.push(
             context,
@@ -285,88 +285,115 @@ class _FacturasListScreenState extends State<FacturasListScreen> {
           );
           if (result == true) _loadFacturas();
         },
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: estadoColor.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(estadoIcon, color: estadoColor, size: 24),
-        ),
-        title: Text(
-          factura.numeroFactura,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              factura.clienteNombre ?? factura.datosReceptor.nombre,
-              style: TextStyle(color: theme.hintColor, fontSize: 13),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              factura.concepto,
-              style: TextStyle(color: theme.hintColor, fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 12,
-                  color: theme.hintColor,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: estadoColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(factura.fecha),
-                  style: TextStyle(fontSize: 11, color: theme.hintColor),
+                child: Icon(estadoIcon, color: estadoColor, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      factura.numeroFactura,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      factura.clienteNombre ?? factura.datosReceptor.nombre,
+                      style: TextStyle(color: theme.hintColor, fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      factura.concepto,
+                      style: TextStyle(color: theme.hintColor, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 12,
+                          color: theme.hintColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('dd/MM/yyyy').format(factura.fecha),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.hintColor,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (factura.isPendiente && !factura.isVencida) ...[
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 12,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${factura.diasVencimiento} días',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                if (factura.isPendiente && !factura.isVencida) ...[
-                  Icon(Icons.schedule_rounded, size: 12, color: Colors.orange),
-                  const SizedBox(width: 4),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
-                    '${factura.diasVencimiento} días',
-                    style: const TextStyle(fontSize: 11, color: Colors.orange),
+                    '${factura.total.toStringAsFixed(2)}€',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: theme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: estadoColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      factura.estado.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: estadoColor,
+                      ),
+                    ),
                   ),
                 ],
-              ],
-            ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${factura.total.toStringAsFixed(2)}€',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: theme.primaryColor,
               ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: estadoColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                factura.estado.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: estadoColor,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

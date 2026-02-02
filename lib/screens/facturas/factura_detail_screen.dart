@@ -6,6 +6,8 @@ import '../../services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'create_factura_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class FacturaDetailScreen extends StatefulWidget {
   final String facturaId;
@@ -49,18 +51,21 @@ class _FacturaDetailScreenState extends State<FacturaDetailScreen> {
   }
 
   Future<void> _downloadPDF() async {
+    setState(() => _isLoading = true);
     try {
       final bytes = await _facturaService.downloadPDF(widget.facturaId);
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/Factura-${_factura!.numeroFactura}.pdf');
       await file.writeAsBytes(bytes);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('PDF descargado: ${file.path}')));
+        setState(() => _isLoading = false);
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Factura ${_factura!.numeroFactura}');
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -70,14 +75,17 @@ class _FacturaDetailScreenState extends State<FacturaDetailScreen> {
   }
 
   Future<void> _sendEmail() async {
+    setState(() => _isLoading = true);
     try {
       await _facturaService.sendEmail(widget.facturaId);
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Factura enviada por email')),
+          const SnackBar(content: Text('✓ Factura enviada por email')),
         );
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -157,12 +165,27 @@ class _FacturaDetailScreenState extends State<FacturaDetailScreen> {
                   value: 'cancelar',
                   child: Text('Cancelar factura'),
                 ),
+              const PopupMenuItem(
+                value: 'editar',
+                child: Text('Editar factura'),
+              ),
             ],
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'marcar_pagada') {
                 _updateEstado('pagada');
               } else if (value == 'cancelar') {
                 _updateEstado('cancelada');
+              } else if (value == 'editar') {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CreateFacturaScreen(facturaId: _factura!.id),
+                  ),
+                );
+                if (result == true) {
+                  _loadFactura();
+                }
               }
             },
           ),

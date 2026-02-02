@@ -14,6 +14,7 @@ class AddClientDialog extends StatefulWidget {
   final String? initialEmail;
   final String? initialTarifaId;
   final List<String>? initialExtras;
+  final bool skipBudgetCreation;
 
   const AddClientDialog({
     super.key,
@@ -22,6 +23,7 @@ class AddClientDialog extends StatefulWidget {
     this.initialEmail,
     this.initialTarifaId,
     this.initialExtras,
+    this.skipBudgetCreation = false,
   });
 
   @override
@@ -207,19 +209,22 @@ class _AddClientDialogState extends State<AddClientDialog> {
 
       final clientId = jsonDecode(resC.body)['_id'];
 
-      // 2. Create Presupuesto
-      final budgetBody = {
-        'clienteId': clientId,
-        'usuarioId': asesorId, // asesorId is user id
-        'tarifaId': _selectedTarifaId,
-        'extras': _selectedExtrasIds,
-        'fechaInicio': DateTime.now().toIso8601String(),
-      };
+      // 2. Create Presupuesto (Optional)
+      if (!widget.skipBudgetCreation) {
+        final budgetBody = {
+          'clienteId': clientId,
+          'usuarioId': asesorId, // asesorId is user id
+          'tarifaId': _selectedTarifaId,
+          'extras': _selectedExtrasIds,
+          'fechaInicio': DateTime.now().toIso8601String(),
+        };
 
-      await api.post('/presupuestos', budgetBody);
+        await api.post('/presupuestos', budgetBody);
+      }
 
       widget.onSuccess(clientId);
-      if (mounted) Navigator.pop(context);
+      // Removed the redundant Navigator.pop(context) that was causing white screen
+      // since onSuccess already handles closing the dialog correctly.
     } catch (e) {
       if (mounted) {
         setState(() {

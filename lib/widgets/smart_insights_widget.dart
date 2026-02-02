@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import '../services/smart_insights_service.dart';
 
 class SmartInsightsWidget extends StatefulWidget {
@@ -34,10 +35,7 @@ class _SmartInsightsWidgetState extends State<SmartInsightsWidget> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
+      return _buildShimmerLoading(context);
     }
 
     if (_insights == null || _insights!['insights'] == null) {
@@ -194,6 +192,34 @@ class _SmartInsightsWidgetState extends State<SmartInsightsWidget> {
             child: const Text('Cerrar'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(width: 150, height: 20, color: Colors.white),
+            const SizedBox(height: 16),
+            ...List.generate(
+              2,
+              (index) => Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

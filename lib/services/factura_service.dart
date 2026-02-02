@@ -58,6 +58,17 @@ class FacturaService {
     }
   }
 
+  // Actualizar factura completa
+  Future<Factura> updateFactura(String id, Map<String, dynamic> data) async {
+    final response = await _api.put('/facturas/$id', data);
+
+    if (response.statusCode == 200) {
+      return Factura.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Error al actualizar factura: ${response.body}');
+    }
+  }
+
   // Actualizar estado de factura
   Future<Factura> updateEstado(
     String id, {

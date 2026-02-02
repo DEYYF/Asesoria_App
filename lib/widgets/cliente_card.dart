@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
@@ -385,7 +386,7 @@ class _ClienteCardState extends State<ClienteCard> {
             radius: 26,
             backgroundColor: theme.primaryColor.withOpacity(0.1),
             backgroundImage: widget.cliente.avatarUrl != null
-                ? NetworkImage(widget.cliente.avatarUrl!)
+                ? CachedNetworkImageProvider(widget.cliente.avatarUrl!)
                 : null,
             child: widget.cliente.avatarUrl == null
                 ? Text(

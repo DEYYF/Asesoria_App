@@ -14,6 +14,8 @@ import '../../providers/settings_provider.dart';
 import '../../models/settings_model.dart';
 import '../../utils/training_pdf_generator.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class TrainingDetailScreen extends StatefulWidget {
   final String entrenamientoId;
   const TrainingDetailScreen({super.key, required this.entrenamientoId});
@@ -25,6 +27,7 @@ class TrainingDetailScreen extends StatefulWidget {
 class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
   Entrenamiento? _ent;
   bool _isLoading = true;
+  bool _isOffline = false;
   int _selectedWeekIdx = 0;
 
   @override
@@ -35,19 +38,51 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
   Future<void> _loadData() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'offline_training_${widget.entrenamientoId}';
+
     try {
+      // Check connectivity first? Or just try API and fallback.
+      // Trying API first ensures freshness.
       final res = await api.get('/entrenamientos/${widget.entrenamientoId}');
+
       if (mounted) {
         if (res.statusCode == 200) {
+          // Cache successful response (raw body string)
+          await prefs.setString(cacheKey, res.body);
+
           setState(() {
             _ent = Entrenamiento.fromJson(jsonDecode(res.body));
             _isLoading = false;
+            _isOffline = false;
           });
         } else {
-          setState(() => _isLoading = false);
+          // API error, try offline
+          await _loadOfflineData(prefs, cacheKey);
         }
       }
     } catch (e) {
+      // Network error, try offline
+      if (mounted) await _loadOfflineData(prefs, cacheKey);
+    }
+  }
+
+  Future<void> _loadOfflineData(SharedPreferences prefs, String key) async {
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      setState(() {
+        _ent = Entrenamiento.fromJson(jsonDecode(cached));
+        _isOffline = true;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📴 Modo Offline: Visualizando datos guardados'),
+          backgroundColor: Colors.grey,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } else {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -240,6 +275,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
               // 1. Header Card
               _TrainingHeaderCard(
                 ent: _ent!,
+                isOffline: _isOffline,
                 onExport: _handleExportPDF,
                 onDuplicate: _handleDuplicate,
                 onDelete: _handleDelete,
@@ -331,6 +367,7 @@ class _TrainingDetailScreenState extends State<TrainingDetailScreen> {
 
 class _TrainingHeaderCard extends StatelessWidget {
   final Entrenamiento ent;
+  final bool isOffline;
   final VoidCallback onExport;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
@@ -338,6 +375,7 @@ class _TrainingHeaderCard extends StatelessWidget {
 
   const _TrainingHeaderCard({
     required this.ent,
+    this.isOffline = false,
     required this.onExport,
     required this.onDuplicate,
     required this.onDelete,
@@ -413,18 +451,36 @@ class _TrainingHeaderCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: (ent.activo ? Colors.green : Colors.grey).withOpacity(
-                    0.1,
-                  ),
+                  color: isOffline
+                      ? Colors.grey.withOpacity(0.2)
+                      : (ent.activo ? Colors.green : Colors.grey).withOpacity(
+                          0.1,
+                        ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  ent.activo ? 'ACTIVO' : 'INACTIVO',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: ent.activo ? Colors.green : Colors.grey,
-                  ),
+                child: Row(
+                  children: [
+                    if (isOffline) ...[
+                      const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(
+                      isOffline
+                          ? 'OFFLINE'
+                          : (ent.activo ? 'ACTIVO' : 'INACTIVO'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: isOffline
+                            ? Colors.grey
+                            : (ent.activo ? Colors.green : Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

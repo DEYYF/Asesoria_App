@@ -50,6 +50,12 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
   String _shoppingListPeriod = 'semanal';
   String _shoppingListChannel = 'CHAT';
 
+  // Chat Buttons config
+  List<Map<String, dynamic>> selectedButtons = [];
+
+  // Conditions config
+  Map<String, dynamic> selectedConditions = {'operator': 'AND', 'rules': []};
+
   // Helper lists
   final List<String> dayNames = [
     'Dom',
@@ -127,6 +133,14 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
         _shoppingListChannel =
             existingAction?['metadata']?['channel'] ?? 'CHAT';
       }
+
+      selectedButtons = existingAction?['buttons'] != null
+          ? List<Map<String, dynamic>>.from(existingAction['buttons'])
+          : [];
+
+      selectedConditions = widget.automation?['conditions'] != null
+          ? Map<String, dynamic>.from(widget.automation?['conditions'])
+          : {'operator': 'AND', 'rules': []};
     }
   }
 
@@ -840,11 +854,187 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
                                 description: 'Hora de envío',
                                 onTap: _insertVariable,
                               ),
+                              _VariableInfo(
+                                variable: '{{peso_actual}}',
+                                description: 'Peso actual',
+                                onTap: _insertVariable,
+                              ),
+                              _VariableInfo(
+                                variable: '{{grasa_actual}}',
+                                description: '% Grasa actual',
+                                onTap: _insertVariable,
+                              ),
+                              _VariableInfo(
+                                variable: '{{peso_perdido_total}}',
+                                description: 'Kg totales perdidos',
+                                onTap: _insertVariable,
+                              ),
+                              _VariableInfo(
+                                variable: '{{objetivo_actual}}',
+                                description: 'Objetivo dieta',
+                                onTap: _insertVariable,
+                              ),
                             ],
                           ),
                         ),
                       ],
                     ),
+
+                    // CHAT BUTTONS configuration
+                    if (selectedActionType == 'SEND_CHAT') ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.smart_button_rounded,
+                            size: 16,
+                            color: Colors.blue,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Botones Interactivos:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                selectedButtons.add({
+                                  'text': 'Nuevo Botón',
+                                  'action': 'CUSTOM',
+                                });
+                              });
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 14),
+                            label: const Text(
+                              'Añadir',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (selectedButtons.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                selectedButtons.add({
+                                  'text': 'Registrar Medidas',
+                                  'action': 'OPEN_MEASUREMENTS_DIALOG',
+                                });
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.blue.withOpacity(0.2),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.add_task_rounded,
+                                    size: 16,
+                                    color: Colors.blue,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Sugerencia: "Registrar Medidas"',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ...selectedButtons.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final btn = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.grey.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Texto del botón',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.all(8),
+                                      ),
+                                      initialValue: btn['text'],
+                                      onChanged: (val) =>
+                                          selectedButtons[idx]['text'] = val,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () => setState(
+                                      () => selectedButtons.removeAt(idx),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                value: btn['action'],
+                                decoration: const InputDecoration(
+                                  labelText: 'Acción al pulsar',
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.all(8),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'OPEN_MEASUREMENTS_DIALOG',
+                                    child: Text(
+                                      'Abrir Diálogo de Medidas',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'CUSTOM',
+                                    child: Text(
+                                      'Acción Personalizada',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (val) => setState(
+                                  () => selectedButtons[idx]['action'] = val,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
                   ],
 
                   // CREATE_TASK configuration
@@ -1105,6 +1295,7 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
           ? contentOverrideController.text
           : null,
       'delay': int.tryParse(delayController.text) ?? 0,
+      'buttons': selectedActionType == 'SEND_CHAT' ? selectedButtons : [],
       'metadata': selectedActionType == 'CREATE_TASK'
           ? {'dueDate': taskDueDateController.text}
           : selectedActionType == 'SEND_SHOPPING_LIST'
@@ -1117,6 +1308,7 @@ class _AutomationFormSheetState extends State<AutomationFormSheet> {
       'type': selectedType,
       'allClients': allClients,
       'targetClientIds': selectedClients,
+      'conditions': selectedConditions,
       'actions': [action],
       'advisorId': _selectedAdvisorId,
     };

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/settings_model.dart';
@@ -816,7 +817,7 @@ class _PdfDesignerScreenState extends State<PdfDesignerScreen> {
         borderRadius: BorderRadius.circular(10),
         image: _logoController.text.isNotEmpty
             ? DecorationImage(
-                image: NetworkImage(_logoController.text),
+                image: CachedNetworkImageProvider(_logoController.text),
                 fit: BoxFit.contain,
               )
             : null,

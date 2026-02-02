@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
+import '../providers/theme_provider.dart';
 
 class AppTheme {
   static const primaryColor = Color(0xFF007AFF); // iOS Blue
-  static const accentColor = Color(0xFF5856D6); // iOS Purple
-  static const surfaceColor = Colors.white;
-  static const backgroundColor = Color(
-    0xFFF2F2F7,
-  ); // iOS System Grouped Background
-  static const errorColor = Color(0xFFFF3B30); // iOS Red
+  static const backgroundColor = Color(0xFFF2F2F7);
+  static const errorColor = Color(0xFFFF3B30);
 
-  static ThemeData getTheme(Color primaryColor, {bool isDark = false}) {
+  static ThemeData getTheme(
+    Color primaryColor, {
+    bool isDark = false,
+    ThemePreset preset = ThemePreset.classic,
+  }) {
+    Color scaffoldBg = isDark ? const Color(0xFF000000) : backgroundColor;
+    Color surfaceColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+    Color canvasColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+
+    // Preset Overrides
+    if (preset == ThemePreset.carbono && isDark) {
+      scaffoldBg = const Color(0xFF0A0A0A); // Absolute Carbon
+      surfaceColor = const Color(0xFF161616);
+      canvasColor = const Color(0xFF161616);
+    } else if (preset == ThemePreset.neon && isDark) {
+      scaffoldBg = const Color(0xFF00050A); // Deep Night Blue
+      surfaceColor = const Color(0xFF000F1F).withOpacity(0.8);
+    }
+
     final baseScheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: isDark ? Brightness.dark : Brightness.light,
@@ -19,17 +34,17 @@ class AppTheme {
       useMaterial3: true,
       brightness: isDark ? Brightness.dark : Brightness.light,
       primaryColor: primaryColor,
-      canvasColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-      scaffoldBackgroundColor: isDark
-          ? const Color(0xFF000000)
-          : backgroundColor,
+      canvasColor: canvasColor,
+      scaffoldBackgroundColor: scaffoldBg,
       fontFamily: '.SF Pro Text',
       colorScheme: baseScheme.copyWith(
         primary: primaryColor,
-        surface: isDark ? const Color(0xFF1C1C1E) : surfaceColor,
+        surface: surfaceColor,
         error: errorColor,
         surfaceContainerHighest: isDark
-            ? const Color(0xFF2C2C2E)
+            ? (preset == ThemePreset.carbono
+                  ? const Color(0xFF1F1F1F)
+                  : const Color(0xFF2C2C2E))
             : const Color(0xFFE5E5EA),
         secondary: primaryColor,
       ),
@@ -46,7 +61,7 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        color: surfaceColor,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
@@ -54,7 +69,7 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: isDark ? const Color(0xFF000000) : backgroundColor,
+        backgroundColor: scaffoldBg,
         scrolledUnderElevation: 0,
         foregroundColor: isDark ? Colors.white : Colors.black,
         titleTextStyle: TextStyle(
@@ -66,9 +81,7 @@ class AppTheme {
       ),
       tabBarTheme: TabBarThemeData(
         labelColor: primaryColor,
-        unselectedLabelColor: isDark
-            ? const Color(0xFF8E8E93)
-            : const Color(0xFF8E8E93),
+        unselectedLabelColor: const Color(0xFF8E8E93),
         indicatorColor: primaryColor,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: isDark
@@ -81,7 +94,7 @@ class AppTheme {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFE3E3E8),
+        fillColor: isDark ? surfaceColor : const Color(0xFFE3E3E8),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,

@@ -7,6 +7,8 @@ import '../../services/auth_service.dart';
 import 'package:intl/intl.dart';
 import '../../models/template_model.dart';
 import '../../widgets/dialogs/template_selector_dialog.dart';
+import '../../widgets/dialogs/measurement_dialog.dart';
+import '../../widgets/dialogs/habit_dialog.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String conversationId;
@@ -445,11 +447,119 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ],
                 ],
               ),
+              if (msg.buttons.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: msg.buttons.map((button) {
+                    return OutlinedButton(
+                      onPressed: () => _handleButtonTap(msg, button),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isMe
+                            ? Colors.white
+                            : theme.primaryColor,
+                        side: BorderSide(
+                          color: isMe ? Colors.white70 : theme.primaryColor,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: isMe ? Colors.white12 : null,
+                      ),
+                      child: Text(
+                        button.text,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _handleButtonTap(ChatMessage message, ChatButton button) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    String? clientId;
+
+    if (auth.isClient) {
+      clientId = auth.userId;
+    } else if (_conversation != null) {
+      clientId = _conversation!.clienteId;
+    }
+
+    switch (button.action) {
+      case 'OPEN_MEASUREMENTS_DIALOG':
+        if (clientId != null) {
+          await showDialog(
+            context: context,
+            builder: (context) => MeasurementDialog(clientId: clientId!),
+          );
+        }
+        break;
+
+      case 'OPEN_HABITS_DIALOG':
+        if (clientId != null) {
+          await showDialog(
+            context: context,
+            builder: (context) => HabitDialog(clientId: clientId!),
+          );
+        }
+        break;
+
+      case 'NAVIGATE_TO_DIET':
+        if (!widget.isEmbedded && mounted) {
+          Navigator.of(context).pushNamed('/diet');
+        }
+        break;
+
+      case 'NAVIGATE_TO_WORKOUT':
+        if (!widget.isEmbedded && mounted) {
+          Navigator.of(context).pushNamed('/workout');
+        }
+        break;
+
+      case 'SHOW_INFO':
+        final infoText = button.payload?['message'] ?? 'Información';
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('Información'),
+              ],
+            ),
+            content: Text(infoText),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+        break;
+
+      default:
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Acción: ${button.action}')));
+    }
   }
 
   Widget _buildInputArea(ThemeData theme) {

@@ -1,15 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+
+enum ThemePreset { classic, carbono, neon }
 
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   Color _accentColor = const Color(0xFF007AFF); // Default iOS Blue
+  ThemePreset _preset = ThemePreset.classic;
+  bool _isAutoTheme = false;
+  Timer? _timer;
 
   ThemeMode get themeMode => _themeMode;
-  Color get accentColor => _accentColor;
+  Color get accentColor => _getEffectiveAccentColor();
+  ThemePreset get preset => _preset;
+  bool get isAutoTheme => _isAutoTheme;
 
   ThemeProvider() {
     _loadSettings();
+    // Check every minute if theme needs updating
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (_isAutoTheme) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Color _getEffectiveAccentColor() {
+    if (_isAutoTheme) {
+      final hour = DateTime.now().hour;
+      if (hour >= 20 || hour < 7) {
+        return const Color(0xFFBB86FC); // Night shift purple
+      }
+    }
+
+    switch (_preset) {
+      case ThemePreset.carbono:
+        return const Color(0xFF424242);
+      case ThemePreset.neon:
+        return const Color(0xFF00E5FF);
+      case ThemePreset.classic:
+        return _accentColor;
+    }
+  }
+
+  ThemeMode get effectiveThemeMode {
+    if (_isAutoTheme) {
+      final hour = DateTime.now().hour;
+      if (hour >= 20 || hour < 7) return ThemeMode.dark;
+      return ThemeMode.light;
+    }
+    return _themeMode;
   }
 
   Future<void> _loadSettings() async {
@@ -18,6 +63,13 @@ class ThemeProvider extends ChangeNotifier {
     // Load theme
     final themeName = prefs.getString('theme') ?? 'system';
     _themeMode = _getThemeModeFromString(themeName);
+
+    // Load preset
+    final presetName = prefs.getString('theme_preset') ?? 'classic';
+    _preset = _getPresetFromString(presetName);
+
+    // Load auto-theme
+    _isAutoTheme = prefs.getBool('auto_theme') ?? false;
 
     // Load accent color
     final colorHex = prefs.getString('accent_color');
@@ -34,10 +86,28 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> setTheme(String themeName) async {
     _themeMode = _getThemeModeFromString(themeName);
+    _isAutoTheme = false;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme', themeName);
+    await prefs.setBool('auto_theme', false);
+  }
+
+  Future<void> setPreset(ThemePreset preset) async {
+    _preset = preset;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_preset', preset.name);
+  }
+
+  Future<void> setAutoTheme(bool enabled) async {
+    _isAutoTheme = enabled;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('auto_theme', enabled);
   }
 
   Future<void> setAccentColor(String colorHex) async {
@@ -56,6 +126,7 @@ class ThemeProvider extends ChangeNotifier {
     if (settings == null) return;
 
     bool changed = false;
+    final prefs = await SharedPreferences.getInstance();
 
     // Sync theme
     if (settings.containsKey('theme')) {
@@ -64,7 +135,6 @@ class ThemeProvider extends ChangeNotifier {
       if (_themeMode != newMode) {
         _themeMode = newMode;
         changed = true;
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setString('theme', themeName);
       }
     }
@@ -77,7 +147,6 @@ class ThemeProvider extends ChangeNotifier {
         if (_accentColor != newColor) {
           _accentColor = newColor;
           changed = true;
-          final prefs = await SharedPreferences.getInstance();
           await prefs.setString('accent_color', colorHex);
         }
       } catch (e) {
@@ -102,7 +171,15 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
+  ThemePreset _getPresetFromString(String name) {
+    return ThemePreset.values.firstWhere(
+      (e) => e.name == name,
+      orElse: () => ThemePreset.classic,
+    );
+  }
+
   String get currentThemeName {
+    if (_isAutoTheme) return 'auto';
     switch (_themeMode) {
       case ThemeMode.light:
         return 'light';

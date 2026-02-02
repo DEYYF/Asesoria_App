@@ -9,6 +9,7 @@ import '../../providers/theme_provider.dart';
 import '../../models/settings_model.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/business_settings_dialog.dart';
+import 'widgets/billing_settings_dialog.dart';
 import 'widgets/support_dialog.dart';
 import 'templates_screen.dart';
 import 'email_templates_screen.dart';
@@ -574,6 +575,13 @@ class _SettingsScreenState extends State<SettingsScreen>
                       },
                     ),
                   SettingsNavigationTile(
+                    title: 'Datos de Facturación',
+                    subtitle: 'Configura tu NIF y dirección profesional',
+                    icon: Icons.receipt_long_rounded,
+                    iconColor: Colors.deepPurpleAccent,
+                    onTap: _showBillingSettingsDialog,
+                  ),
+                  SettingsNavigationTile(
                     title: 'Exportar Datos',
                     subtitle: 'Descarga tu información completa',
                     icon: Icons.cloud_download_rounded,
@@ -771,6 +779,13 @@ class _SettingsScreenState extends State<SettingsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  void _showBillingSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const BillingSettingsDialog(),
     );
   }
 

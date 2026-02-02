@@ -141,12 +141,15 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
   void _showAddClient() {
     showDialog(
       context: context,
-      builder: (_) => AddClientDialog(
+      builder: (ctx) => AddClientDialog(
         onSuccess: (_) {
+          Navigator.pop(ctx); // Close Dialog
           _loadData(); // Refresh
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Cliente creado')));
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Cliente creado')));
+          }
         },
       ),
     );
@@ -339,6 +342,21 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
         ).showSnackBar(SnackBar(content: Text('Error de conexión: $e')));
       }
     }
+  }
+
+  List<Cliente> _getInactiveClients() {
+    final now = DateTime.now();
+    return _clientes.where((c) {
+      if (c.estado == 'Baja') return false;
+      final lastDateObj = c.gamification?['lastActivityDate'];
+      if (lastDateObj == null) return true; // Never active? Alert!
+      try {
+        final lastDate = DateTime.parse(lastDateObj.toString());
+        return now.difference(lastDate).inDays >= 7;
+      } catch (_) {
+        return true;
+      }
+    }).toList();
   }
 
   List<Cliente> _applyFilters(List<Cliente> source, {bool? onlyBaja}) {
@@ -659,6 +677,9 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
               ),
             ),
 
+            // Early Warning Dashboard (Only if there are inactive clients)
+            _buildEarlyWarningSection(theme, isDark),
+
             // Content List
             Expanded(
               child: _isLoading
@@ -947,6 +968,122 @@ class _ClientDashboardScreenState extends State<ClientDashboardScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEarlyWarningSection(ThemeData theme, bool isDark) {
+    final inactive = _getInactiveClients();
+    if (inactive.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(isDark ? 0.05 : 0.02),
+        border: Border(
+          bottom: BorderSide(color: Colors.red.withOpacity(0.1), width: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'ATENCIÓN REQUERIDA (${inactive.length})',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: Colors.red,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '+7 días inactivos',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: theme.hintColor.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 70,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: inactive.length,
+              itemBuilder: (context, index) {
+                final c = inactive[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: GestureDetector(
+                    onTap: () => context.push('/clientes/${c.id}'),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.red, width: 1.5),
+                          ),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: theme.primaryColor.withOpacity(
+                              0.1,
+                            ),
+                            backgroundImage: c.avatarUrl != null
+                                ? NetworkImage(c.avatarUrl!)
+                                : null,
+                            child: c.avatarUrl == null
+                                ? Text(
+                                    c.nombre.isNotEmpty
+                                        ? c.nombre[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      color: theme.primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: 50,
+                          child: Text(
+                            c.nombre.split(' ')[0],
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
