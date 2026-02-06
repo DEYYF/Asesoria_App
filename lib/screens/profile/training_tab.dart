@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/entrenamiento_model.dart';
@@ -19,6 +20,7 @@ class _TrainingTabState extends State<TrainingTab> {
   List<Entrenamiento> _entrenamientos = [];
   bool _isLoading = true;
   bool _showFront = true;
+  bool _isOffline = false;
   Map<String, double> _muscleIntensity = {};
 
   @override
@@ -29,6 +31,9 @@ class _TrainingTabState extends State<TrainingTab> {
 
   Future<void> _loadEntrenamientos() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'offline_entrenamientos_${widget.clienteId}';
+
     try {
       final res = await api.get(
         '/entrenamientos?clienteId=${widget.clienteId}',
@@ -37,19 +42,38 @@ class _TrainingTabState extends State<TrainingTab> {
       if (mounted) {
         if (res.statusCode == 200) {
           final List list = jsonDecode(res.body);
+          // Cache the data
+          await prefs.setString(cacheKey, res.body);
+
           setState(() {
             _entrenamientos = list
                 .map((e) => Entrenamiento.fromJson(e))
                 .toList();
             _calculateIntensities();
             _isLoading = false;
+            _isOffline = false;
           });
         } else {
-          setState(() => _isLoading = false);
+          await _loadOfflineData(prefs, cacheKey);
         }
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) await _loadOfflineData(prefs, cacheKey);
+    }
+  }
+
+  Future<void> _loadOfflineData(SharedPreferences prefs, String key) async {
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      final List list = jsonDecode(cached);
+      setState(() {
+        _entrenamientos = list.map((e) => Entrenamiento.fromJson(e)).toList();
+        _calculateIntensities();
+        _isOffline = true;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -149,13 +173,29 @@ class _TrainingTabState extends State<TrainingTab> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Progreso de tu plan actual',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: theme.hintColor.withOpacity(0.6),
-                      ),
+                    Row(
+                      children: [
+                        if (_isOffline) ...[
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 14,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          _isOffline
+                              ? 'Modo Offline (Cargado de caché)'
+                              : 'Progreso de tu plan actual',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: _isOffline
+                                ? Colors.orange
+                                : theme.hintColor.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

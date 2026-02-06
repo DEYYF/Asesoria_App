@@ -74,5 +74,9 @@
         <string>Esta aplicación necesita acceso a la cámara para escanear datos de alimentos.</string>
         <key>NSFaceIDUsageDescription</key>
         <string>Esta aplicación utiliza Face ID para permitirte iniciar sesión de forma rápida y segura.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Esta aplicación necesita acceso al micrófono para grabar notas de voz y transcribirlas.</string>
+        <key>NSAppleMusicUsageDescription</key>
+        <string>Esta aplicación necesita acceso a la biblioteca multimedia para reproducir notas de voz.</string>
     </dict>
 </plist>

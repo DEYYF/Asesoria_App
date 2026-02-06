@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/offline_sync_service.dart';
 import '../../models/entrenamiento_model.dart';
 import '../../widgets/video_player_dialog.dart';
 
@@ -19,6 +21,7 @@ class LiveSessionScreen extends StatefulWidget {
 class _LiveSessionScreenState extends State<LiveSessionScreen> {
   Entrenamiento? _ent;
   bool _isLoading = true;
+  bool _isOffline = false;
 
   // Configuration Phase
   int _selectedWeekIdx = 0;
@@ -64,16 +67,42 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
 
   Future<void> _loadData() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'offline_training_${widget.entrenamientoId}';
+
     try {
       final res = await api.get('/entrenamientos/${widget.entrenamientoId}');
-      if (mounted && res.statusCode == 200) {
-        setState(() {
-          _ent = Entrenamiento.fromJson(jsonDecode(res.body));
-        });
-        await _loadHistory();
-        setState(() => _isLoading = false);
+      if (mounted) {
+        if (res.statusCode == 200) {
+          final ent = Entrenamiento.fromJson(jsonDecode(res.body));
+          await prefs.setString(cacheKey, res.body);
+
+          setState(() {
+            _ent = ent;
+            _isOffline = false;
+          });
+          await _loadHistory();
+          setState(() => _isLoading = false);
+        } else {
+          await _loadOfflineData(prefs, cacheKey);
+        }
       }
     } catch (e) {
+      if (mounted) await _loadOfflineData(prefs, cacheKey);
+    }
+  }
+
+  Future<void> _loadOfflineData(SharedPreferences prefs, String key) async {
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      setState(() {
+        _ent = Entrenamiento.fromJson(jsonDecode(cached));
+        _isOffline = true;
+        _isLoading = false;
+      });
+      // Try to load history if possible, but it might fail offline
+      await _loadHistory();
+    } else {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -286,9 +315,20 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        final syncService = Provider.of<OfflineSyncService>(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
+          listen: false,
+        );
+        await syncService.queueUpdate(payload);
+
+        context.pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.orange,
+            content: Text('📴 Sin conexión. Sesión guardada localmente.'),
+          ),
+        );
       }
     }
   }
@@ -319,7 +359,7 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
                 'Tiempo: ${_sessionStopwatch.elapsed.inMinutes.toString().padLeft(2, '0')}:${(_sessionStopwatch.elapsed.inSeconds % 60).toString().padLeft(2, '0')}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: theme.primaryColor,
+                  color: _isOffline ? Colors.orange : theme.primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -329,6 +369,11 @@ class _LiveSessionScreenState extends State<LiveSessionScreen> {
         elevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         actions: [
+          if (_isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.cloud_off_rounded, color: Colors.orange),
+            ),
           if (_loggedData.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),

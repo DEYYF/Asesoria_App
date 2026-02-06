@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:math';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/offline_sync_service.dart';
 import '../../models/dieta_model.dart';
 import '../../models/receta_model.dart';
 import '../../models/ingrediente_model.dart';
@@ -210,6 +211,10 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     final user = auth.user;
 
     if (user == null) return;
+
+    final syncService = Provider.of<OfflineSyncService>(context, listen: false);
+    final isOffline = await syncService.isOffline();
+
     setState(() => _isSaving = true);
 
     final totalMacros = _calculateTotalMacros();
@@ -249,6 +254,29 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
     };
 
     try {
+      if (isOffline) {
+        final endpoint = widget.dietaId != null
+            ? '/dietas/${widget.dietaId}'
+            : '/dietas';
+        final method = widget.dietaId != null ? 'PUT' : 'POST';
+
+        await syncService.queueUpdate(
+          payload,
+          endpoint: endpoint,
+          method: method,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Guardado offline. Se sincronizará al conectar.'),
+            ),
+          );
+          Navigator.pop(context);
+        }
+        return;
+      }
+
       final res = widget.dietaId != null
           ? await api.put('/dietas/${widget.dietaId}', payload)
           : await api.post('/dietas', payload);

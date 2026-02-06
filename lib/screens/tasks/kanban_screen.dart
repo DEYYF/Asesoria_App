@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../models/task_model.dart';
 import '../../services/task_service.dart';
-import 'package:intl/intl.dart';
 import '../../models/settings_model.dart';
 import '../../widgets/advisor_selector.dart';
 import '../../providers/super_admin_provider.dart';
 import '../../services/auth_service.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/kanban/kanban_column_widget.dart';
 
 class KanbanScreen extends StatefulWidget {
   const KanbanScreen({super.key});
@@ -17,6 +18,9 @@ class KanbanScreen extends StatefulWidget {
 }
 
 class _KanbanScreenState extends State<KanbanScreen> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -40,16 +44,15 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
     String? assigneeId;
     if (auth.isSuperAdmin) {
-      assigneeId = saProvider.selectedAdvisorId; // Null means Global View
+      assigneeId = saProvider.selectedAdvisorId;
     } else {
-      assigneeId = auth.userId; // Force own ID
+      assigneeId = auth.userId;
     }
 
     Provider.of<TaskService>(
       context,
       listen: false,
     ).loadTasks(assigneeId: assigneeId);
-
     Provider.of<SettingsProvider>(
       context,
       listen: false,
@@ -65,24 +68,34 @@ class _KanbanScreenState extends State<KanbanScreen> {
       );
       saProvider.removeListener(_onAdvisorChanged);
     } catch (_) {}
+    _searchController.dispose();
     super.dispose();
   }
+
+  String _selectedPriority = 'all';
+  final Set<String> _selectedTags = {};
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final taskService = Provider.of<TaskService>(context);
 
+    final availableTags = [
+      {'label': 'Dieta', 'color': 'orange'},
+      {'label': 'Entreno', 'color': 'blue'},
+      {'label': 'Consulta', 'color': 'purple'},
+      {'label': 'Pago', 'color': 'green'},
+      {'label': 'Revisión', 'color': 'teal'},
+      {'label': 'Urgente', 'color': 'red'},
+      {'label': 'Cita', 'color': 'amber'},
+    ];
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
-          'Tablero de Tareas',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 22,
-            letterSpacing: -0.5,
-          ),
+          'Tareas',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24),
         ),
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -103,6 +116,114 @@ class _KanbanScreenState extends State<KanbanScreen> {
         children: [
           if (Provider.of<AuthService>(context, listen: false).isSuperAdmin)
             const AdvisorSelector(),
+
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 5),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Buscar por título, notas o cliente...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: theme.cardColor.withOpacity(0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
+            ),
+          ),
+
+          // Filters Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                // Priority Filter
+                DropdownButton<String>(
+                  value: _selectedPriority,
+                  underline: const SizedBox(),
+                  icon: Icon(
+                    Icons.filter_list_rounded,
+                    size: 16,
+                    color: theme.primaryColor,
+                  ),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: theme.primaryColor,
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'all',
+                      child: Text('TODAS PRIORIDADES'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'urgent',
+                      child: Text('🔴 URGENTE'),
+                    ),
+                    DropdownMenuItem(value: 'high', child: Text('🟠 ALTA')),
+                    DropdownMenuItem(value: 'medium', child: Text('🟡 MEDIA')),
+                    DropdownMenuItem(value: 'low', child: Text('🔵 BAJA')),
+                  ],
+                  onChanged: (val) => setState(() => _selectedPriority = val!),
+                ),
+                const SizedBox(width: 16),
+                const VerticalDivider(width: 1, indent: 10, endIndent: 10),
+                const SizedBox(width: 16),
+
+                // Tag Filters
+                ...availableTags.map((tag) {
+                  final label = tag['label'] as String;
+                  final color = tag['color'] as String;
+                  final isSelected = _selectedTags.contains(label);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.white : null,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedColor: _getColorFromString(color),
+                      onSelected: (val) {
+                        setState(() {
+                          if (val) {
+                            _selectedTags.add(label);
+                          } else {
+                            _selectedTags.remove(label);
+                          }
+                        });
+                      },
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+
           Expanded(
             child: taskService.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -110,8 +231,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
                     builder: (context, settingsProv, _) {
                       final columns =
                           settingsProv.settings?.kanbanColumns ?? [];
-
-                      // Fallback to default columns if empty
                       final activeColumns = columns.isEmpty
                           ? [
                               KanbanColumn(
@@ -139,16 +258,72 @@ class _KanbanScreenState extends State<KanbanScreen> {
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 20,
+                          vertical: 10,
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: activeColumns.map((col) {
-                            return _buildKanbanColumn(
-                              col.id,
-                              col.title,
-                              _getIconForStatus(col.id),
-                              _getColorFromString(col.color),
+                            final filteredTasks = taskService.tasks.where((t) {
+                              // 1. Status Match
+                              final matchesStatus =
+                                  t.status == col.id ||
+                                  (col.id == 'todo' && t.status == 'pending');
+                              if (!matchesStatus) return false;
+
+                              // 2. SMART ARCHIVING (Done column > 24h)
+                              if (col.id == 'done') {
+                                final diff = DateTime.now().difference(
+                                  t.statusChangedAt,
+                                );
+                                if (diff.inHours >= 24) return false;
+                              }
+
+                              // 3. Search Match
+                              final matchesSearch =
+                                  t.title.toLowerCase().contains(
+                                    _searchQuery,
+                                  ) ||
+                                  t.notes.toLowerCase().contains(
+                                    _searchQuery,
+                                  ) ||
+                                  (t.clientName?.toLowerCase().contains(
+                                        _searchQuery,
+                                      ) ??
+                                      false);
+                              if (!matchesSearch) return false;
+
+                              // 4. Priority Match
+                              if (_selectedPriority != 'all' &&
+                                  t.priority.toLowerCase() !=
+                                      _selectedPriority) {
+                                return false;
+                              }
+
+                              // 5. Tags Match
+                              if (_selectedTags.isNotEmpty) {
+                                final taskTagLabels = t.tags
+                                    .map((tag) => tag.label)
+                                    .toSet();
+                                if (!_selectedTags.any(
+                                  (tag) => taskTagLabels.contains(tag),
+                                )) {
+                                  return false;
+                                }
+                              }
+
+                              return true;
+                            }).toList();
+
+                            return KanbanColumnWidget(
+                              id: col.id,
+                              title: col.title,
+                              icon: _getIconForStatus(col.id),
+                              color: _getColorFromString(col.color),
+                              tasks: filteredTasks,
+                              onTaskDropped: (task) =>
+                                  taskService.updateStatus(task.id, col.id),
+                              onTaskTap: _showEditTaskDialog,
+                              onQuickAdd: () => _showTaskForm(status: col.id),
                             );
                           }).toList(),
                         ),
@@ -165,336 +340,40 @@ class _KanbanScreenState extends State<KanbanScreen> {
           'Nueva Tarea',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: theme.primaryColor,
-        foregroundColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildKanbanColumn(
-    String status,
-    String title,
-    IconData icon,
-    Color color,
-  ) {
-    final taskService = Provider.of<TaskService>(context);
-    final tasks = taskService.tasks
-        .where(
-          (t) =>
-              t.status == status || (status == 'todo' && t.status == 'pending'),
-        )
-        .toList();
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  void _showCreateTaskDialog() => _showTaskForm();
+  void _showEditTaskDialog(Tarea task) => _showTaskForm(task: task);
 
-    return DragTarget<Tarea>(
-      onWillAccept: (data) => data?.status != status,
-      onAccept: (data) {
-        taskService.updateStatus(data.id, status);
-      },
-      builder: (context, candidateData, rejectedData) {
-        return Container(
-          width: 320,
-          margin: const EdgeInsets.only(right: 20),
-          decoration: BoxDecoration(
-            color: candidateData.isNotEmpty
-                ? color.withOpacity(0.05)
-                : (isDark ? Colors.white.withOpacity(0.02) : Colors.grey[50]),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: candidateData.isNotEmpty
-                  ? color.withOpacity(0.3)
-                  : (isDark ? Colors.white10 : Colors.grey.shade200),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(icon, color: color, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: color,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.05)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        tasks.length.toString(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: theme.hintColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: tasks.length,
-                  itemBuilder: (context, index) {
-                    return _buildTaskCard(tasks[index]);
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTaskCard(Tarea task) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Draggable<Tarea>(
-      data: task,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: 296,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Text(
-            task.title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-        ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.3, child: _buildStaticCard(task)),
-      child: _buildStaticCard(task),
-    );
-  }
-
-  Widget _buildStaticCard(Tarea task) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white10 : Colors.grey.shade100,
-          width: 1.5,
-        ),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: () => _showEditTaskDialog(task),
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (task.clientName != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      task.clientName!.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        color: theme.primaryColor,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (task.notes.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    task.notes,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.hintColor.withOpacity(0.7),
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                if (task.dueAt != null ||
-                    task.createdByName != null ||
-                    task.assigneeName != null) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (task.dueAt != null)
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size: 14,
-                              color: _isOverdue(task.dueAt!)
-                                  ? Colors.red
-                                  : theme.hintColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              DateFormat('dd MMM').format(task.dueAt!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: _isOverdue(task.dueAt!)
-                                    ? Colors.red
-                                    : theme.hintColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      Expanded(
-                        child: Wrap(
-                          alignment: WrapAlignment.end,
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: [
-                            if (task.createdByName != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.purple.withOpacity(0.05),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'BY: ${task.createdByName}',
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.purple,
-                                  ),
-                                ),
-                              ),
-                            if (task.assigneeName != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.05),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'FOR: ${task.assigneeName}',
-                                  style: const TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  bool _isOverdue(DateTime date) {
-    return date.isBefore(DateTime.now()) && date.day != DateTime.now().day;
-  }
-
-  void _showCreateTaskDialog() {
-    // Show a bottom sheet or dialog to create a task
-    _showTaskForm();
-  }
-
-  void _showEditTaskDialog(Tarea task) {
-    _showTaskForm(task: task);
-  }
-
-  void _showTaskForm({Tarea? task}) {
+  void _showTaskForm({Tarea? task, String? status}) {
     final isEdit = task != null;
     final titleController = TextEditingController(text: task?.title);
     final notesController = TextEditingController(text: task?.notes);
     DateTime? selectedDate = task?.dueAt;
-    String selectedStatus = task?.status ?? 'todo';
+    String selectedStatus = status ?? task?.status ?? 'todo';
+    String selectedPriority = task?.priority ?? 'medium';
 
-    final auth = Provider.of<AuthService>(this.context, listen: false);
-    final saProv = Provider.of<SuperAdminProvider>(this.context, listen: false);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final saProv = Provider.of<SuperAdminProvider>(context, listen: false);
     String? selectedAssigneeId =
         task?.assigneeId ??
         (auth.isSuperAdmin ? saProv.selectedAdvisorId : auth.userId);
+
+    List<SubTask> tempSubtasks = List<SubTask>.from(task?.subtasks ?? []);
+    List<TaskTag> tempTags = List<TaskTag>.from(task?.tags ?? []);
+    final subtaskController = TextEditingController();
+
+    final availableTags = [
+      {'label': 'Dieta', 'color': 'orange'},
+      {'label': 'Entreno', 'color': 'blue'},
+      {'label': 'Consulta', 'color': 'purple'},
+      {'label': 'Pago', 'color': 'green'},
+      {'label': 'Revisión', 'color': 'teal'},
+      {'label': 'Urgente', 'color': 'red'},
+      {'label': 'Cita', 'color': 'amber'},
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -512,285 +391,474 @@ class _KanbanScreenState extends State<KanbanScreen> {
             color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isEdit ? 'Editar Tarea' : 'Nueva Tarea',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: titleController,
-                autofocus: !isEdit,
-                decoration: InputDecoration(
-                  labelText: '¿Qué hay que hacer?',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  prefixIcon: const Icon(Icons.edit_rounded),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: notesController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Notas adicionales',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  prefixIcon: const Icon(Icons.notes_rounded),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime.now().subtract(
-                            const Duration(days: 365),
-                          ),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365 * 2),
-                          ),
-                        );
-                        if (date != null) {
-                          setModalState(() => selectedDate = date);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today_rounded, size: 20),
-                            const SizedBox(width: 12),
-                            Text(
-                              selectedDate == null
-                                  ? 'Sin fecha'
-                                  : DateFormat(
-                                      'dd/MM/yyyy',
-                                    ).format(selectedDate!),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isEdit ? 'Editar Tarea' : 'Nueva Tarea',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (auth.isSuperAdmin) ...[
-                const Text(
-                  'Asignar a',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value:
-                          saProv.advisors.any(
-                            (adv) => adv['_id'] == selectedAssigneeId,
-                          )
-                          ? selectedAssigneeId
-                          : null,
-                      isExpanded: true,
-                      hint: const Text('Global / Todos'),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('Sin asignar (Global)'),
-                        ),
-                        ...saProv.advisors.map(
-                          (adv) => DropdownMenuItem<String>(
-                            value: adv['_id'],
-                            child: Text(adv['nombre'] ?? 'Sin nombre'),
-                          ),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setModalState(() => selectedAssigneeId = val);
-                      },
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: titleController,
+                  autofocus: !isEdit,
+                  decoration: InputDecoration(
+                    labelText: '¿Qué hay que hacer?',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    prefixIcon: const Icon(Icons.edit_rounded),
                   ),
                 ),
                 const SizedBox(height: 16),
-              ],
-              const Text(
-                'Estado',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              Consumer<SettingsProvider>(
-                builder: (context, settingsProv, _) {
-                  var columns = settingsProv.settings?.kanbanColumns ?? [];
-                  if (columns.isEmpty) {
-                    columns = [
-                      KanbanColumn(
-                        id: 'todo',
-                        title: 'PENDIENTE',
-                        color: 'orange',
-                        order: 0,
-                      ),
-                      KanbanColumn(
-                        id: 'doing',
-                        title: 'EN PROGRESO',
-                        color: 'blue',
-                        order: 1,
-                      ),
-                      KanbanColumn(
-                        id: 'done',
-                        title: 'COMPLETADO',
-                        color: 'green',
-                        order: 2,
-                      ),
-                    ];
-                  }
-
-                  // Ensure selectedStatus is valid
-                  if (!columns.any((c) => c.id == selectedStatus)) {
-                    selectedStatus = columns.first.id;
-                  }
-
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+                TextField(
+                  controller: notesController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Notas adicionales',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
                     ),
+                    prefixIcon: const Icon(Icons.notes_rounded),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Subtasks Section
+                const Text(
+                  'Checklist de subtareas',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                if (tempSubtasks.isNotEmpty)
+                  ...tempSubtasks.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    SubTask st = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: st.isCompleted,
+                            activeColor: Theme.of(context).primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            onChanged: (val) {
+                              setModalState(() {
+                                tempSubtasks[idx] = st.copyWith(
+                                  isCompleted: val,
+                                );
+                              });
+                            },
+                          ),
+                          Expanded(
+                            child: Text(
+                              st.title,
+                              style: TextStyle(
+                                decoration: st.isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color: st.isCompleted ? Colors.grey : null,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.remove_circle_outline_rounded,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                setModalState(() => tempSubtasks.removeAt(idx)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: subtaskController,
+                        decoration: const InputDecoration(
+                          hintText: 'Añadir subtarea...',
+                          isDense: true,
+                        ),
+                        onSubmitted: (val) {
+                          if (val.trim().isEmpty) return;
+                          setModalState(() {
+                            tempSubtasks.add(SubTask(title: val.trim()));
+                            subtaskController.clear();
+                          });
+                        },
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_rounded),
+                      onPressed: () {
+                        final val = subtaskController.text.trim();
+                        if (val.isEmpty) return;
+                        setModalState(() {
+                          tempSubtasks.add(SubTask(title: val));
+                          subtaskController.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Tags Section
+                const Text(
+                  'Categorías',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: availableTags.map((tagData) {
+                    final label = tagData['label'] as String;
+                    final color = tagData['color'] as String;
+                    final isSelected = tempTags.any((t) => t.label == label);
+
+                    return FilterChip(
+                      label: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.white : null,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedColor: _getColorFromString(color),
+                      onSelected: (val) {
+                        setModalState(() {
+                          if (val) {
+                            tempTags.add(TaskTag(label: label, color: color));
+                          } else {
+                            tempTags.removeWhere((t) => t.label == label);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate ?? DateTime.now(),
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365 * 2),
+                            ),
+                          );
+                          if (date != null)
+                            setModalState(() => selectedDate = date);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today_rounded,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                selectedDate == null
+                                    ? 'Sin fecha'
+                                    : DateFormat(
+                                        'dd/MM/yyyy',
+                                      ).format(selectedDate!),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (auth.isSuperAdmin) ...[
+                  const Text(
+                    'Asignar a',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey.shade400),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedStatus,
-                        isExpanded: true,
-                        items: columns
-                            .map(
-                              (col) => DropdownMenuItem(
-                                value: col.id,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        color: _getColorFromString(col.color),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(col.title),
-                                  ],
-                                ),
-                              ),
+                      child: DropdownButton<String?>(
+                        value:
+                            saProv.advisors.any(
+                              (adv) => adv['_id'] == selectedAssigneeId,
                             )
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null)
-                            setModalState(() => selectedStatus = val);
-                        },
+                            ? selectedAssigneeId
+                            : null,
+                        isExpanded: true,
+                        hint: const Text('Global / Todos'),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Sin asignar (Global)'),
+                          ),
+                          ...saProv.advisors.map(
+                            (adv) => DropdownMenuItem<String>(
+                              value: adv['_id'],
+                              child: Text(adv['nombre'] ?? 'Sin nombre'),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) =>
+                            setModalState(() => selectedAssigneeId = val),
                       ),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    final title = titleController.text.trim();
-                    if (title.isEmpty) return;
-
-                    final taskService = Provider.of<TaskService>(
-                      this.context,
-                      listen: false,
-                    );
-                    final data = {
-                      'title': title,
-                      'notes': notesController.text.trim(),
-                      'dueAt': selectedDate?.toIso8601String(),
-                      'status': selectedStatus,
-                      'assigneeId': selectedAssigneeId,
-                    };
-
-                    if (isEdit) {
-                      taskService.updateTask(task.id, data);
-                    } else {
-                      taskService.createTask(data);
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                const Text(
+                  'Prioridad',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedPriority,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: 'low', child: Text('Baja')),
+                        DropdownMenuItem(value: 'medium', child: Text('Media')),
+                        DropdownMenuItem(value: 'high', child: Text('Alta')),
+                        DropdownMenuItem(
+                          value: 'urgent',
+                          child: Text('Urgente'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null)
+                          setModalState(() => selectedPriority = val);
+                      },
                     ),
                   ),
-                  child: Text(isEdit ? 'Guardar Cambios' : 'Crear Tarea'),
                 ),
-              ),
-              if (isEdit) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                const Text(
+                  'Estado',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Consumer<SettingsProvider>(
+                  builder: (context, settingsProv, _) {
+                    var columns = settingsProv.settings?.kanbanColumns ?? [];
+                    if (columns.isEmpty) {
+                      columns = [
+                        KanbanColumn(
+                          id: 'todo',
+                          title: 'PENDIENTE',
+                          color: 'orange',
+                          order: 0,
+                        ),
+                        KanbanColumn(
+                          id: 'doing',
+                          title: 'EN PROGRESO',
+                          color: 'blue',
+                          order: 1,
+                        ),
+                        KanbanColumn(
+                          id: 'done',
+                          title: 'COMPLETADO',
+                          color: 'green',
+                          order: 2,
+                        ),
+                      ];
+                    }
+                    if (!columns.any((c) => c.id == selectedStatus))
+                      selectedStatus = columns.first.id;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedStatus,
+                          isExpanded: true,
+                          items: columns
+                              .map(
+                                (col) => DropdownMenuItem(
+                                  value: col.id,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          color: _getColorFromString(col.color),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(col.title),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null)
+                              setModalState(() => selectedStatus = val);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+                const Text(
+                  'Adjuntos (Próximamente)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: Colors.grey.withOpacity(0.2),
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cloud_upload_outlined, color: Colors.grey),
+                      SizedBox(width: 12),
+                      Text(
+                        'Integración con almacenamiento PDF/Fotos',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
-                  child: TextButton.icon(
+                  height: 56,
+                  child: ElevatedButton(
                     onPressed: () {
-                      Provider.of<TaskService>(
-                        this.context,
+                      final title = titleController.text.trim();
+                      if (title.isEmpty) return;
+
+                      final taskService = Provider.of<TaskService>(
+                        context,
                         listen: false,
-                      ).deleteTask(task.id);
+                      );
+                      final data = {
+                        'title': title,
+                        'notes': notesController.text.trim(),
+                        'dueAt': selectedDate?.toIso8601String(),
+                        'status': selectedStatus,
+                        'priority': selectedPriority,
+                        'assigneeId': selectedAssigneeId,
+                        'subtasks': tempSubtasks
+                            .map((e) => e.toJson())
+                            .toList(),
+                        'tags': tempTags.map((e) => e.toJson()).toList(),
+                      };
+
+                      if (isEdit) {
+                        taskService.updateTask(task.id, data);
+                      } else {
+                        taskService.createTask(data);
+                      }
                       Navigator.pop(ctx);
                     },
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.red,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
-                    label: const Text(
-                      'Eliminar Tarea',
-                      style: TextStyle(color: Colors.red),
-                    ),
+                    child: Text(isEdit ? 'Guardar Cambios' : 'Crear Tarea'),
                   ),
                 ),
+                if (isEdit) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Provider.of<TaskService>(
+                          context,
+                          listen: false,
+                        ).deleteTask(task.id);
+                        Navigator.pop(ctx);
+                      },
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.red,
+                      ),
+                      label: const Text(
+                        'Eliminar Tarea',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -835,17 +903,13 @@ class _KanbanScreenState extends State<KanbanScreen> {
     }
   }
 
-  void _showKanbanSettings() {
-    _showKanbanSettingsDialog();
-  }
+  void _showKanbanSettings() => _showKanbanSettingsDialog();
 
   void _showKanbanSettingsDialog() {
     final settingsProv = Provider.of<SettingsProvider>(context, listen: false);
     final currentColumns = List<KanbanColumn>.from(
       settingsProv.settings?.kanbanColumns ?? [],
     );
-
-    // Initial default if empty
     if (currentColumns.isEmpty) {
       currentColumns.addAll([
         KanbanColumn(id: 'todo', title: 'PENDIENTE', color: 'orange', order: 0),
@@ -900,7 +964,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
                       if (newIndex > oldIndex) newIndex -= 1;
                       final item = currentColumns.removeAt(oldIndex);
                       currentColumns.insert(newIndex, item);
-                      // Update orders
                       for (int i = 0; i < currentColumns.length; i++) {
                         currentColumns[i] = currentColumns[i].copyWith(
                           order: i,
@@ -941,11 +1004,12 @@ class _KanbanScreenState extends State<KanbanScreen> {
                             if (col.id != 'todo') ...[
                               IconButton(
                                 icon: const Icon(Icons.edit_rounded, size: 18),
-                                onPressed: () => _editColumn(col, (updated) {
-                                  setModalState(() {
-                                    currentColumns[index] = updated;
-                                  });
-                                }),
+                                onPressed: () => _editColumn(
+                                  col,
+                                  (updated) => setModalState(
+                                    () => currentColumns[index] = updated,
+                                  ),
+                                ),
                               ),
                               if (currentColumns.length > 1)
                                 IconButton(
@@ -954,11 +1018,9 @@ class _KanbanScreenState extends State<KanbanScreen> {
                                     color: Colors.red,
                                     size: 18,
                                   ),
-                                  onPressed: () {
-                                    setModalState(() {
-                                      currentColumns.removeAt(index);
-                                    });
-                                  },
+                                  onPressed: () => setModalState(
+                                    () => currentColumns.removeAt(index),
+                                  ),
                                 ),
                             ] else
                               const Padding(
@@ -985,21 +1047,15 @@ class _KanbanScreenState extends State<KanbanScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _addColumn((newCol) {
-                        setModalState(() {
-                          currentColumns.add(
+                      onPressed: () => _addColumn(
+                        (newCol) => setModalState(
+                          () => currentColumns.add(
                             newCol.copyWith(order: currentColumns.length),
-                          );
-                        });
-                      }),
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Añadir Columna'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
                       ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Añadir Columna'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1014,30 +1070,19 @@ class _KanbanScreenState extends State<KanbanScreen> {
                           context,
                           listen: false,
                         );
-                        String? assigneeId;
-                        if (auth.isSuperAdmin) {
-                          assigneeId = saProvider.selectedAdvisorId;
-                        } else {
-                          assigneeId = auth.userId;
-                        }
-
+                        String? assigneeId = auth.isSuperAdmin
+                            ? saProvider.selectedAdvisorId
+                            : auth.userId;
                         final updatedSettings = settingsProv.settings?.copyWith(
                           kanbanColumns: currentColumns,
                         );
-                        if (updatedSettings != null) {
+                        if (updatedSettings != null)
                           await settingsProv.updateSettings(
                             updatedSettings,
                             userId: assigneeId,
                           );
-                        }
                         Navigator.pop(ctx);
                       },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
                       child: const Text('Guardar'),
                     ),
                   ),
@@ -1050,13 +1095,10 @@ class _KanbanScreenState extends State<KanbanScreen> {
     );
   }
 
-  void _editColumn(KanbanColumn col, Function(KanbanColumn) onUpdated) {
-    _showColumnForm(column: col, onSaved: onUpdated);
-  }
-
-  void _addColumn(Function(KanbanColumn) onAdded) {
-    _showColumnForm(onSaved: onAdded);
-  }
+  void _editColumn(KanbanColumn col, Function(KanbanColumn) onUpdated) =>
+      _showColumnForm(column: col, onSaved: onUpdated);
+  void _addColumn(Function(KanbanColumn) onAdded) =>
+      _showColumnForm(onSaved: onAdded);
 
   void _showColumnForm({
     KanbanColumn? column,
@@ -1066,7 +1108,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
     final titleController = TextEditingController(text: column?.title);
     final idController = TextEditingController(text: column?.id);
     String selectedColor = column?.color ?? 'blue';
-
     final colors = [
       'orange',
       'blue',
@@ -1095,7 +1136,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
               TextField(
                 controller: idController,
                 decoration: const InputDecoration(
-                  labelText: 'ID (ej: backlog, review)',
+                  labelText: 'ID (ej: backlog)',
                 ),
               ),
             ],
@@ -1142,7 +1183,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
                 '_',
               );
               if (title.isEmpty || (!isEdit && id.isEmpty)) return;
-
               onSaved(
                 KanbanColumn(
                   id: isEdit ? column.id : id,

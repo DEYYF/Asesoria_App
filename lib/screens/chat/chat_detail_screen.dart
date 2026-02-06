@@ -9,6 +9,9 @@ import '../../models/template_model.dart';
 import '../../widgets/dialogs/template_selector_dialog.dart';
 import '../../widgets/dialogs/measurement_dialog.dart';
 import '../../widgets/dialogs/habit_dialog.dart';
+import '../../services/api_service.dart';
+import '../../services/transcription_service.dart';
+import 'components/voice_recorder_widget.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String conversationId;
@@ -29,10 +32,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   List<ChatMessage> _messages = [];
   Conversation? _conversation;
   bool _isLoading = true;
+  int? _unreadIndex;
+  bool _hasScrolledToUnread = false;
 
+  StreamSubscription? _messageSubscription;
   StreamSubscription? _deleteSubscription;
-
-  @override
+  bool _showRecorder = false;
   void initState() {
     super.initState();
     _loadData();
@@ -40,7 +45,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final chatService = Provider.of<ChatService>(context, listen: false);
     chatService.connect();
     chatService.setActiveConversation(widget.conversationId);
-    chatService.messages.listen(_handleNewMessage);
+    _messageSubscription = chatService.messages.listen(_handleNewMessage);
     _deleteSubscription = chatService.messageDeleted.listen(
       _handleMessageDeleted,
     );
@@ -104,8 +109,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       final chatService = Provider.of<ChatService>(context, listen: false);
       final conv = await chatService.getConversation(widget.conversationId);
 
-      // Mark as read immediately
-      chatService.markAsRead(widget.conversationId);
+      // Mark as read AFTER unread detection in _loadHistory (managed there now)
 
       setState(() {
         _conversation = conv;
@@ -126,18 +130,56 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _loadHistory() async {
     try {
+      final auth = Provider.of<AuthService>(context, listen: false);
       final chatService = Provider.of<ChatService>(context, listen: false);
+
+      // Load history
       final history = await chatService.getMessageHistory(
         widget.conversationId,
       );
+
+      // Detect unread index
+      int? unreadIdx;
+      if (_conversation != null) {
+        final count = _conversation!.getUnreadCount(auth.userId!);
+        if (count > 0 && history.isNotEmpty) {
+          // Unread messages are the last 'count' messages
+          unreadIdx = history.length - count;
+        }
+      }
+
       setState(() {
         _messages = history;
+        _unreadIndex = unreadIdx;
         _isLoading = false;
       });
-      _scrollToBottom();
+
+      // Mark as read now that we captured the index
+      chatService.markAsRead(widget.conversationId);
+
+      _smartScroll();
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _smartScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+
+      if (_unreadIndex != null && !_hasScrolledToUnread) {
+        // Calculate an approximate position for the unread marker
+        // Each message is roughly 80-120px depending on content.
+        // A simple max scroll will go to bottom anyway.
+        // For a more precise scroll, we'd need ItemScrollController, but we can jump to bottom
+        // and let them see the divider.
+        // OR: If unreadIndex is near the end, bottom is fine.
+        _scrollToBottom();
+        _hasScrolledToUnread = true;
+      } else {
+        _scrollToBottom();
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -159,6 +201,82 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final chatService = Provider.of<ChatService>(context, listen: false);
     chatService.sendMessage(widget.conversationId, text);
     _messageController.clear();
+  }
+
+  Future<void> _sendVoiceNote(String audioPath) async {
+    // 1. Ocultar grabador y mostrar carga (opcional)
+    setState(() => _showRecorder = false);
+
+    // 2. Transcribir (Subir al endpoint /transcribe)
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final transcriptionService = TranscriptionService(api);
+
+      // Mostrar feedback visual
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transcribiendo y enviando...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      final text = await transcriptionService.transcribe(audioPath);
+
+      // 3. Enviar mensaje
+      // Como /transcribe no guarda el audio persistentemente para el chat (solo temp para whisper),
+      // y nuestro endpoint de chat no soporta audioFile aun,
+      // enviaremos el texto transcrito como mensaje, y simularemos que es una nota de voz.
+      // TODO: Implementar subida real de archivos al chat.
+
+      final chatService = Provider.of<ChatService>(context, listen: false);
+
+      // Enviamos el mensaje con metadata simulada
+      // En una implementación real, enviariamos el URL del audio subido.
+      // Aquí enviamos el texto y un flag o url ficticia si queremos probar la UI
+
+      // HACK: Por ahora enviamos el texto transcrito.
+      // Para probar la UI de audio, necesitaríamos subir el archivo a un bucket real.
+      // Dado que el usuario pidió "Simulación", podemos enviar un mensaje con
+      // transcription: text y audioUrl: 'placeholder'
+
+      // PERO: El backend espera solo texto en sendMessage.
+      // Necesitamos modificar el backend sendMessage para aceptar audioUrl/transcription
+      // O usar un nuevo endpoint.
+
+      // POR AHORA: Enviamos el texto transcrito directo.
+      if (text.isNotEmpty) {
+        chatService.sendMessage(
+          widget.conversationId,
+          text,
+        ); // Se envía como texto normal
+        // Opcional: Agregar prefijo "[Nota de Voz]: $text"
+      }
+    } catch (e) {
+      debugPrint('Error sending voice note: $e');
+      String errorMsg = 'Error al enviar nota de voz';
+      if (e.toString().contains('429') ||
+          e.toString().contains('QUOTA_EXCEEDED')) {
+        errorMsg =
+            'Límite de transcripción alcanzado. No se puede procesar el audio en este momento.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMsg), backgroundColor: Colors.red.shade800),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription?.cancel();
+    _deleteSubscription?.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    // Ensure active conversation is cleared when leaving the screen
+    Provider.of<ChatService>(
+      context,
+      listen: false,
+    ).setActiveConversation(null);
+    super.dispose();
   }
 
   @override
@@ -296,6 +414,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         children: [
                           if (showDate)
                             _buildDateSeparator(msg.createdAt, theme),
+                          if (index == _unreadIndex) _buildUnreadMarker(theme),
                           _buildMessageBubble(msg, isMe, theme, isLastInGroup),
                         ],
                       );
@@ -351,6 +470,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               thickness: 1,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnreadMarker(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: theme.primaryColor.withOpacity(0.3))),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
+            ),
+            child: Text(
+              'NUEVOS MENSAJES',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                color: theme.primaryColor,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: theme.primaryColor.withOpacity(0.3))),
         ],
       ),
     );
@@ -447,6 +595,106 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ],
                 ],
               ),
+              if (msg.audioUrl != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isMe
+                        ? Colors.white.withOpacity(0.2)
+                        : Colors.black.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.play_circle_fill_rounded,
+                        color: isMe ? Colors.white : theme.primaryColor,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Nota de voz',
+                              style: TextStyle(
+                                color: isMe
+                                    ? Colors.white
+                                    : theme.textTheme.bodyLarge?.color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              '0:00 / --:--', // Placeholder duration
+                              style: TextStyle(
+                                color: isMe
+                                    ? Colors.white.withOpacity(0.8)
+                                    : theme.hintColor,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (msg.transcription != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isMe
+                          ? Colors.black.withOpacity(0.1)
+                          : Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.subtitles_rounded,
+                              size: 12,
+                              color: isMe
+                                  ? Colors.white.withOpacity(0.7)
+                                  : theme.hintColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'TRANSCRIPCIÓN',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: isMe
+                                    ? Colors.white.withOpacity(0.7)
+                                    : theme.hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          msg.transcription!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.3,
+                            color: isMe
+                                ? Colors.white.withOpacity(0.95)
+                                : theme.textTheme.bodyLarge?.color,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
               if (msg.buttons.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 const Divider(color: Colors.white24, height: 1),
@@ -494,7 +742,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _handleButtonTap(ChatMessage message, ChatButton button) async {
     final auth = Provider.of<AuthService>(context, listen: false);
     String? clientId;
-
     if (auth.isClient) {
       clientId = auth.userId;
     } else if (_conversation != null) {
@@ -504,18 +751,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     switch (button.action) {
       case 'OPEN_MEASUREMENTS_DIALOG':
         if (clientId != null) {
+          final String id = clientId;
           await showDialog(
             context: context,
-            builder: (context) => MeasurementDialog(clientId: clientId!),
+            builder: (ctx) => MeasurementDialog(clientId: id),
           );
         }
         break;
 
       case 'OPEN_HABITS_DIALOG':
         if (clientId != null) {
+          final String id = clientId;
           await showDialog(
             context: context,
-            builder: (context) => HabitDialog(clientId: clientId!),
+            builder: (ctx) => HabitDialog(clientId: id),
           );
         }
         break;
@@ -563,6 +812,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildInputArea(ThemeData theme) {
+    if (_showRecorder) {
+      return VoiceRecorderWidget(
+        onSend: (path) => _sendVoiceNote(path),
+        onCancel: () => setState(() => _showRecorder = false),
+      );
+    }
+
     final isDark = theme.brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -657,7 +913,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 scale: hasText ? 1.0 : 0.9,
                 duration: const Duration(milliseconds: 200),
                 child: GestureDetector(
-                  onTap: _sendMessage,
+                  onTap: hasText
+                      ? _sendMessage
+                      : () => setState(() => _showRecorder = true),
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -675,8 +933,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             ]
                           : null,
                     ),
-                    child: const Icon(
-                      Icons.send_rounded,
+                    child: Icon(
+                      hasText ? Icons.send_rounded : Icons.mic_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -688,17 +946,5 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    _deleteSubscription?.cancel();
-    Provider.of<ChatService>(
-      context,
-      listen: false,
-    ).setActiveConversation(null);
-    super.dispose();
   }
 }

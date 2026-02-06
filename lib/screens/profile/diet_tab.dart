@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/dieta_model.dart';
@@ -20,6 +21,7 @@ class DietTab extends StatefulWidget {
 class _DietTabState extends State<DietTab> {
   List<Dieta> _dietas = [];
   bool _isLoading = true;
+  bool _isOffline = false;
 
   @override
   void initState() {
@@ -29,6 +31,9 @@ class _DietTabState extends State<DietTab> {
 
   Future<void> _loadDietas() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'offline_diets_${widget.clienteId}';
+
     try {
       final res = await api.get(
         '/dietas?clienteId=${widget.clienteId}&isCurrent=true',
@@ -37,15 +42,74 @@ class _DietTabState extends State<DietTab> {
       if (mounted) {
         if (res.statusCode == 200) {
           final List list = jsonDecode(res.body);
+          // Cache the diet list with a timestamp
+          final cacheData = {
+            'timestamp': DateTime.now().toIso8601String(),
+            'data': list,
+          };
+          await prefs.setString(cacheKey, jsonEncode(cacheData));
+
           setState(() {
             _dietas = list.map((e) => Dieta.fromJson(e)).toList();
             _isLoading = false;
+            _isOffline = false;
           });
         } else {
-          setState(() => _isLoading = false);
+          await _loadOfflineData(prefs, cacheKey);
         }
       }
     } catch (e) {
+      if (mounted) await _loadOfflineData(prefs, cacheKey);
+    }
+  }
+
+  Future<void> _loadOfflineData(SharedPreferences prefs, String key) async {
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      try {
+        final Map<String, dynamic> cacheMap = jsonDecode(cached);
+        final String? timestampStr = cacheMap['timestamp'];
+        final List list = cacheMap['data'] ?? [];
+
+        bool isExpired = false;
+        if (timestampStr != null) {
+          final timestamp = DateTime.parse(timestampStr);
+          final diff = DateTime.now().difference(timestamp).inDays;
+          if (diff >= 7) {
+            isExpired = true;
+          }
+        }
+
+        setState(() {
+          _dietas = list.map((e) => Dieta.fromJson(e)).toList();
+          _isOffline = true;
+          _isLoading = false;
+        });
+
+        if (isExpired && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Los datos locales tienen más de 7 días. Conéctate para actualizar.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        // Fallback for old cache format
+        try {
+          final List list = jsonDecode(cached);
+          setState(() {
+            _dietas = list.map((e) => Dieta.fromJson(e)).toList();
+            _isOffline = true;
+            _isLoading = false;
+          });
+        } catch (_) {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      }
+    } else {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -128,6 +192,40 @@ class _DietTabState extends State<DietTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_isOffline)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_rounded,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Modo Offline: Viendo datos guardados',
+                        style: TextStyle(
+                          color: Colors.orange[800],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

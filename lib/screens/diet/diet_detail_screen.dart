@@ -10,8 +10,10 @@ import '../../services/settings_service.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/settings_model.dart';
 import '../../utils/diet_pdf_generator.dart';
+import '../../services/offline_sync_service.dart';
 import '../../widgets/revisions_dialog.dart';
 import 'create_diet_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DietDetailScreen extends StatefulWidget {
   final String dietaId;
@@ -32,16 +34,66 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
 
   Future<Dieta?> _fetchDiet() async {
     final api = Provider.of<ApiService>(context, listen: false);
-    final res = await api.get('/dietas/${widget.dietaId}');
-    if (res.statusCode != 200) {
-      throw Exception('HTTP ${res.statusCode}: ${res.body}');
+
+    try {
+      final res = await api.get('/dietas/${widget.dietaId}');
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final dieta = Dieta.fromJson(data);
+
+        // Update single diet cache
+        final prefs = await SharedPreferences.getInstance();
+        final cacheKey = 'offline_diets_detail_${widget.dietaId}';
+        await prefs.setString(
+          cacheKey,
+          jsonEncode({
+            'timestamp': DateTime.now().toIso8601String(),
+            'data': data,
+          }),
+        );
+
+        return dieta;
+      }
+    } catch (e) {
+      debugPrint('DietDetailScreen: Error fetching diet, trying cache: $e');
     }
-    final data = jsonDecode(res.body);
-    return Dieta.fromJson(data);
+
+    // Fallback to cache
+    final prefs = await SharedPreferences.getInstance();
+    // We don't have a specific key for single diet detail in the plan yet,
+    // but we can check the offline_diets cache if it's there.
+    // However, for now, let's just use the current diet list cache as a proxy if possible.
+    final cacheKey = 'offline_diets_detail_${widget.dietaId}';
+    final cached = prefs.getString(cacheKey);
+    if (cached != null) {
+      final Map<String, dynamic> cacheMap = jsonDecode(cached);
+      return Dieta.fromJson(cacheMap['data']);
+    }
+
+    throw Exception('No se pudo cargar la dieta (Offline y sin caché)');
   }
 
   Future<void> _handleDelete() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final syncService = Provider.of<OfflineSyncService>(context, listen: false);
+    final isOffline = await syncService.isOffline();
+
+    if (isOffline) {
+      await syncService.queueUpdate(
+        {},
+        endpoint: '/dietas/${widget.dietaId}',
+        method: 'DELETE',
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Eliminación encolada (Offline)')),
+        );
+      }
+      return;
+    }
+
     try {
       final res = await api.delete('/dietas/${widget.dietaId}');
       if (res.statusCode == 200 && mounted) {
@@ -119,10 +171,32 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
 
     if (note != null) {
       final api = Provider.of<ApiService>(context, listen: false);
+      final syncService = Provider.of<OfflineSyncService>(
+        context,
+        listen: false,
+      );
+      final isOffline = await syncService.isOffline();
+
+      final payload = {'note': note.isEmpty ? 'Snapshot manual' : note};
+
+      if (isOffline) {
+        await syncService.queueUpdate(
+          payload,
+          endpoint: '/dietas/${widget.dietaId}/revision',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Revisión encolada (Offline)')),
+          );
+        }
+        return;
+      }
+
       try {
-        final res = await api.post('/dietas/${widget.dietaId}/revision', {
-          'note': note.isEmpty ? 'Snapshot manual' : note,
-        });
+        final res = await api.post(
+          '/dietas/${widget.dietaId}/revision',
+          payload,
+        );
         if (res.statusCode == 201) {
           final data = jsonDecode(res.body);
           final newId = data['dieta']['_id'];

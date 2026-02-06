@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/gamification_service.dart';
 
 class GamificationStatsCard extends StatefulWidget {
@@ -31,8 +31,8 @@ class _GamificationStatsCardState extends State<GamificationStatsCard> {
   }
 
   Future<void> _loadStats() async {
-    final api = Provider.of<ApiService>(context, listen: false);
-    final service = GamificationService(api);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final service = GamificationService(auth);
 
     final stats = await service.getClientStats(widget.clientId);
     if (mounted) {

@@ -7,9 +7,13 @@ import '../utils/isolate_utils.dart';
 class ApiService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
 
-  Future<Map<String, String>> _getHeaders() async {
+  Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    return prefs.getString('auth_token');
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await getToken();
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',

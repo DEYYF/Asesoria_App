@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/offline_sync_service.dart';
 import '../../models/entrenamiento_model.dart';
 
 class NotebookScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class NotebookScreen extends StatefulWidget {
 class _NotebookScreenState extends State<NotebookScreen> {
   Entrenamiento? _ent;
   bool _isLoading = true;
+  bool _isOffline = false;
 
   int _selectedWeekIdx = 0;
   int _selectedDayIdx = 0;
@@ -34,21 +37,43 @@ class _NotebookScreenState extends State<NotebookScreen> {
 
   Future<void> _loadData() async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = 'offline_training_${widget.entrenamientoId}';
+
     try {
       final res = await api.get('/entrenamientos/${widget.entrenamientoId}');
       if (mounted) {
         if (res.statusCode == 200) {
           final ent = Entrenamiento.fromJson(jsonDecode(res.body));
+          // Cache the specific workout structure
+          await prefs.setString(cacheKey, res.body);
+
           setState(() {
             _ent = ent;
             _isLoading = false;
+            _isOffline = false;
             _initFormData(ent, 0, 0);
           });
         } else {
-          setState(() => _isLoading = false);
+          await _loadOfflineData(prefs, cacheKey);
         }
       }
     } catch (e) {
+      if (mounted) await _loadOfflineData(prefs, cacheKey);
+    }
+  }
+
+  Future<void> _loadOfflineData(SharedPreferences prefs, String key) async {
+    final cached = prefs.getString(key);
+    if (cached != null) {
+      final ent = Entrenamiento.fromJson(jsonDecode(cached));
+      setState(() {
+        _ent = ent;
+        _isOffline = true;
+        _isLoading = false;
+        _initFormData(ent, 0, 0);
+      });
+    } else {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -155,16 +180,70 @@ class _NotebookScreenState extends State<NotebookScreen> {
           );
           context.pop();
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${res.body}')));
+          // If server error, we don't queue (it might be invalid data)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error del servidor: ${res.body}')),
+          );
         }
       }
     } catch (e) {
+      // Network error or timeout, queue it
       if (mounted) {
-        ScaffoldMessenger.of(
+        // Recalculate or use local final to ensure it's available
+        final dia = _ent!.semanas[_selectedWeekIdx].dias[_selectedDayIdx];
+        final ejerciciosPayload = <Map<String, dynamic>>[];
+
+        for (int i = 0; i < dia.items.length; i++) {
+          final item = dia.items[i];
+          final seriesData = _formData[i] ?? [];
+          final validSeries = seriesData
+              .where(
+                (s) =>
+                    s['peso'].toString().isNotEmpty &&
+                    s['reps'].toString().isNotEmpty,
+              )
+              .map(
+                (s) => {
+                  'peso': num.tryParse(s['peso']) ?? 0,
+                  'reps': num.tryParse(s['reps']) ?? 0,
+                  'rir': num.tryParse(s['rir']) ?? 0,
+                },
+              )
+              .toList();
+
+          if (validSeries.isNotEmpty) {
+            ejerciciosPayload.add({
+              'ejercicio': item.ejercicioId ?? item.ejercicio?.id,
+              'ejercicioNombre':
+                  item.ejercicioNombre ?? item.ejercicio?.nombre ?? 'Ejercicio',
+              'series': validSeries,
+              'notas': '',
+            });
+          }
+        }
+
+        final offlinePayload = {
+          'entrenamientoId': _ent!.id,
+          'clienteId': _ent!.clienteId,
+          'semanaNumero': _ent!.semanas[_selectedWeekIdx].numero,
+          'diaNombre': dia.nombre,
+          'ejercicios': ejerciciosPayload,
+          'comentarios': _comentarios,
+        };
+
+        final syncService = Provider.of<OfflineSyncService>(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          listen: false,
+        );
+        await syncService.queueUpdate(offlinePayload);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📴 Sin conexión. Sesión guardada localmente.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        context.pop();
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -207,6 +286,13 @@ class _NotebookScreenState extends State<NotebookScreen> {
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          if (_isOffline)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Icon(Icons.cloud_off_rounded, color: Colors.orange),
+            ),
+        ],
       ),
       body: Column(
         children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../widgets/sync_indicator_widget.dart';
 import '../../services/auth_service.dart';
 import '../../models/cliente_model.dart';
 import 'info_tab.dart';
@@ -33,6 +34,8 @@ class ClientViewLayout extends StatefulWidget {
   final VoidCallback onEditInfo;
   final void Function(String action)? onSessionAction;
   final Widget chatTabWidget;
+  final Widget? analyticsTabWidget;
+  final Widget? habitTrackerTabWidget;
   final VoidCallback onNavigateToLiveSession;
 
   const ClientViewLayout({
@@ -50,6 +53,8 @@ class ClientViewLayout extends StatefulWidget {
     required this.onEditInfo,
     required this.onSessionAction,
     required this.chatTabWidget,
+    this.analyticsTabWidget,
+    this.habitTrackerTabWidget,
     required this.onNavigateToLiveSession,
   });
 
@@ -125,6 +130,16 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
         break;
       case 6: // Chat
         content = widget.chatTabWidget;
+        break;
+      case 7: // Analytics
+        content =
+            widget.analyticsTabWidget ??
+            const Center(child: Text("Analíticas no disponibles"));
+        break;
+      case 8: // Habitos
+        content =
+            widget.habitTrackerTabWidget ??
+            const Center(child: Text("Hábitos no disponibles"));
         break;
       default:
         content = Container();
@@ -204,6 +219,7 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
                 ),
               ),
               actions: [
+                const SyncIndicatorWidget(),
                 IconButton.filledTonal(
                   icon: const Icon(Icons.logout_rounded, size: 20),
                   onPressed: () =>
@@ -298,6 +314,22 @@ class _ClientViewLayoutState extends State<ClientViewLayout> {
               icon: _buildChatIcon(context, isSelected: false),
               selectedIcon: _buildChatIcon(context, isSelected: true),
               label: 'Chat',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.auto_graph_rounded),
+              selectedIcon: Icon(
+                Icons.auto_graph_rounded,
+                color: Colors.blueAccent,
+              ),
+              label: 'Analíticas',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.task_alt_rounded),
+              selectedIcon: Icon(
+                Icons.task_alt_rounded,
+                color: Colors.orangeAccent,
+              ),
+              label: 'Hábitos',
             ),
           ],
         ),
@@ -690,13 +722,17 @@ class _QuickActionButton extends StatelessWidget {
               child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
           ],

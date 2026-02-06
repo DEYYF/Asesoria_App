@@ -9,6 +9,8 @@ import 'profile/info_tab.dart';
 import 'profile/diet_tab.dart';
 import 'profile/training_tab.dart';
 import 'profile/progress_tab.dart';
+import 'profile/analytics_tab.dart';
+import 'profile/habit_tracker_screen.dart';
 import '../widgets/dialogs/add_progress_dialog.dart';
 import '../widgets/dialogs/manage_extras_dialog.dart';
 import '../widgets/dialogs/change_tariff_dialog.dart';
@@ -362,6 +364,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         onSessionAction: _handleSessionAction,
         onNavigateToLiveSession: _navigateToLiveSession,
         chatTabWidget: _buildChatTab(theme),
+        analyticsTabWidget: AnalyticsTab(clienteId: _cliente!.id),
+        habitTrackerTabWidget: HabitTrackerScreen(clienteId: _cliente!.id),
       );
     } else {
       // Reconstruct tabs for Advisor
@@ -450,6 +454,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           tabViews.add(
             ProgressTab(cliente: _cliente!, onAddProgress: _showAddProgress),
           );
+          tabs.add(const Tab(text: 'Analíticas'));
+          tabViews.add(AnalyticsTab(clienteId: _cliente!.id));
+          tabs.add(const Tab(text: 'Hábitos'));
+          tabViews.add(HabitTrackerScreen(clienteId: _cliente!.id));
         } else {
           tabs.add(
             const Tab(

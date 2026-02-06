@@ -109,6 +109,8 @@ class ChatMessage {
   final String text;
   final List<ChatButton> buttons;
   final DateTime createdAt;
+  final String? audioUrl;
+  final String? transcription;
 
   ChatMessage({
     required this.id,
@@ -118,6 +120,8 @@ class ChatMessage {
     required this.text,
     this.buttons = const [],
     required this.createdAt,
+    this.audioUrl,
+    this.transcription,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -133,6 +137,8 @@ class ChatMessage {
               .toList() ??
           [],
       createdAt: DateTime.parse(json['createdAt']),
+      audioUrl: json['audioUrl'],
+      transcription: json['transcription'],
     );
   }
 
@@ -140,5 +146,7 @@ class ChatMessage {
     'conversationId': conversationId,
     'text': text,
     'buttons': buttons.map((b) => b.toJson()).toList(),
+    if (audioUrl != null) 'audioUrl': audioUrl,
+    if (transcription != null) 'transcription': transcription,
   };
 }

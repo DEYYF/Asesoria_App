@@ -40,6 +40,11 @@ import 'screens/settings/team_management_screen.dart';
 import 'screens/settings/advisor_detail_screen.dart';
 import 'services/google_calendar_service.dart';
 import 'services/smart_insights_service.dart';
+import 'screens/splash_screen.dart'; // Add import
+import 'services/offline_sync_service.dart';
+import 'services/habito_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'dart:async';
 
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -95,6 +100,21 @@ void main() async {
         ProxyProvider<ApiService, SmartInsightsService>(
           update: (_, api, __) => SmartInsightsService(api),
         ),
+        ProxyProvider<ApiService, OfflineSyncService>(
+          update: (_, api, __) => OfflineSyncService(api),
+        ),
+        ChangeNotifierProxyProvider2<
+          ApiService,
+          OfflineSyncService,
+          HabitoService
+        >(
+          create: (context) => HabitoService(
+            Provider.of<ApiService>(context, listen: false),
+            Provider.of<OfflineSyncService>(context, listen: false),
+          ),
+          update: (_, api, sync, previous) =>
+              previous ?? HabitoService(api, sync),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -111,12 +131,28 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late GoRouter _router;
   late AuthService _auth;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
     _auth = Provider.of<AuthService>(context, listen: false);
     _router = _buildRouter();
+
+    // Listen for connectivity changes to sync workouts
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
+      if (results.isNotEmpty && !results.contains(ConnectivityResult.none)) {
+        debugPrint('Main: Internet restored, triggering workout sync...');
+        if (mounted) {
+          Provider.of<OfflineSyncService>(
+            context,
+            listen: false,
+          ).syncPendingSessions();
+        }
+      }
+    });
 
     // Sync theme settings on app start if already logged in
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -139,11 +175,16 @@ class _MyAppState extends State<MyApp> {
   GoRouter _buildRouter() {
     return GoRouter(
       refreshListenable: _auth,
-      initialLocation: '/',
+      initialLocation: '/splash', // Start at splash
       redirect: (context, state) {
         final loggedIn = _auth.isAuthenticated;
         final onLogin = state.matchedLocation == '/login';
         final onFirstLogin = state.matchedLocation == '/first-login';
+
+        final onSplash = state.matchedLocation == '/splash';
+
+        // Allow splash to run
+        if (onSplash) return null;
 
         // Not logged in - redirect to login (allow first-login screen)
         if (!loggedIn && !onLogin && !onFirstLogin) {
@@ -179,6 +220,10 @@ class _MyAppState extends State<MyApp> {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen(),
+        ),
+        GoRoute(
+          path: '/splash',
+          builder: (context, state) => const SplashScreen(),
         ),
         GoRoute(
           path: '/first-login',
@@ -358,6 +403,12 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 
   @override

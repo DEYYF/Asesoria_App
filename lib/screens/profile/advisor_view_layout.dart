@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../widgets/sync_indicator_widget.dart';
 
 import '../../models/cliente_model.dart';
 
@@ -64,6 +65,10 @@ class AdvisorViewLayout extends StatelessWidget {
                     onPressed: () => context.pop(),
                   ),
                 ),
+                actions: [
+                  const SyncIndicatorWidget(),
+                  const SizedBox(width: 8),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   stretchModes: const [
                     StretchMode.zoomBackground,
