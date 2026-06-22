@@ -15,13 +15,8 @@ class SettingsService {
   /// Prioritizes SharedPreferences (Local) for immediate UI response.
   /// Then attempts to fetch from API to sync.
   Future<UserSettings> getSettings({String? userId}) async {
+    final storageKey = await _getStorageKey(userId);
     final prefs = await SharedPreferences.getInstance();
-    // If userId is provided, use it. Otherwise, we assume 'me' or current user logic elsewhere?
-    // Actually, to make this robust, if userId is null, we should probably fetch 'me' to get the ID first or just use 'me' endpoint.
-    // However, for caching, we need an ID.
-    // Let's assume if userId is passed, we use it. If not, we use 'me' endpoint and cache under 'me' or distinct key.
-
-    final storageKey = userId != null ? '${_storageKey}_$userId' : _storageKey;
 
     // 1. Try loading from local storage
     if (prefs.containsKey(storageKey)) {
@@ -88,12 +83,9 @@ class SettingsService {
     try {
       await _api.put(endpoint, settings);
 
-      // Update local cache if possible (requires re-fetching or optimistic update)
-      // For simplicity, we just clear cache to force refetch next time
+      // Update local cache if possible
+      final storageKey = await _getStorageKey(userId);
       final prefs = await SharedPreferences.getInstance();
-      final storageKey = userId != null
-          ? '${_storageKey}_$userId'
-          : _storageKey;
       await prefs.remove(storageKey);
     } catch (e) {
       throw Exception('Failed to update settings map: $e');
@@ -101,8 +93,8 @@ class SettingsService {
   }
 
   Future<void> updateSettings(UserSettings settings, {String? userId}) async {
+    final storageKey = await _getStorageKey(userId);
     final prefs = await SharedPreferences.getInstance();
-    final storageKey = userId != null ? '${_storageKey}_$userId' : _storageKey;
 
     // 1. Save locally
     await prefs.setString(storageKey, json.encode(settings.toJson()));
@@ -129,5 +121,26 @@ class SettingsService {
     // Clear local settings
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey);
+  }
+
+  /// Private helper to get the consistent storage key for a user
+  Future<String> _getStorageKey(String? userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Resolve userId if not provided by checking the saved auth_user
+    String? resolvedUserId = userId;
+    if (resolvedUserId == null) {
+      final userStr = prefs.getString('auth_user');
+      if (userStr != null) {
+        try {
+          final userMap = jsonDecode(userStr);
+          resolvedUserId = userMap['_id'];
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    return resolvedUserId != null ? '${_storageKey}_$resolvedUserId' : _storageKey;
   }
 }

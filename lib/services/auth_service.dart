@@ -137,6 +137,8 @@ class AuthService with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');
+    // Important: Clear global settings cache to prevent crossover
+    await prefs.remove('user_settings_v1');
     notifyListeners();
   }
 
