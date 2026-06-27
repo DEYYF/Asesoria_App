@@ -121,13 +121,15 @@ class SemanaEntrenamiento {
 
 class DiaEntrenamiento {
   String nombre;
+  String? diaSemana;
   final List<ItemEntrenamiento> items;
 
-  DiaEntrenamiento({required this.nombre, required this.items});
+  DiaEntrenamiento({required this.nombre, this.diaSemana, required this.items});
 
-  DiaEntrenamiento copyWith({String? nombre, List<ItemEntrenamiento>? items}) {
+  DiaEntrenamiento copyWith({String? nombre, String? diaSemana, List<ItemEntrenamiento>? items}) {
     return DiaEntrenamiento(
       nombre: nombre ?? this.nombre,
+      diaSemana: diaSemana ?? this.diaSemana,
       items: items ?? this.items,
     );
   }
@@ -135,6 +137,7 @@ class DiaEntrenamiento {
   factory DiaEntrenamiento.fromJson(Map<String, dynamic> json) {
     return DiaEntrenamiento(
       nombre: json['nombre'] ?? 'Día',
+      diaSemana: json['diaSemana'],
       items: (json['items'] as List? ?? [])
           .map((e) => ItemEntrenamiento.fromJson(e))
           .toList(),
@@ -142,7 +145,11 @@ class DiaEntrenamiento {
   }
 
   Map<String, dynamic> toJson() {
-    return {'nombre': nombre, 'items': items.map((e) => e.toJson()).toList()};
+    return {
+      'nombre': nombre,
+      if (diaSemana != null) 'diaSemana': diaSemana,
+      'items': items.map((e) => e.toJson()).toList(),
+    };
   }
 }
 

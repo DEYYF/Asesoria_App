@@ -7,10 +7,12 @@ class Dieta {
   final String asesorId;
   final String nombre;
   final String? objetivo;
-  final String estado; // 'borrador', 'activa', etc.
+  final String estado;
   final String? notas;
+  final String tipo; // 'opciones' | 'calendario'
   final Macros macros;
   final List<Comida> comidas;
+  final List<DiaCalendario> diasSemana;
   final DateTime? createdAt;
 
   Dieta({
@@ -21,8 +23,10 @@ class Dieta {
     this.objetivo,
     this.estado = 'borrador',
     this.notas,
+    this.tipo = 'opciones',
     required this.macros,
     required this.comidas,
+    this.diasSemana = const [],
     this.createdAt,
   });
 
@@ -34,8 +38,10 @@ class Dieta {
     String? objetivo,
     String? estado,
     String? notas,
+    String? tipo,
     Macros? macros,
     List<Comida>? comidas,
+    List<DiaCalendario>? diasSemana,
     DateTime? createdAt,
   }) {
     return Dieta(
@@ -46,8 +52,10 @@ class Dieta {
       objetivo: objetivo ?? this.objetivo,
       estado: estado ?? this.estado,
       notas: notas ?? this.notas,
+      tipo: tipo ?? this.tipo,
       macros: macros ?? this.macros,
       comidas: comidas ?? this.comidas,
+      diasSemana: diasSemana ?? this.diasSemana,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -71,12 +79,18 @@ class Dieta {
       objetivo: json['objetivo'],
       estado: json['estado'] ?? 'borrador',
       notas: json['notas'],
+      tipo: json['tipo'] ?? 'opciones',
       macros: json['macros'] != null
           ? Macros.fromJson(json['macros'])
           : Macros(),
       comidas:
           (json['comidas'] as List<dynamic>?)
               ?.map((e) => Comida.fromJson(e))
+              .toList() ??
+          [],
+      diasSemana:
+          (json['diasSemana'] as List<dynamic>?)
+              ?.map((e) => DiaCalendario.fromJson(e))
               .toList() ??
           [],
       createdAt: json['createdAt'] != null
@@ -96,8 +110,10 @@ class Dieta {
       'objetivo': objetivo,
       'estado': estado,
       'notas': notas,
+      'tipo': tipo,
       'macros': macros.toJson(),
       'comidas': comidas.map((e) => e.toJson()).toList(),
+      'diasSemana': diasSemana.map((e) => e.toJson()).toList(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
@@ -177,6 +193,7 @@ class OpcionDieta {
   final List<CombinacionItem>? items;
   final Macros? macrosTotales;
   final String? uniqueKey;
+  final String? notas;
 
   OpcionDieta({
     required this.tipo,
@@ -188,6 +205,7 @@ class OpcionDieta {
     this.items,
     this.macrosTotales,
     this.uniqueKey,
+    this.notas,
   });
 
   OpcionDieta copyWith({
@@ -200,6 +218,8 @@ class OpcionDieta {
     List<CombinacionItem>? items,
     Macros? macrosTotales,
     String? uniqueKey,
+    String? notas,
+    bool clearNotas = false,
   }) {
     return OpcionDieta(
       tipo: tipo ?? this.tipo,
@@ -211,6 +231,7 @@ class OpcionDieta {
       items: items ?? this.items,
       macrosTotales: macrosTotales ?? this.macrosTotales,
       uniqueKey: uniqueKey ?? this.uniqueKey,
+      notas: clearNotas ? null : (notas ?? this.notas),
     );
   }
 
@@ -265,6 +286,7 @@ class OpcionDieta {
           : (json['macros'] != null ? Macros.fromJson(json['macros']) : null),
       uniqueKey:
           '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(10000)}_${iId ?? rId ?? 'opt'}',
+      notas: json['notas'],
     );
   }
 
@@ -277,6 +299,7 @@ class OpcionDieta {
     if (unidades != null) data['unidades'] = unidades;
     if (items != null) data['items'] = items!.map((e) => e.toJson()).toList();
     if (macrosTotales != null) data['totales'] = macrosTotales!.toJson();
+    if (notas != null && notas!.isNotEmpty) data['notas'] = notas;
     return data;
   }
 }

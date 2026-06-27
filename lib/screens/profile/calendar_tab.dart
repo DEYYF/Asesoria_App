@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/cliente_model.dart';
+import '../../models/entrenamiento_model.dart';
 import '../../utils/isolate_utils.dart';
 import '../../services/api_service.dart';
 
@@ -26,13 +28,26 @@ class _CalendarTabState extends State<CalendarTab> {
   DateTime _selectedDate = DateTime.now();
   Map<DateTime, Map<String, dynamic>> _sessionsMap = {};
   Map<DateTime, List<dynamic>> _citasMap = {};
+  List<Entrenamiento> _entrenamientos = [];
   bool _isLoading = true;
+
+  // Mapping Spanish day names to weekday numbers (1=Monday, 7=Sunday)
+  static const Map<String, int> _diaToWeekday = {
+    'Lunes': 1,
+    'Martes': 2,
+    'Miércoles': 3,
+    'Jueves': 4,
+    'Viernes': 5,
+    'Sábado': 6,
+    'Domingo': 7,
+  };
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
     _loadCitas();
+    _loadEntrenamientos();
   }
 
   Future<void> _loadHistory() async {
@@ -41,14 +56,12 @@ class _CalendarTabState extends State<CalendarTab> {
       final res = await api.get(
         '/entrenamientos/registros/cliente/${widget.cliente.id}/sesiones',
       );
-
       if (res.statusCode == 200) {
         final result = await processSessionHistoryInIsolate(res.body);
         Map<DateTime, Map<String, dynamic>> sessionsMap = {};
         result.sessionsMap.forEach((key, value) {
           sessionsMap[DateTime.parse(key)] = value;
         });
-
         if (mounted) {
           setState(() {
             _sessionsMap = sessionsMap;
@@ -90,13 +103,34 @@ class _CalendarTabState extends State<CalendarTab> {
     }
   }
 
+  Future<void> _loadEntrenamientos() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get(
+        '/entrenamientos?clienteId=${widget.cliente.id}',
+      );
+      if (res.statusCode == 200) {
+        final List list = jsonDecode(res.body);
+        if (mounted) {
+          setState(() {
+            _entrenamientos =
+                list.map((e) => Entrenamiento.fromJson(e)).toList();
+            _checkLoading();
+          });
+        }
+      } else {
+        _checkLoading();
+      }
+    } catch (e) {
+      _checkLoading();
+    }
+  }
+
   void _checkLoading() {
-    // Simple check, real app might be more robust
     setState(() => _isLoading = false);
   }
 
   List<DateTime> _getWeekDays(DateTime date) {
-    // Find the Monday of the current week
     final monday = date.subtract(Duration(days: date.weekday - 1));
     return List.generate(7, (index) => monday.add(Duration(days: index)));
   }
@@ -104,6 +138,35 @@ class _CalendarTabState extends State<CalendarTab> {
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
+
+  /// Returns list of (Entrenamiento, DiaEntrenamiento) pairs that match
+  /// the weekday of [date].
+  List<_TrainingDayMatch> _getTrainingsForDate(DateTime date) {
+    final weekday = date.weekday; // 1=Mon, 7=Sun
+    final matches = <_TrainingDayMatch>[];
+
+    for (final ent in _entrenamientos) {
+      if (!ent.activo) continue;
+      for (final semana in ent.semanas) {
+        for (final dia in semana.dias) {
+          if (dia.diaSemana != null &&
+              _diaToWeekday[dia.diaSemana] == weekday) {
+            matches.add(_TrainingDayMatch(entrenamiento: ent, dia: dia));
+          }
+        }
+      }
+    }
+
+    // Deduplicate: show once per (entrenamiento, diaSemana) combination
+    final seen = <String>{};
+    return matches.where((m) {
+      final key = '${m.entrenamiento.id}_${m.dia.diaSemana}';
+      return seen.add(key);
+    }).toList();
+  }
+
+  bool _hasTrainingOnDate(DateTime date) =>
+      _getTrainingsForDate(date).isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +180,12 @@ class _CalendarTabState extends State<CalendarTab> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  await Future.wait([_loadHistory(), _loadCitas()]);
+                  setState(() => _isLoading = true);
+                  await Future.wait([
+                    _loadHistory(),
+                    _loadCitas(),
+                    _loadEntrenamientos(),
+                  ]);
                 },
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
@@ -232,7 +300,7 @@ class _CalendarTabState extends State<CalendarTab> {
     final isDark = theme.brightness == Brightness.dark;
     final weekDays = _getWeekDays(_selectedDate);
 
-    return Container(
+    return SizedBox(
       height: 90,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -296,7 +364,6 @@ class _CalendarTabState extends State<CalendarTab> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    // Visual indicator for events
                     const SizedBox(height: 4),
                     _buildEventDots(date, isSelected, isDark),
                   ],
@@ -322,20 +389,17 @@ class _CalendarTabState extends State<CalendarTab> {
       _selectedDate.day,
     );
 
-    // Check for Citas
     final citas = _citasMap[dayKey] ?? [];
-
-    // Check for Sessions
     final sessionEntry = _sessionsMap.entries.firstWhere(
       (e) => _isSameDay(e.key, _selectedDate),
       orElse: () => MapEntry(DateTime(1900), {}),
     );
-    final sessionData = sessionEntry.value;
-    final hasSession = sessionData.isNotEmpty;
+    final hasSession = sessionEntry.value.isNotEmpty;
     final hasCitas = citas.isNotEmpty;
+    final trainingMatches = _getTrainingsForDate(_selectedDate);
+    final hasTraining = trainingMatches.isNotEmpty;
 
-    if (!hasSession && !hasCitas) {
-      // Empty State
+    if (!hasSession && !hasCitas && !hasTraining) {
       return Column(
         children: [
           const SizedBox(height: 20),
@@ -343,7 +407,7 @@ class _CalendarTabState extends State<CalendarTab> {
             Icons.calendar_today,
             size: 60,
             color: Colors.grey.withOpacity(0.3),
-          ), // Placeholder icon
+          ),
           const SizedBox(height: 20),
           Text(
             '¿Listo para tu próxima actividad?',
@@ -359,7 +423,7 @@ class _CalendarTabState extends State<CalendarTab> {
               child: const Text(
                 'Planifica algo',
                 style: TextStyle(
-                  color: Color(0xFFFFD700), // Gold
+                  color: Color(0xFFFFD700),
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -369,7 +433,6 @@ class _CalendarTabState extends State<CalendarTab> {
       );
     }
 
-    // Show content
     return Column(
       children: [
         if (hasCitas)
@@ -390,9 +453,167 @@ class _CalendarTabState extends State<CalendarTab> {
             Icons.check_circle,
             Colors.green,
           ),
+        ...trainingMatches.map(
+          (match) => _buildTrainingEventCard(theme, match),
+        ),
       ],
     );
   }
+
+  // ─── Training event card ───────────────────────────────────────────────────
+
+  Widget _buildTrainingEventCard(ThemeData theme, _TrainingDayMatch match) {
+    const orange = Color(0xFFFF9500);
+    final ent = match.entrenamiento;
+    final dia = match.dia;
+
+    return GestureDetector(
+      onTap: () {
+        if (ent.id != null) {
+          context.push('/entrenamientos/sesion/${ent.id}');
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: orange.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Container(width: 6, color: orange),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF9500), Color(0xFFFFBE5C)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: orange.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.fitness_center_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                ent.titulo,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: orange.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      dia.diaSemana ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: orange,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      dia.nombre,
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.hintColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (ent.objetivo != null &&
+                                  ent.objetivo!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  ent.objetivo!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.hintColor.withOpacity(0.7),
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            color: orange,
+                            size: 22,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Generic item card (citas / completed session) ─────────────────────────
 
   Widget _buildItemCard(
     ThemeData theme,
@@ -474,12 +695,15 @@ class _CalendarTabState extends State<CalendarTab> {
     );
   }
 
+  // ─── Week strip event dots ─────────────────────────────────────────────────
+
   Widget _buildEventDots(DateTime date, bool isSelected, bool isDark) {
     final dayKey = DateTime(date.year, date.month, date.day);
     final hasCita = _citasMap.containsKey(dayKey);
     final hasSession = _sessionsMap.entries.any((e) => _isSameDay(e.key, date));
+    final hasTraining = _hasTrainingOnDate(date);
 
-    if (!hasCita && !hasSession) return const SizedBox(height: 6);
+    if (!hasCita && !hasSession && !hasTraining) return const SizedBox(height: 6);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -493,7 +717,7 @@ class _CalendarTabState extends State<CalendarTab> {
               shape: BoxShape.circle,
             ),
           ),
-        if (hasCita && hasSession) const SizedBox(width: 2),
+        if (hasCita && (hasSession || hasTraining)) const SizedBox(width: 2),
         if (hasSession)
           Container(
             width: 4,
@@ -503,7 +727,27 @@ class _CalendarTabState extends State<CalendarTab> {
               shape: BoxShape.circle,
             ),
           ),
+        if (hasSession && hasTraining) const SizedBox(width: 2),
+        if (hasTraining)
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.black.withOpacity(0.5)
+                  : const Color(0xFFFF9500),
+              shape: BoxShape.circle,
+            ),
+          ),
       ],
     );
   }
 }
+
+/// Helper to pair a training plan with a specific day that has diaSemana set.
+class _TrainingDayMatch {
+  final Entrenamiento entrenamiento;
+  final DiaEntrenamiento dia;
+  const _TrainingDayMatch({required this.entrenamiento, required this.dia});
+}
+

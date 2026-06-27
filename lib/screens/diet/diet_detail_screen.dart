@@ -764,6 +764,39 @@ class _OptionRowState extends State<_OptionRow> {
                   .toList(),
             ),
           ),
+        if (op.notas != null && op.notas!.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: theme.primaryColor.withOpacity(0.1),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.sticky_note_2_outlined,
+                  size: 14,
+                  color: theme.primaryColor.withOpacity(0.7),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    op.notas!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.hintColor,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

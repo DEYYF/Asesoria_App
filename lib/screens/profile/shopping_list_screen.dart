@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:downloadsfolder/downloadsfolder.dart' as df;
 import 'package:path_provider/path_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/shopping_list_pdf_generator.dart';
 
 class ShoppingListScreen extends StatefulWidget {
   final String dietaId;
@@ -25,6 +26,7 @@ class ShoppingListScreen extends StatefulWidget {
 class _ShoppingListScreenState extends State<ShoppingListScreen> {
   List<dynamic> _ingredients = [];
   bool _isLoading = true;
+  bool _isGeneratingPdf = false;
   String? _error;
   String _selectedPeriod = 'diario';
   String? _currentDietaId;
@@ -166,6 +168,29 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
     }
   }
 
+  Future<void> _generatePdf() async {
+    if (_ingredients.isEmpty || _isGeneratingPdf) return;
+    setState(() => _isGeneratingPdf = true);
+    try {
+      await ShoppingListPdfGenerator.generatePDF(
+        ingredients: _ingredients,
+        dietaNombre: _currentDietaNombre ?? 'Dieta',
+        period: _selectedPeriod,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al generar PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
+    }
+  }
+
   Map<String, List<dynamic>> _groupByCategory() {
     final grouped = <String, List<dynamic>>{};
     for (var item in _ingredients) {
@@ -228,11 +253,27 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 );
               }).toList(),
             ),
+          // TXT download
           IconButton(
             icon: const Icon(Icons.download_rounded),
             tooltip: 'Descargar .txt',
             onPressed: _downloadAsText,
           ),
+          // PDF export
+          _isGeneratingPdf
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  tooltip: 'Exportar PDF',
+                  onPressed: _generatePdf,
+                ),
           const SizedBox(width: 8),
         ],
         elevation: 0,

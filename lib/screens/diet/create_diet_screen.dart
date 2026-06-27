@@ -247,6 +247,8 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
             } else if (op.tipo == 'combinacion') {
               opData['items'] = op.items?.map((it) => it.toJson()).toList();
             }
+            if (op.notas != null && op.notas!.isNotEmpty)
+              opData['notas'] = op.notas;
             return opData;
           }).toList(),
         };
@@ -704,6 +706,32 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
                       fontStyle: FontStyle.italic,
                     ),
                   ),
+                if (op.notas != null && op.notas!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          size: 12,
+                          color: theme.primaryColor.withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            op.notas!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.hintColor,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -825,31 +853,60 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
 
   void _showEditFoodDialog(int mIdx, int oIdx) {
     final op = _comidas[mIdx].opciones[oIdx];
-    if (op.tipo != 'ingrediente') {
-      // For now, only ingredients have quick gram editing in a simple dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Las recetas y combos se editan eliminando y añadiendo.',
-          ),
-        ),
-      );
-      return;
-    }
+    final gramCtrl = TextEditingController(
+      text: op.gramos?.round().toString() ?? '',
+    );
+    final notaCtrl = TextEditingController(text: op.notas ?? '');
 
-    final ctrl = TextEditingController(text: op.gramos?.round().toString());
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Editar ${op.nombre}'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Gramos',
-            suffixText: 'g',
+        title: Row(
+          children: [
+            const Icon(Icons.edit_note_rounded, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                op.nombre ?? op.tipo,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (op.tipo == 'ingrediente') ...
+                [
+                  TextField(
+                    controller: gramCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Gramos',
+                      suffixText: 'g',
+                    ),
+                    autofocus: op.tipo == 'ingrediente',
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              const Text(
+                'Nota para el cliente',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: notaCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Ej. Puede sustituirse por pavo o tofu...',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(10),
+                ),
+              ),
+            ],
           ),
-          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -858,9 +915,16 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              final g = double.tryParse(ctrl.text) ?? op.gramos;
+              final g = op.tipo == 'ingrediente'
+                  ? (double.tryParse(gramCtrl.text) ?? op.gramos)
+                  : op.gramos;
+              final nota = notaCtrl.text.trim();
               setState(() {
-                _comidas[mIdx].opciones[oIdx] = op.copyWith(gramos: g);
+                _comidas[mIdx].opciones[oIdx] = op.copyWith(
+                  gramos: g,
+                  notas: nota.isNotEmpty ? nota : null,
+                  clearNotas: nota.isEmpty,
+                );
               });
               Navigator.pop(ctx);
             },

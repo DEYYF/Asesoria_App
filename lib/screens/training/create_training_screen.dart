@@ -467,67 +467,74 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
                 top: Radius.circular(16),
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.calendar_today_rounded,
-                  size: 16,
-                  color: theme.primaryColor,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    initialValue: dia.nombre,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 16,
                       color: theme.primaryColor,
                     ),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      hintText: 'Nombre del día',
-                    ),
-                    onChanged: (v) {
-                      setState(() {
-                        dia.nombre = v;
-                      });
-                    },
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, size: 20, color: theme.hintColor),
-                  onSelected: (val) {
-                    if (val == 'dup') _copyDia(weekIdx, dayIdx);
-                    if (val == 'del') {
-                      setState(() {
-                        _semanas[weekIdx].dias.removeAt(dayIdx);
-                      });
-                    }
-                  },
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 'dup',
-                      child: Row(
-                        children: [
-                          Icon(Icons.copy, size: 16),
-                          SizedBox(width: 8),
-                          Text('Duplicar'),
-                        ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: dia.nombre,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: theme.primaryColor,
+                        ),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          border: InputBorder.none,
+                          hintText: 'Nombre del día',
+                        ),
+                        onChanged: (v) {
+                          setState(() {
+                            dia.nombre = v;
+                          });
+                        },
                       ),
                     ),
-                    const PopupMenuItem(
-                      value: 'del',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 16),
-                          SizedBox(width: 8),
-                          Text('Eliminar', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, size: 20, color: theme.hintColor),
+                      onSelected: (val) {
+                        if (val == 'dup') _copyDia(weekIdx, dayIdx);
+                        if (val == 'del') {
+                          setState(() {
+                            _semanas[weekIdx].dias.removeAt(dayIdx);
+                          });
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'dup',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy, size: 16),
+                              SizedBox(width: 8),
+                              Text('Duplicar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'del',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 16),
+                              SizedBox(width: 8),
+                              Text('Eliminar', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                _buildDayOfWeekChips(theme, dia),
               ],
             ),
           ),
@@ -604,6 +611,60 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- Day of week chip row ---
+
+  static const List<String> _diasSemana = [
+    'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
+  ];
+
+  Widget _buildDayOfWeekChips(ThemeData theme, DiaEntrenamiento dia) {
+    return SizedBox(
+      height: 32,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _diasSemana.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (ctx, i) {
+          final label = _diasSemana[i];
+          final isSelected = dia.diaSemana == label;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                dia.diaSemana = isSelected ? null : label;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? theme.primaryColor
+                    : theme.primaryColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSelected
+                      ? theme.primaryColor
+                      : theme.primaryColor.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? Colors.white
+                      : theme.primaryColor.withOpacity(0.8),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
