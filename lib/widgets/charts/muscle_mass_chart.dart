@@ -116,7 +116,7 @@ class MuscleMassChart extends StatelessWidget {
                   ],
                   lineTouchData: LineTouchData(
                     touchTooltipData: LineTouchTooltipData(
-                      tooltipBgColor: Colors.teal.shade700,
+                      getTooltipColor: (_) => Colors.teal.shade700,
                       getTooltipItems: (touchedSpots) {
                         return touchedSpots.map((LineBarSpot touchedSpot) {
                           return LineTooltipItem(

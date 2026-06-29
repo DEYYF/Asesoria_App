@@ -1635,7 +1635,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                 maxY: 100,
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
-                    tooltipBgColor: theme.cardColor,
+                    getTooltipColor: (_) => theme.cardColor,
                     tooltipRoundedRadius: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(

@@ -80,22 +80,17 @@ class Dieta {
       estado: json['estado'] ?? 'borrador',
       notas: json['notas'],
       tipo: json['tipo'] ?? 'opciones',
-      macros: json['macros'] != null
-          ? Macros.fromJson(json['macros'])
-          : Macros(),
-      comidas:
-          (json['comidas'] as List<dynamic>?)
+      macros: json['macros'] != null ? Macros.fromJson(json['macros']) : Macros(),
+      comidas: (json['comidas'] as List<dynamic>?)
               ?.map((e) => Comida.fromJson(e))
               .toList() ??
           [],
-      diasSemana:
-          (json['diasSemana'] as List<dynamic>?)
+      diasSemana: (json['diasSemana'] as List<dynamic>?)
               ?.map((e) => DiaCalendario.fromJson(e))
               .toList() ??
           [],
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'])
-          : null,
+      createdAt:
+          json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
     )..clienteNombre = cName;
   }
 
@@ -115,6 +110,37 @@ class Dieta {
       'comidas': comidas.map((e) => e.toJson()).toList(),
       'diasSemana': diasSemana.map((e) => e.toJson()).toList(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+    };
+  }
+}
+
+class DiaCalendario {
+  final String dia;
+  final List<Comida> comidas;
+  final String? notas;
+
+  const DiaCalendario({
+    required this.dia,
+    this.comidas = const [],
+    this.notas,
+  });
+
+  factory DiaCalendario.fromJson(Map<String, dynamic> json) {
+    return DiaCalendario(
+      dia: json['dia'] ?? '',
+      comidas: (json['comidas'] as List<dynamic>?)
+              ?.map((e) => Comida.fromJson(e))
+              .toList() ??
+          [],
+      notas: json['notas'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'dia': dia,
+      'comidas': comidas.map((e) => e.toJson()).toList(),
+      if (notas != null) 'notas': notas,
     };
   }
 }
@@ -159,14 +185,11 @@ class Comida {
       titulo: json['titulo'] ?? 'Comida',
       hora: json['hora'],
       notas: json['notas'],
-      opciones:
-          (json['opciones'] as List<dynamic>?)
+      opciones: (json['opciones'] as List<dynamic>?)
               ?.map((e) => OpcionDieta.fromJson(e))
               .toList() ??
           [],
-      totales: json['totales'] != null
-          ? Macros.fromJson(json['totales'])
-          : Macros(),
+      totales: json['totales'] != null ? Macros.fromJson(json['totales']) : Macros(),
       uniqueKey:
           '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(10000)}_${json['titulo'] ?? 'meal'}',
     );
@@ -184,7 +207,7 @@ class Comida {
 }
 
 class OpcionDieta {
-  final String tipo; // 'receta', 'ingrediente', 'combinacion'
+  final String tipo;
   final String? recetaId;
   final String? ingredienteId;
   final String? nombre;
@@ -245,10 +268,10 @@ class OpcionDieta {
         extractedItems = (json['recetaId']['ingredientes'] as List).map((i) {
           final ingObj = i['ingrediente'] is Map ? i['ingrediente'] : {};
           final ingId =
-              ingObj['_id'] ??
-              (i['ingrediente'] is String ? i['ingrediente'] : '');
+              ingObj['_id'] ?? (i['ingrediente'] is String ? i['ingrediente'] : '');
           final ingName = ingObj['nombre'];
           final g = (i['gramos'] as num?)?.toDouble() ?? 0;
+
           return CombinacionItem(
             ingredienteId: ingId,
             nombre: ingName,
@@ -262,6 +285,7 @@ class OpcionDieta {
 
     String? iId;
     String? iName = json['nombre'];
+
     if (json['ingredienteId'] is Map) {
       iId = json['ingredienteId']['_id'];
       iName ??= json['ingredienteId']['nombre'];
@@ -292,6 +316,7 @@ class OpcionDieta {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {'tipo': tipo};
+
     if (recetaId != null) data['recetaId'] = recetaId;
     if (ingredienteId != null) data['ingredienteId'] = ingredienteId;
     if (nombre != null) data['nombre'] = nombre;
@@ -300,6 +325,7 @@ class OpcionDieta {
     if (items != null) data['items'] = items!.map((e) => e.toJson()).toList();
     if (macrosTotales != null) data['totales'] = macrosTotales!.toJson();
     if (notas != null && notas!.isNotEmpty) data['notas'] = notas;
+
     return data;
   }
 }
@@ -346,6 +372,10 @@ class CombinacionItem {
   }
 
   Map<String, dynamic> toJson() {
-    return {'ingredienteId': ingredienteId, 'nombre': nombre, 'gramos': gramos};
+    return {
+      'ingredienteId': ingredienteId,
+      'nombre': nombre,
+      'gramos': gramos,
+    };
   }
 }

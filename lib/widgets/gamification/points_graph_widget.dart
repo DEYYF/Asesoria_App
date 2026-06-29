@@ -241,7 +241,7 @@ class PointsGraphWidget extends StatelessWidget {
                       ],
                       lineTouchData: LineTouchData(
                         touchTooltipData: LineTouchTooltipData(
-                          tooltipBgColor: theme.primaryColor,
+                          getTooltipColor: (_) => theme.primaryColor,
                           tooltipRoundedRadius: 8,
                           getTooltipItems: (touchedSpots) {
                             return touchedSpots.map((spot) {

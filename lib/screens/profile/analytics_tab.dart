@@ -246,7 +246,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
         LineChartData(
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: theme.cardColor.withOpacity(0.95),
+              getTooltipColor: (_) => theme.cardColor.withOpacity(0.95),
               tooltipRoundedRadius: 8,
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
