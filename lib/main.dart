@@ -17,6 +17,8 @@ import 'screens/login_screen.dart';
 import 'screens/client_dashboard_screen.dart';
 import 'screens/client_profile_screen.dart';
 import 'screens/diet/create_diet_screen.dart';
+import 'screens/diet/create_diet_method_screen.dart';
+import 'screens/diet/create_calendar_diet_screen.dart';
 import 'screens/training/create_training_screen.dart';
 import 'screens/training/training_detail_screen.dart';
 import 'screens/training/notebook_screen.dart';
@@ -254,9 +256,23 @@ class _MyAppState extends State<MyApp> {
                       routes: [
                         GoRoute(
                           path: 'crear-dieta',
-                          builder: (context, state) => CreateDietScreen(
+                          builder: (context, state) => CreateDietMethodScreen(
                             clienteId: state.pathParameters['id']!,
                           ),
+                          routes: [
+                            GoRoute(
+                              path: 'opciones',
+                              builder: (context, state) => CreateDietScreen(
+                                clienteId: state.pathParameters['id']!,
+                              ),
+                            ),
+                            GoRoute(
+                              path: 'calendario',
+                              builder: (context, state) => CreateCalendarDietScreen(
+                                clienteId: state.pathParameters['id']!,
+                              ),
+                            ),
+                          ],
                         ),
                         GoRoute(
                           path: 'crear-entrenamiento',

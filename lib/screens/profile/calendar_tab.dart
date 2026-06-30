@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/cliente_model.dart';
 import '../../models/entrenamiento_model.dart';
+import '../../models/dieta_model.dart';
+import '../diet/daily_diet_viewer_screen.dart';
 import '../../utils/isolate_utils.dart';
 import '../../services/api_service.dart';
 
@@ -29,6 +31,7 @@ class _CalendarTabState extends State<CalendarTab> {
   Map<DateTime, Map<String, dynamic>> _sessionsMap = {};
   Map<DateTime, List<dynamic>> _citasMap = {};
   List<Entrenamiento> _entrenamientos = [];
+  List<Dieta> _dietas = [];
   bool _isLoading = true;
 
   // Mapping Spanish day names to weekday numbers (1=Monday, 7=Sunday)
@@ -48,6 +51,7 @@ class _CalendarTabState extends State<CalendarTab> {
     _loadHistory();
     _loadCitas();
     _loadEntrenamientos();
+    _loadDietas();
   }
 
   Future<void> _loadHistory() async {
@@ -99,6 +103,29 @@ class _CalendarTabState extends State<CalendarTab> {
       }
     } catch (e) {
       debugPrint('Error loading client citas: $e');
+      _checkLoading();
+    }
+  }
+
+  Future<void> _loadDietas() async {
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      final res = await api.get(
+        '/dietas?clienteId=${widget.cliente.id}',
+      );
+      if (res.statusCode == 200) {
+        final List list = jsonDecode(res.body);
+        if (mounted) {
+          setState(() {
+            _dietas = list.map((e) => Dieta.fromJson(e)).toList();
+            _checkLoading();
+          });
+        }
+      } else {
+        _checkLoading();
+      }
+    } catch (e) {
+      debugPrint('Error loading client dietas: $e');
       _checkLoading();
     }
   }
@@ -168,6 +195,54 @@ class _CalendarTabState extends State<CalendarTab> {
   bool _hasTrainingOnDate(DateTime date) =>
       _getTrainingsForDate(date).isNotEmpty;
 
+  String _normalizeDayName(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .trim();
+  }
+
+  int? _dietDayToWeekday(String dia) {
+    const map = {
+      'lunes': 1,
+      'martes': 2,
+      'miercoles': 3,
+      'jueves': 4,
+      'viernes': 5,
+      'sabado': 6,
+      'domingo': 7,
+    };
+    return map[_normalizeDayName(dia)];
+  }
+
+  List<_DietDayMatch> _getDietasForDate(DateTime date) {
+    final weekday = date.weekday;
+    final matches = <_DietDayMatch>[];
+
+    for (final dieta in _dietas) {
+      if (dieta.tipo.trim().toLowerCase() != 'calendario') continue;
+      if (dieta.estado == 'archivada') continue;
+
+      for (final dia in dieta.diasSemana) {
+        if (_dietDayToWeekday(dia.dia) == weekday && dia.comidas.isNotEmpty) {
+          matches.add(_DietDayMatch(dieta: dieta, dia: dia));
+        }
+      }
+    }
+
+    final seen = <String>{};
+    return matches.where((m) {
+      final key = '${m.dieta.id}_${_normalizeDayName(m.dia.dia)}';
+      return seen.add(key);
+    }).toList();
+  }
+
+  bool _hasDietaOnDate(DateTime date) => _getDietasForDate(date).isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -185,6 +260,7 @@ class _CalendarTabState extends State<CalendarTab> {
                     _loadHistory(),
                     _loadCitas(),
                     _loadEntrenamientos(),
+                    _loadDietas(),
                   ]);
                 },
                 child: ListView(
@@ -398,8 +474,10 @@ class _CalendarTabState extends State<CalendarTab> {
     final hasCitas = citas.isNotEmpty;
     final trainingMatches = _getTrainingsForDate(_selectedDate);
     final hasTraining = trainingMatches.isNotEmpty;
+    final dietMatches = _getDietasForDate(_selectedDate);
+    final hasDieta = dietMatches.isNotEmpty;
 
-    if (!hasSession && !hasCitas && !hasTraining) {
+    if (!hasSession && !hasCitas && !hasTraining && !hasDieta) {
       return Column(
         children: [
           const SizedBox(height: 20),
@@ -455,6 +533,9 @@ class _CalendarTabState extends State<CalendarTab> {
           ),
         ...trainingMatches.map(
           (match) => _buildTrainingEventCard(theme, match),
+        ),
+        ...dietMatches.map(
+          (match) => _buildDietEventCard(theme, match),
         ),
       ],
     );
@@ -613,6 +694,153 @@ class _CalendarTabState extends State<CalendarTab> {
     );
   }
 
+
+  // ─── Diet event card ───────────────────────────────────────────────────────
+
+  Widget _buildDietEventCard(ThemeData theme, _DietDayMatch match) {
+    const green = Color(0xFF34C759);
+    final dieta = match.dieta;
+    final dia = match.dia;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DailyDietViewerScreen(
+              dieta: dieta,
+              dia: dia,
+              fecha: _selectedDate,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: green.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Container(width: 6, color: green),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF34C759), Color(0xFF7EE08B)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: green.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.restaurant_menu_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                dieta.nombre,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: green.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      dia.dia,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: green,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '${dia.comidas.length} comidas',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.hintColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.visibility_rounded,
+                            color: green,
+                            size: 22,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── Generic item card (citas / completed session) ─────────────────────────
 
   Widget _buildItemCard(
@@ -702,8 +930,9 @@ class _CalendarTabState extends State<CalendarTab> {
     final hasCita = _citasMap.containsKey(dayKey);
     final hasSession = _sessionsMap.entries.any((e) => _isSameDay(e.key, date));
     final hasTraining = _hasTrainingOnDate(date);
+    final hasDieta = _hasDietaOnDate(date);
 
-    if (!hasCita && !hasSession && !hasTraining) return const SizedBox(height: 6);
+    if (!hasCita && !hasSession && !hasTraining && !hasDieta) return const SizedBox(height: 6);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -717,7 +946,7 @@ class _CalendarTabState extends State<CalendarTab> {
               shape: BoxShape.circle,
             ),
           ),
-        if (hasCita && (hasSession || hasTraining)) const SizedBox(width: 2),
+        if (hasCita && (hasSession || hasTraining || hasDieta)) const SizedBox(width: 2),
         if (hasSession)
           Container(
             width: 4,
@@ -727,7 +956,7 @@ class _CalendarTabState extends State<CalendarTab> {
               shape: BoxShape.circle,
             ),
           ),
-        if (hasSession && hasTraining) const SizedBox(width: 2),
+        if (hasSession && (hasTraining || hasDieta)) const SizedBox(width: 2),
         if (hasTraining)
           Container(
             width: 4,
@@ -736,6 +965,18 @@ class _CalendarTabState extends State<CalendarTab> {
               color: isSelected
                   ? Colors.black.withOpacity(0.5)
                   : const Color(0xFFFF9500),
+              shape: BoxShape.circle,
+            ),
+          ),
+        if (hasTraining && hasDieta) const SizedBox(width: 2),
+        if (hasDieta)
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? Colors.black.withOpacity(0.5)
+                  : const Color(0xFF34C759),
               shape: BoxShape.circle,
             ),
           ),
@@ -751,3 +992,10 @@ class _TrainingDayMatch {
   const _TrainingDayMatch({required this.entrenamiento, required this.dia});
 }
 
+
+/// Helper to pair a diet plan with a specific calendar day.
+class _DietDayMatch {
+  final Dieta dieta;
+  final DiaCalendario dia;
+  const _DietDayMatch({required this.dieta, required this.dia});
+}

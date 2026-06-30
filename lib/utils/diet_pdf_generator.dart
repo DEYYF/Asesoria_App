@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import '../models/dieta_model.dart';
+import '../models/macros_model.dart';
 import '../models/settings_model.dart';
 import 'pdf_export_helper.dart';
 
@@ -101,9 +102,17 @@ class DietPdfGenerator {
               accent,
             ),
           pw.SizedBox(height: settings.sectionSpacing),
-          ...params.dieta.comidas.map(
-            (c) => _buildMealSection(c, settings, primary, secondary),
-          ),
+          if (params.dieta.tipo.trim().toLowerCase() == 'calendario')
+            ..._buildCalendarDietSections(
+              params.dieta,
+              settings,
+              primary,
+              secondary,
+            )
+          else
+            ...params.dieta.comidas.map(
+              (c) => _buildMealSection(c, settings, primary, secondary),
+            ),
         ],
       ),
     );
@@ -370,6 +379,120 @@ class DietPdfGenerator {
         ],
       ),
     );
+  }
+
+
+  static List<pw.Widget> _buildCalendarDietSections(
+    Dieta dieta,
+    PdfSettings settings,
+    PdfColor primary,
+    PdfColor secondary,
+  ) {
+    const order = [
+      'lunes',
+      'martes',
+      'miercoles',
+      'jueves',
+      'viernes',
+      'sabado',
+      'domingo',
+    ];
+
+    if (dieta.diasSemana.isEmpty) {
+      return [
+        pw.Container(
+          padding: const pw.EdgeInsets.all(14),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300),
+            borderRadius: pw.BorderRadius.circular(8),
+          ),
+          child: pw.Text('Esta dieta calendario no tiene días configurados.'),
+        ),
+      ];
+    }
+
+    final widgets = <pw.Widget>[];
+    for (final key in order) {
+      DiaCalendario? dia;
+      for (final item in dieta.diasSemana) {
+        if (_normalizeDay(item.dia) == key) {
+          dia = item;
+          break;
+        }
+      }
+      if (dia == null) continue;
+
+      final macros = _sumDayMacros(dia);
+      widgets.add(
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 10),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: pw.BoxDecoration(
+            color: _withOpacity(primary, 0.08),
+            borderRadius: pw.BorderRadius.circular(8),
+            border: pw.Border.all(color: _withOpacity(primary, 0.25)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                dia.dia.toUpperCase(),
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primary,
+                ),
+              ),
+              pw.Text(
+                '${dia.comidas.length} comidas · ${macros.kcal.round()} kcal · P ${macros.proteinas.round()}g · C ${macros.carbohidratos.round()}g · G ${macros.grasas.round()}g',
+                style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (dia.comidas.isEmpty) {
+        widgets.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 8, bottom: 14),
+            child: pw.Text(
+              'Sin comidas asignadas para este día.',
+              style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            ),
+          ),
+        );
+      } else {
+        for (final comida in dia.comidas) {
+          widgets.add(_buildMealSection(comida, settings, primary, secondary));
+        }
+      }
+    }
+
+    return widgets;
+  }
+
+  static Macros _sumDayMacros(DiaCalendario dia) {
+    return dia.comidas.fold<Macros>(
+      Macros(),
+      (acc, comida) => Macros(
+        kcal: acc.kcal + comida.totales.kcal,
+        proteinas: acc.proteinas + comida.totales.proteinas,
+        carbohidratos: acc.carbohidratos + comida.totales.carbohidratos,
+        grasas: acc.grasas + comida.totales.grasas,
+      ),
+    );
+  }
+
+  static String _normalizeDay(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .trim();
   }
 
   static pw.Widget _buildMealSection(

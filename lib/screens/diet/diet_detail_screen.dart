@@ -13,6 +13,8 @@ import '../../utils/diet_pdf_generator.dart';
 import '../../services/offline_sync_service.dart';
 import '../../widgets/revisions_dialog.dart';
 import 'create_diet_screen.dart';
+import 'create_calendar_diet_screen.dart';
+import 'daily_diet_viewer_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DietDetailScreen extends StatefulWidget {
@@ -313,10 +315,16 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => CreateDietScreen(
-                                clienteId: dieta.clienteId,
-                                dietaId: dieta.id,
-                              ),
+                              builder: (_) => dieta.tipo.trim().toLowerCase() == 'calendario'
+                                  ? CreateCalendarDietScreen(
+                                      clienteId: dieta.clienteId,
+                                      dietaId: dieta.id,
+                                      initialDieta: dieta,
+                                    )
+                                  : CreateDietScreen(
+                                      clienteId: dieta.clienteId,
+                                      dietaId: dieta.id,
+                                    ),
                             ),
                           );
                           if (mounted) {
@@ -328,7 +336,9 @@ class _DietDetailScreenState extends State<DietDetailScreen> {
                       const SizedBox(height: 16),
                       _InfoAndMacros(dieta: dieta),
                       const SizedBox(height: 16),
-                      _MealsCard(dieta: dieta),
+                      dieta.tipo.trim().toLowerCase() == 'calendario'
+                          ? _CalendarDietPlanCard(dieta: dieta)
+                          : _MealsCard(dieta: dieta),
                       const SizedBox(height: 24),
                     ]),
                   ),
@@ -419,28 +429,24 @@ class _HeaderCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (dieta.objetivo != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.primaryColor.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Text(
-                    dieta.objetivo!.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (dieta.tipo.trim().toLowerCase() == 'calendario')
+                    _HeaderBadge(
+                      label: 'DIETA POR CALENDARIO',
+                      icon: Icons.view_week_rounded,
                       color: theme.primaryColor,
                     ),
-                  ),
-                ),
+                  if (dieta.objetivo != null)
+                    _HeaderBadge(
+                      label: dieta.objetivo!.toUpperCase(),
+                      color: theme.primaryColor,
+                    ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -495,6 +501,48 @@ class _HeaderCard extends StatelessWidget {
                   },
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _HeaderBadge extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color color;
+
+  const _HeaderBadge({
+    required this.label,
+    required this.color,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -561,6 +609,334 @@ class _InfoAndMacros extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+
+class _CalendarDietPlanCard extends StatefulWidget {
+  final Dieta dieta;
+  const _CalendarDietPlanCard({required this.dieta});
+
+  @override
+  State<_CalendarDietPlanCard> createState() => _CalendarDietPlanCardState();
+}
+
+class _CalendarDietPlanCardState extends State<_CalendarDietPlanCard> {
+  int _selectedDay = 0;
+
+  static const _days = [
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
+  ];
+
+  DiaCalendario? _dayData(int index) {
+    final normalized = _normalize(_days[index]);
+    for (final dia in widget.dieta.diasSemana) {
+      if (_normalize(dia.dia) == normalized) return dia;
+    }
+    return null;
+  }
+
+  String _normalize(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .trim();
+  }
+
+  Macros _sumDayMacros(DiaCalendario? dia) {
+    if (dia == null) return Macros();
+    return dia.comidas.fold<Macros>(
+      Macros(),
+      (acc, comida) => Macros(
+        kcal: acc.kcal + comida.totales.kcal,
+        proteinas: acc.proteinas + comida.totales.proteinas,
+        carbohidratos: acc.carbohidratos + comida.totales.carbohidratos,
+        grasas: acc.grasas + comida.totales.grasas,
+      ),
+    );
+  }
+
+  DateTime _dateForSelectedDay() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    return DateTime(monday.year, monday.month, monday.day + _selectedDay);
+  }
+
+  void _openDayViewer(DiaCalendario dia) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DailyDietViewerScreen(
+          dieta: widget.dieta,
+          dia: dia,
+          fecha: _dateForSelectedDay(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (widget.dieta.tipo.trim().toLowerCase() != 'calendario') {
+      return _MealsCard(dieta: widget.dieta);
+    }
+
+    if (widget.dieta.diasSemana.isEmpty) {
+      return _EmptyCalendarDietCard(theme: theme);
+    }
+
+    final selected = _dayData(_selectedDay);
+    final macros = _sumDayMacros(selected);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'CALENDARIO DE DIETA',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: theme.hintColor.withOpacity(0.5),
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _WeekSummaryGrid(
+          days: _days,
+          selectedDay: _selectedDay,
+          dayData: _dayData,
+          sumDayMacros: _sumDayMacros,
+          onSelected: (index) => setState(() => _selectedDay = index),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _days[_selectedDay],
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${selected?.comidas.length ?? 0} comidas · ${macros.kcal.round()} kcal · P ${macros.proteinas.round()}g · C ${macros.carbohidratos.round()}g · G ${macros.grasas.round()}g',
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (selected != null)
+                    TextButton.icon(
+                      onPressed: () => _openDayViewer(selected),
+                      icon: const Icon(Icons.visibility_rounded, size: 18),
+                      label: const Text('Ver día'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (selected == null || selected.comidas.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  child: Text(
+                    'Sin comidas asignadas para este día.',
+                    style: TextStyle(color: theme.hintColor),
+                  ),
+                )
+              else
+                ...selected.comidas.map((comida) => _MealItem(comida: comida)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyCalendarDietCard extends StatelessWidget {
+  final ThemeData theme;
+  const _EmptyCalendarDietCard({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.calendar_month_outlined, size: 42, color: theme.hintColor),
+          const SizedBox(height: 12),
+          Text(
+            'Esta dieta calendario no tiene días configurados',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pulsa Editar para añadir comidas por día de la semana.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: theme.hintColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekSummaryGrid extends StatelessWidget {
+  final List<String> days;
+  final int selectedDay;
+  final DiaCalendario? Function(int index) dayData;
+  final Macros Function(DiaCalendario? dia) sumDayMacros;
+  final ValueChanged<int> onSelected;
+
+  const _WeekSummaryGrid({
+    required this.days,
+    required this.selectedDay,
+    required this.dayData,
+    required this.sumDayMacros,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 760;
+        final itemWidth = isWide ? (constraints.maxWidth - 72) / 4 : 170.0;
+
+        return ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+            children: List.generate(days.length, (index) {
+              final dia = dayData(index);
+              final macros = sumDayMacros(dia);
+              final isSelected = index == selectedDay;
+              final hasMeals = dia != null && dia.comidas.isNotEmpty;
+
+              return Padding(
+                padding: EdgeInsets.only(right: index == days.length - 1 ? 0 : 12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => onSelected(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: itemWidth,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.primaryColor.withOpacity(0.12)
+                          : theme.cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? theme.primaryColor.withOpacity(0.45)
+                            : theme.dividerColor.withOpacity(0.08),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                days[index],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  color: isSelected ? theme.primaryColor : null,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              hasMeals ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                              size: 18,
+                              color: hasMeals ? theme.primaryColor : theme.hintColor.withOpacity(0.45),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${dia?.comidas.length ?? 0} comidas',
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${macros.kcal.round()} kcal',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'P ${macros.proteinas.round()} · C ${macros.carbohidratos.round()} · G ${macros.grasas.round()}',
+                          style: TextStyle(
+                            color: theme.hintColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              }),
+            ),
+          ),
+        );
+      },
     );
   }
 }
