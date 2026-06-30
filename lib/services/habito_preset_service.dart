@@ -46,7 +46,7 @@ class HabitoPresetService {
 
   HabitoPresetService(this._authService);
 
-  String get _baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+  String get _baseUrl => dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
 
   Future<List<HabitoPreset>> fetchPresets({String? categoria}) async {
     try {

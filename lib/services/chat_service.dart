@@ -32,7 +32,7 @@ class ChatService {
   void connect() {
     if (_socket != null && _socket!.connected) return;
 
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:4000';
+    final baseUrl = dotenv.env['BASE_URL'] ?? 'https://asesoria-backend.onrender.com';
 
     _socket = IO.io(
       baseUrl,

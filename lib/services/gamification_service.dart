@@ -10,7 +10,7 @@ class GamificationService {
   GamificationService(this.authService);
 
   String get baseUrl {
-    final url = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    final url = dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
     return '$url/gamification';
   }
 

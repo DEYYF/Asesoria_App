@@ -38,7 +38,7 @@ class AuthService with ChangeNotifier {
     _isLoading = true;
     // Don't notify here to avoid router refreshes during loading
 
-    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
 
     try {
       final response = await http.post(
@@ -79,7 +79,7 @@ class AuthService with ChangeNotifier {
     _isLoading = true;
     // Don't notify here to avoid router refreshes during loading
 
-    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
 
     try {
       final response = await http.post(
@@ -143,7 +143,7 @@ class AuthService with ChangeNotifier {
   }
 
   Future<bool> updateProfile(Map<String, dynamic> data) async {
-    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/users/me/profile'),
@@ -171,7 +171,7 @@ class AuthService with ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> checkClientStatus(String email) async {
-    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/check-client-status'),

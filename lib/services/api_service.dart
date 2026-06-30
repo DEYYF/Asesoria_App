@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/isolate_utils.dart';
 
 class ApiService {
-  String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3000/api';
+  String get baseUrl => dotenv.env['API_URL'] ?? 'https://asesoria-backend.onrender.com/api';
 
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
