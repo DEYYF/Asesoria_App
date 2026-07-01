@@ -21,6 +21,7 @@ import '../../services/settings_service.dart';
 import '../../models/settings_model.dart';
 import '../../services/chat_service.dart';
 import '../../utils/isolate_utils.dart';
+import '../widgets/client_blocked_screen.dart';
 import 'profile/client_view_layout.dart';
 import 'profile/advisor_view_layout.dart';
 import 'profile/calendar_tab.dart'; // Add import
@@ -349,6 +350,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     // So distinct logic:
 
     if (auth.isClient) {
+      if ((_cliente!.estado ?? 'Activo') == 'Baja') {
+        return ClientBlockedScreen(cliente: _cliente!);
+      }
+
       return ClientViewLayout(
         cliente: _cliente!,
         hasDieta: _hasDieta,

@@ -959,21 +959,22 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
             ElevatedButton(
               onPressed: () async {
                 final api = Provider.of<ApiService>(context, listen: false);
+                final discount = double.tryParse(discountController.text) ?? 0;
+                final hasClient = p['clienteId'] != null;
+
                 try {
-                  await api.put('/presupuestos/${p['_id']}', {
-                    'descuento': double.tryParse(discountController.text) ?? 0,
-                    'estado': status,
-                  });
-                  Navigator.pop(ctx);
-                  _fetchData();
+                  // Si un borrador se acepta sin cliente vinculado, NO cambiamos
+                  // primero el estado a aceptado. Eso era lo que generaba un
+                  // presupuesto registrado agrupado como "Desconocido".
+                  // Primero guardamos el descuento, luego creamos/vinculamos el
+                  // cliente y solo al final marcamos el presupuesto como aceptado.
+                  if (status == 'aceptado' && !hasClient) {
+                    await api.put('/presupuestos/${p['_id']}', {
+                      'descuento': discount,
+                    });
 
-                  if (status == 'aceptado') {
-                    // Check if it already has a client linked
-                    final hasClient = p['clienteId'] != null;
-                    if (hasClient)
-                      return; // Don't show create dialog if already linked
+                    Navigator.pop(ctx);
 
-                    // Extract IDs for pre-filling
                     final tarifaId = p['tarifaId'] is Map
                         ? p['tarifaId']['_id']
                         : p['tarifaId'];
@@ -996,7 +997,15 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
                         budgetId: p['_id'],
                       );
                     }
+                    return;
                   }
+
+                  await api.put('/presupuestos/${p['_id']}', {
+                    'descuento': discount,
+                    'estado': status,
+                  });
+                  Navigator.pop(ctx);
+                  _fetchData();
                 } catch (e) {
                   ScaffoldMessenger.of(
                     context,
@@ -1129,7 +1138,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
               groupValue: currentStatus,
               onChanged: (val) {
                 Navigator.pop(ctx);
-                _updateStatus(p['_id'], val!);
+                _updateStatus(p, val!);
               },
             );
           }).toList(),
@@ -1138,8 +1147,19 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     );
   }
 
-  Future<void> _updateStatus(String id, String newStatus) async {
+  Future<void> _updateStatus(dynamic p, String newStatus) async {
     final api = Provider.of<ApiService>(context, listen: false);
+    final id = p['_id'];
+    final hasClient = p['clienteId'] != null;
+
+    // Aceptar un borrador sin cliente debe abrir el flujo de creación/vinculación.
+    // No se envía estado=aceptado todavía para evitar que aparezca en Registrados
+    // como "Desconocido".
+    if (newStatus == 'aceptado' && !hasClient) {
+      _handleAcceptAndCreate(p);
+      return;
+    }
+
     try {
       await api.put('/presupuestos/$id', {'estado': newStatus});
       if (mounted) {
@@ -1192,7 +1212,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Cliente creado y presupuesto vinculado (Pendiente)',
+                'Cliente creado y presupuesto vinculado correctamente',
               ),
             ),
           );

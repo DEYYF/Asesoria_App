@@ -13,6 +13,7 @@ import 'widgets/billing_settings_dialog.dart';
 import 'widgets/support_dialog.dart';
 import 'templates_screen.dart';
 import 'email_templates_screen.dart';
+import 'meal_templates_settings_screen.dart';
 import 'automation_screen.dart';
 import 'modules_management_screen.dart';
 import '../../providers/settings_provider.dart';
@@ -345,6 +346,26 @@ class _SettingsScreenState extends State<SettingsScreen>
                       ),
                     ),
                     onTap: _showAccentColorPicker,
+                  ),
+                ],
+              ),
+
+              const SettingsSectionHeader(title: 'Nutrición'),
+              SettingsGroup(
+                children: [
+                  SettingsNavigationTile(
+                    title: 'Plantillas de Comidas',
+                    subtitle: 'Edita o elimina plantillas globales de dieta',
+                    icon: Icons.restaurant_menu_rounded,
+                    iconColor: Colors.green,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MealTemplatesSettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

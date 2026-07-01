@@ -49,10 +49,9 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
 
     final size = MediaQuery.of(context).size;
 
-    // Filter by type
-    // Filter by type
+    final requestedType = MessageTemplate.normalizeType(widget.type);
     final typeFiltered = service.templates
-        .where((t) => t.type == widget.type || t.type == 'both')
+        .where((t) => t.supports(requestedType))
         .toList();
 
     var displayTemplates = _filter == 'Todas'
@@ -305,17 +304,19 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: t.type == 'email'
+                    color: (t.type == 'email' || t.type == 'both' && widget.type == 'email')
                         ? Colors.blue.withOpacity(0.1)
                         : Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    t.type == 'email'
+                    (t.type == 'email' || t.type == 'both' && widget.type == 'email')
                         ? Icons.email_outlined
                         : Icons.chat_bubble_outline,
                     size: 16,
-                    color: t.type == 'email' ? Colors.blue : Colors.green,
+                    color: (t.type == 'email' || t.type == 'both' && widget.type == 'email')
+                        ? Colors.blue
+                        : Colors.green,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -359,7 +360,9 @@ class _TemplateSelectorDialogState extends State<TemplateSelectorDialog> {
                 ),
               ],
             ),
-            if (t.type == 'email' && t.subject != null) ...[
+            if ((t.type == 'email' || t.type == 'both') &&
+                t.subject != null &&
+                t.subject!.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 'Asunto: ${t.subject}',

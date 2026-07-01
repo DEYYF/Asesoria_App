@@ -451,8 +451,6 @@ class _FacturaDetailScreenState extends State<FacturaDetailScreen> {
       child: Column(
         children: [
           _buildTotalRow('Subtotal', _factura!.subtotal, theme, false),
-          const SizedBox(height: 8),
-          _buildTotalRow('IVA', _factura!.totalIVA, theme, false),
           if (_factura!.descuentoGlobal > 0) ...[
             const SizedBox(height: 8),
             _buildTotalRow(
@@ -461,7 +459,17 @@ class _FacturaDetailScreenState extends State<FacturaDetailScreen> {
               theme,
               false,
             ),
+            const SizedBox(height: 8),
+            _buildTotalRow(
+              'Base imponible',
+              _factura!.subtotal -
+                  (_factura!.subtotal * _factura!.descuentoGlobal / 100),
+              theme,
+              false,
+            ),
           ],
+          const SizedBox(height: 8),
+          _buildTotalRow('IVA', _factura!.totalIVA, theme, false),
           const Divider(height: 24),
           _buildTotalRow('TOTAL', _factura!.total, theme, true),
         ],
