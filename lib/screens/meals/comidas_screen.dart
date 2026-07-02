@@ -6,8 +6,8 @@ import '../../models/macros_model.dart';
 import '../../services/api_service.dart';
 import '../../widgets/dialogs/add_edit_ingrediente_dialog.dart';
 import '../../widgets/dialogs/add_edit_receta_dialog.dart';
-import '../../utils/isolate_utils.dart';
 import '../../services/settings_service.dart';
+import '../../services/food_catalog_cache_service.dart';
 import '../../models/settings_model.dart';
 import 'widgets/add_food_options_sheet.dart';
 import 'widgets/barcode_scanner_screen.dart';
@@ -41,35 +41,34 @@ class _ComidasScreenState extends State<ComidasScreen>
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
     final settingsService = SettingsService(api);
 
     try {
-      final ingsRes = await api.get('/comidas/ingredientes');
-      final recsRes = await api.get('/comidas/recetas');
-      final settings = await settingsService.getSettings();
+      final results = await Future.wait([
+        FoodCatalogCacheService.getCatalog(api, forceRefresh: forceRefresh),
+        settingsService.getSettings(),
+      ]);
+      final catalog = results[0] as FoodCatalogData;
+      final settings = results[1] as UserSettings;
 
-      if (ingsRes.statusCode == 200 && recsRes.statusCode == 200) {
-        final ingredientes = await parseIngredientesInIsolate(ingsRes.body);
-        final recetas = await parseRecetasInIsolate(recsRes.body);
-
-        setState(() {
-          _ingredientes = ingredientes;
-          _recetas = recetas;
-          _settings = settings;
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _ingredientes = catalog.ingredientes;
+        _recetas = catalog.recetas;
+        _settings = settings;
+        _isLoading = false;
+      });
     } catch (e) {
       debugPrint('Error loading comidas: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error al cargar datos: $e')));
+        setState(() => _isLoading = false);
       }
-      setState(() => _isLoading = false);
     }
   }
 
@@ -123,7 +122,7 @@ class _ComidasScreenState extends State<ComidasScreen>
     showDialog(
       context: context,
       builder: (context) =>
-          AddEditIngredienteDialog(ingrediente: ing, onSuccess: _loadData),
+          AddEditIngredienteDialog(ingrediente: ing, onSuccess: () => _loadData(forceRefresh: true)),
     );
   }
 
@@ -133,7 +132,7 @@ class _ComidasScreenState extends State<ComidasScreen>
       builder: (context) => AddEditRecetaDialog(
         receta: receta,
         ingredientesDisponibles: _ingredientes,
-        onSuccess: _loadData,
+        onSuccess: () => _loadData(forceRefresh: true),
       ),
     );
   }
@@ -147,6 +146,7 @@ class _ComidasScreenState extends State<ComidasScreen>
       final api = Provider.of<ApiService>(context, listen: false);
       try {
         await api.delete('/comidas/ingredientes/${ing.id}');
+        FoodCatalogCacheService.invalidate();
         _loadData();
       } catch (e) {
         if (mounted) {
@@ -167,6 +167,7 @@ class _ComidasScreenState extends State<ComidasScreen>
       final api = Provider.of<ApiService>(context, listen: false);
       try {
         await api.delete('/comidas/recetas/${receta.id}');
+        FoodCatalogCacheService.invalidate();
         _loadData();
       } catch (e) {
         if (mounted) {

@@ -11,7 +11,7 @@ import '../../models/receta_model.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/offline_sync_service.dart';
-import '../../utils/isolate_utils.dart';
+import '../../services/food_catalog_cache_service.dart';
 import 'diet_detail_screen.dart';
 
 class CreateCalendarDietScreen extends StatefulWidget {
@@ -141,18 +141,10 @@ class _CreateCalendarDietScreenState extends State<CreateCalendarDietScreen> {
   Future<void> _loadAll() async {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final results = await Future.wait([
-        api.get('/comidas/recetas'),
-        api.get('/comidas/ingredientes'),
-      ]);
-
+      final catalog = await FoodCatalogCacheService.getCatalog(api);
       if (!mounted) return;
-      if (results[0].statusCode == 200) {
-        _recetas = await parseRecetasInIsolate(results[0].body);
-      }
-      if (results[1].statusCode == 200) {
-        _ingredientes = await parseIngredientesInIsolate(results[1].body);
-      }
+      _recetas = catalog.recetas;
+      _ingredientes = catalog.ingredientes;
     } catch (e) {
       debugPrint('Error loading food data: $e');
     }

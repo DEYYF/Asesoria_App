@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/ingrediente_model.dart';
 import '../../services/api_service.dart';
+import '../../services/food_catalog_cache_service.dart';
 import '../../utils/notification_helper.dart';
 
 class AddEditIngredienteDialog extends StatefulWidget {
@@ -89,6 +90,7 @@ class _AddEditIngredienteDialogState extends State<AddEditIngredienteDialog> {
       } else {
         await api.post('/comidas/ingredientes', payload);
       }
+      FoodCatalogCacheService.invalidate();
       widget.onSuccess();
       if (mounted) Navigator.pop(context);
     } catch (e) {

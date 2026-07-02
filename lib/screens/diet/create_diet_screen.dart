@@ -6,11 +6,11 @@ import 'dart:math';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/offline_sync_service.dart';
+import '../../services/food_catalog_cache_service.dart';
 import '../../models/dieta_model.dart';
 import '../../models/receta_model.dart';
 import '../../models/ingrediente_model.dart';
 import '../../models/macros_model.dart';
-import '../../utils/isolate_utils.dart';
 import 'diet_detail_screen.dart';
 
 class CreateDietScreen extends StatefulWidget {
@@ -64,20 +64,13 @@ class _CreateDietScreenState extends State<CreateDietScreen> {
   Future<void> _loadAll() async {
     final api = Provider.of<ApiService>(context, listen: false);
 
-    // 1. Data for selectors
+    // 1. Data for selectors. Cached to avoid requesting the full food catalog
+    // every time the diet creator opens.
     try {
-      final results = await Future.wait([
-        api.get('/comidas/recetas'),
-        api.get('/comidas/ingredientes'),
-      ]);
-
+      final catalog = await FoodCatalogCacheService.getCatalog(api);
       if (mounted) {
-        if (results[0].statusCode == 200) {
-          _recetas = await parseRecetasInIsolate(results[0].body);
-        }
-        if (results[1].statusCode == 200) {
-          _ingredientes = await parseIngredientesInIsolate(results[1].body);
-        }
+        _recetas = catalog.recetas;
+        _ingredientes = catalog.ingredientes;
       }
     } catch (e) {
       debugPrint('Error loading food data: $e');

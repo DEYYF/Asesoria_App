@@ -4,6 +4,7 @@ import '../../models/ingrediente_model.dart';
 import '../../models/receta_model.dart';
 import '../../models/macros_model.dart';
 import '../../services/api_service.dart';
+import '../../services/food_catalog_cache_service.dart';
 import '../../utils/notification_helper.dart';
 
 class AddEditRecetaDialog extends StatefulWidget {
@@ -93,6 +94,7 @@ class _AddEditRecetaDialogState extends State<AddEditRecetaDialog> {
       } else {
         await api.post('/comidas/recetas', payload);
       }
+      FoodCatalogCacheService.invalidate();
       widget.onSuccess();
       if (mounted) Navigator.pop(context);
     } catch (e) {
