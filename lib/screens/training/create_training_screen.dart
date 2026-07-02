@@ -52,7 +52,11 @@ class _CreateTrainingScreenState extends State<CreateTrainingScreen> {
     try {
       final res = await api.get(
         '/ejercicios',
-        params: {'t': DateTime.now().millisecondsSinceEpoch.toString()},
+        params: {
+          'limit': '5000',
+          'page': '1',
+          't': DateTime.now().millisecondsSinceEpoch.toString(),
+        },
       );
       if (res.statusCode == 200) {
         final ejercicios = await parseEjerciciosInIsolate(res.body);

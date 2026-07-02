@@ -82,7 +82,10 @@ class _EjerciciosScreenState extends State<EjerciciosScreen> {
   Future<void> _loadEjercicios() async {
     final api = Provider.of<ApiService>(context, listen: false);
     try {
-      final res = await api.get('/ejercicios');
+      final res = await api.get(
+        '/ejercicios',
+        params: {'limit': '5000', 'page': '1'},
+      );
       if (res.statusCode == 200) {
         // Parse JSON in isolate to avoid blocking UI
         final ejercicios = await parseEjerciciosInIsolate(res.body);
