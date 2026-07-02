@@ -17,6 +17,8 @@ class EjercicioDetailScreen extends StatefulWidget {
 class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
   late Ejercicio _ejercicio;
   YoutubePlayerController? _youtubeController;
+  bool _hideYoutubeForDialog = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -41,47 +43,65 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
   }
 
   Future<void> _deleteEjercicio() async {
+    if (_isDeleting) return;
+
+    // youtube_player_flutter usa una vista nativa/WebView. En algunos Android esa
+    // vista se queda por encima del AlertDialog y bloquea los taps de Cancelar/Eliminar.
+    // Ocultamos temporalmente el reproductor antes de abrir el diálogo.
+    if (mounted) {
+      setState(() => _hideYoutubeForDialog = true);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar Ejercicio'),
+      useRootNavigator: true,
+      barrierDismissible: !_isDeleting,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar ejercicio'),
         content: Text(
           '¿Estás seguro de que deseas eliminar "${_ejercicio.nombre}"?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(false),
             child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.white),
-            ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(true),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      final api = Provider.of<ApiService>(context, listen: false);
-      try {
-        await api.delete('/ejercicios/${_ejercicio.id}');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ejercicio eliminado correctamente')),
-          );
-          Navigator.pop(context, true); // Pop with true to indicate deletion
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error al eliminar: $e')));
-        }
-      }
+    if (!mounted) return;
+
+    if (confirmed != true) {
+      setState(() => _hideYoutubeForDialog = false);
+      return;
+    }
+
+    setState(() => _isDeleting = true);
+
+    final api = Provider.of<ApiService>(context, listen: false);
+    try {
+      await api.delete('/ejercicios/${_ejercicio.id}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ejercicio eliminado correctamente')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isDeleting = false;
+        _hideYoutubeForDialog = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al eliminar: $e')),
+      );
     }
   }
 
@@ -140,7 +160,7 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
               Icons.delete_outline_rounded,
               color: theme.colorScheme.error,
             ),
-            onPressed: _deleteEjercicio,
+            onPressed: _isDeleting ? null : _deleteEjercicio,
             tooltip: 'Eliminar',
           ),
           const SizedBox(width: 8),
@@ -192,7 +212,7 @@ class _EjercicioDetailScreenState extends State<EjercicioDetailScreen> {
               const SizedBox(height: 24),
 
               // Video Player
-              if (_youtubeController != null) ...[
+              if (_youtubeController != null && !_hideYoutubeForDialog) ...[
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
