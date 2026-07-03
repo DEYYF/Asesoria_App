@@ -27,6 +27,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
 
   final _conceptoController = TextEditingController();
   final _notasController = TextEditingController();
+  final _descuentoGlobalController = TextEditingController(text: '0');
 
   // Receptor controllers
   final _receptorNombreController = TextEditingController();
@@ -82,6 +83,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
         _vencimiento = factura.vencimiento;
         _metodoPago = factura.metodoPago;
         _selectedAsesorId = factura.asesorId;
+        _descuentoGlobalController.text = factura.descuentoGlobal.toStringAsFixed(0);
 
         // Load items
         _items = factura.items.map((it) {
@@ -90,6 +92,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
           form.cantidad = it.cantidad;
           form.precioUnitario = it.precioUnitario;
           form.iva = it.iva;
+          form.descuento = it.descuento;
           return form;
         }).toList();
 
@@ -135,15 +138,33 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
     });
   }
 
-  double get _totalIVA {
-    return _items.fold(0.0, (sum, item) {
-      final base = (item.cantidad ?? 0) * (item.precioUnitario ?? 0);
-      final iva = base * ((item.iva ?? 21) / 100);
-      return sum + iva;
-    });
+  double get _descuentoGlobal {
+    final value = double.tryParse(_descuentoGlobalController.text.replaceAll(',', '.')) ?? 0;
+    return value.clamp(0, 100).toDouble();
   }
 
-  double get _total => _subtotal + _totalIVA;
+  double get _subtotalConDescuentos {
+    final subtotalLineas = _items.fold(0.0, (sum, item) {
+      final base = (item.cantidad ?? 0) * (item.precioUnitario ?? 0);
+      final descuentoLinea = base * (((item.descuento ?? 0).clamp(0, 100)) / 100);
+      return sum + (base - descuentoLinea);
+    });
+    return subtotalLineas * (1 - (_descuentoGlobal / 100));
+  }
+
+  double get _totalIVA {
+    final totalIvaLineas = _items.fold(0.0, (sum, item) {
+      final base = (item.cantidad ?? 0) * (item.precioUnitario ?? 0);
+      final descuentoLinea = base * (((item.descuento ?? 0).clamp(0, 100)) / 100);
+      final baseLinea = base - descuentoLinea;
+      final pesoGlobal = 1 - (_descuentoGlobal / 100);
+      final iva = (baseLinea * pesoGlobal) * ((item.iva ?? 21) / 100);
+      return sum + iva;
+    });
+    return totalIvaLineas;
+  }
+
+  double get _total => _subtotalConDescuentos + _totalIVA;
 
   Future<void> _saveFactura() async {
     if (!_formKey.currentState!.validate()) return;
@@ -163,18 +184,21 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
         'items': _items.map((item) {
           final base = (item.cantidad ?? 0) * (item.precioUnitario ?? 0);
           final ivaVal = item.iva ?? 21;
-          final ivaImporte = base * (ivaVal / 100);
+          final descuentoVal = (item.descuento ?? 0).clamp(0, 100).toDouble();
+          final baseConDescuento = base * (1 - descuentoVal / 100);
+          final ivaImporte = baseConDescuento * (ivaVal / 100);
           return {
             'descripcion': item.descripcion,
             'cantidad': item.cantidad,
             'precioUnitario': item.precioUnitario,
             'iva': ivaVal,
-            'descuento': 0,
-            'total': base + ivaImporte,
+            'descuento': descuentoVal,
+            'total': baseConDescuento + ivaImporte,
           };
         }).toList(),
         'vencimiento': _vencimiento.toIso8601String(),
         'metodoPago': _metodoPago,
+        'descuentoGlobal': _descuentoGlobal,
         'notas': _notasController.text.isNotEmpty
             ? _notasController.text
             : null,
@@ -244,6 +268,8 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(20),
                       children: [
+                        _buildIntroCard(theme, isDark),
+                        const SizedBox(height: 16),
                         if (!_isEdit) ...[
                           _buildClienteCard(theme, isDark),
                           const SizedBox(height: 16),
@@ -255,6 +281,8 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                         _buildDetallesCard(theme, isDark),
                         const SizedBox(height: 16),
                         _buildItemsSection(theme, isDark),
+                        const SizedBox(height: 16),
+                        _buildTotalsPreviewCard(theme, isDark),
                         const SizedBox(height: 16),
                         if (_isAdmin)
                           _buildAsesorCard(theme, isDark), // Only show if admin
@@ -268,6 +296,40 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildIntroCard(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [theme.primaryColor, theme.primaryColor.withOpacity(0.72)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(.18), borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_isEdit ? 'Editar factura' : 'Nueva factura', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text('Rellena cliente, conceptos, descuentos e IVA. El total se calcula en tiempo real.', style: TextStyle(color: Colors.white.withOpacity(.86), fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -840,103 +902,163 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
             children: [
               Expanded(
                 flex: 2,
-                child: TextFormField(
+                child: _compactNumberField(
                   initialValue: item.cantidad?.toString(),
-                  decoration: InputDecoration(
-                    labelText: 'Cant.',
-                    filled: true,
-                    fillColor: isDark
-                        ? Colors.white.withOpacity(0.05)
-                        : Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
-                    isDense: true,
-                  ),
-                  keyboardType: TextInputType.number,
+                  label: 'Cant.',
+                  isDark: isDark,
                   onChanged: (value) {
-                    item.cantidad = int.tryParse(value) ?? 1;
+                    item.cantidad = int.tryParse(value.replaceAll(',', '.')) ?? 1;
                     setState(() {});
                   },
-                  validator: (value) => value?.isEmpty ?? true ? 'Req.' : null,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 3,
-                child: TextFormField(
+                child: _compactNumberField(
                   initialValue: item.precioUnitario?.toString(),
-                  decoration: InputDecoration(
-                    labelText: 'Precio €',
-                    filled: true,
-                    fillColor: isDark
-                        ? Colors.white.withOpacity(0.05)
-                        : Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
-                    isDense: true,
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  label: 'Precio €',
+                  isDark: isDark,
+                  decimal: true,
                   onChanged: (value) {
-                    item.precioUnitario = double.tryParse(value) ?? 0;
+                    item.precioUnitario = double.tryParse(value.replaceAll(',', '.')) ?? 0;
                     setState(() {});
                   },
-                  validator: (value) => value?.isEmpty ?? true ? 'Req.' : null,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'IVA %',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withOpacity(0.05)
-                            : Colors.grey[50],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<double>(
-                          value: item.iva ?? 21,
-                          isExpanded: true,
-                          items: [0.0, 4.0, 10.0, 21.0].map((val) {
-                            return DropdownMenuItem<double>(
-                              value: val,
-                              child: Text(
-                                '${val.toInt()}%',
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() => item.iva = val ?? 21);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                child: _compactNumberField(
+                  initialValue: item.descuento?.toStringAsFixed(0),
+                  label: 'Dto %',
+                  isDark: isDark,
+                  decimal: true,
+                  onChanged: (value) {
+                    item.descuento = double.tryParse(value.replaceAll(',', '.')) ?? 0;
+                    setState(() {});
+                  },
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<double>(
+                  value: item.iva ?? 21,
+                  decoration: InputDecoration(
+                    labelText: 'IVA aplicado',
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    isDense: true,
+                  ),
+                  items: [0.0, 4.0, 10.0, 21.0].map((val) => DropdownMenuItem<double>(value: val, child: Text('${val.toInt()}%'))).toList(),
+                  onChanged: (val) => setState(() => item.iva = val ?? 21),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: theme.primaryColor.withOpacity(.08), borderRadius: BorderRadius.circular(12)),
+                  child: Text('Línea: ${item.totalConIva.toStringAsFixed(2)}€', textAlign: TextAlign.center, style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactNumberField({
+    required String? initialValue,
+    required String label,
+    required bool isDark,
+    required ValueChanged<String> onChanged,
+    bool decimal = false,
+  }) {
+    return TextFormField(
+      initialValue: initialValue,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.all(12),
+        isDense: true,
+      ),
+      keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+      onChanged: onChanged,
+      validator: (value) => value?.isEmpty ?? true ? 'Req.' : null,
+    );
+  }
+
+  Widget _buildTotalsPreviewCard(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.primaryColor.withOpacity(.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: theme.primaryColor.withOpacity(.10), borderRadius: BorderRadius.circular(12)),
+                child: Icon(Icons.calculate_outlined, color: theme.primaryColor),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Resumen económico', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _descuentoGlobalController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Descuento global (%)',
+              helperText: 'Se aplica antes del IVA, sobre la base imponible.',
+              filled: true,
+              fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.percent_rounded),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          _totalRow('Subtotal bruto', _subtotal, theme),
+          _totalRow('Base imponible', _subtotalConDescuentos, theme),
+          _totalRow('IVA', _totalIVA, theme),
+          const Divider(height: 22),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total factura', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text('${_total.toStringAsFixed(2)}€', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: theme.primaryColor)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _totalRow(String label, double value, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: theme.hintColor)),
+          Text('${value.toStringAsFixed(2)}€', style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -1105,6 +1227,7 @@ class _CreateFacturaScreenState extends State<CreateFacturaScreen> {
   void dispose() {
     _conceptoController.dispose();
     _notasController.dispose();
+    _descuentoGlobalController.dispose();
     _receptorNombreController.dispose();
     _receptorNifController.dispose();
     _receptorDireccionController.dispose();
@@ -1120,4 +1243,18 @@ class FacturaItemForm {
   int? cantidad = 1;
   double? precioUnitario = 0;
   double? iva = 21;
+  double? descuento = 0;
+
+  double get base {
+    return (cantidad ?? 0) * (precioUnitario ?? 0);
+  }
+
+  double get baseConDescuento {
+    final d = ((descuento ?? 0).clamp(0, 100)).toDouble();
+    return base * (1 - d / 100);
+  }
+
+  double get totalConIva {
+    return baseConDescuento * (1 + ((iva ?? 21) / 100));
+  }
 }
