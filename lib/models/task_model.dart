@@ -23,12 +23,55 @@ class TaskTag {
   final String label;
   final String color;
 
-  TaskTag({required this.label, this.color = 'blue'});
+  const TaskTag({required this.label, this.color = 'blue'});
 
   factory TaskTag.fromJson(Map<String, dynamic> json) =>
       TaskTag(label: json['label'] ?? '', color: json['color'] ?? 'blue');
 
   Map<String, dynamic> toJson() => {'label': label, 'color': color};
+}
+
+
+class TaskComment {
+  final String text;
+  final String authorName;
+  final DateTime createdAt;
+
+  TaskComment({
+    required this.text,
+    this.authorName = 'Usuario',
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  factory TaskComment.fromJson(Map<String, dynamic> json) => TaskComment(
+    text: json['text'] ?? '',
+    authorName: json['authorName'] ?? json['author'] ?? 'Usuario',
+    createdAt: json['createdAt'] != null
+        ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+        : DateTime.now(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'authorName': authorName,
+    'createdAt': createdAt.toIso8601String(),
+  };
+}
+
+class TaskAttachment {
+  final String name;
+  final String url;
+  final String type;
+
+  TaskAttachment({required this.name, required this.url, this.type = 'link'});
+
+  factory TaskAttachment.fromJson(Map<String, dynamic> json) => TaskAttachment(
+    name: json['name'] ?? json['nombre'] ?? 'Adjunto',
+    url: json['url'] ?? '',
+    type: json['type'] ?? 'link',
+  );
+
+  Map<String, dynamic> toJson() => {'name': name, 'url': url, 'type': type};
 }
 
 class Tarea {
@@ -49,7 +92,8 @@ class Tarea {
   final String? assigneeName;
   final List<SubTask> subtasks;
   final List<TaskTag> tags;
-  final List<dynamic> attachments;
+  final List<TaskAttachment> attachments;
+  final List<TaskComment> comments;
 
   Tarea({
     required this.id,
@@ -70,6 +114,7 @@ class Tarea {
     this.subtasks = const [],
     this.tags = const [],
     this.attachments = const [],
+    this.comments = const [],
   });
 
   factory Tarea.fromJson(Map<String, dynamic> json) {
@@ -113,7 +158,16 @@ class Tarea {
       tags:
           (json['tags'] as List?)?.map((e) => TaskTag.fromJson(e)).toList() ??
           [],
-      attachments: json['attachments'] as List? ?? [],
+      attachments:
+          (json['attachments'] as List?)
+              ?.map((e) => TaskAttachment.fromJson(Map<String, dynamic>.from(e)))
+              .toList() ??
+          [],
+      comments:
+          (json['comments'] as List?)
+              ?.map((e) => TaskComment.fromJson(Map<String, dynamic>.from(e)))
+              .toList() ??
+          [],
     );
   }
 
@@ -130,7 +184,8 @@ class Tarea {
       'origin': origin,
       'subtasks': subtasks.map((e) => e.toJson()).toList(),
       'tags': tags.map((e) => e.toJson()).toList(),
-      'attachments': attachments,
+      'attachments': attachments.map((e) => e.toJson()).toList(),
+      'comments': comments.map((e) => e.toJson()).toList(),
       'statusChangedAt': statusChangedAt.toIso8601String(),
     };
   }
@@ -147,7 +202,8 @@ class Tarea {
     String? assigneeId,
     List<SubTask>? subtasks,
     List<TaskTag>? tags,
-    List<dynamic>? attachments,
+    List<TaskAttachment>? attachments,
+    List<TaskComment>? comments,
   }) {
     return Tarea(
       id: id,
@@ -166,6 +222,7 @@ class Tarea {
       subtasks: subtasks ?? this.subtasks,
       tags: tags ?? this.tags,
       attachments: attachments ?? this.attachments,
+      comments: comments ?? this.comments,
     );
   }
 }
