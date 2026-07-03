@@ -104,6 +104,13 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
     final isBorradores = _tabController.index == 1;
     final filtered = _presupuestos.where((p) {
       final isBorrador = p['estado'] == 'borrador';
+      final hasClient = p['clienteId'] != null;
+      final isAcceptedOrPaid = p['estado'] == 'aceptado' || p['estado'] == 'pagado';
+
+      // Seguridad visual: si quedó algún presupuesto aceptado/pagado sin cliente
+      // por el flujo antiguo, no lo mostramos como registrado "Desconocido".
+      if (!isBorradores && isAcceptedOrPaid && !hasClient) return false;
+
       return isBorradores ? isBorrador : !isBorrador;
     }).toList();
 
@@ -1203,8 +1210,9 @@ class _PresupuestosScreenState extends State<PresupuestosScreen>
         // Update budget with client ID
         await api.put('/presupuestos/$budgetId', {
           'clienteId': newClientId,
-          'nombreCliente': null,
-          'emailCliente': null,
+          // No enviamos nombreCliente/emailCliente a null. El backend los conserva
+          // como fallback y evita que aparezca el presupuesto como "Desconocido"
+          // mientras se refresca el populate del cliente.
           'estado': 'aceptado', // Trigger auto-invoice!
         });
 
