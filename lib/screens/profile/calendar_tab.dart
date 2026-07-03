@@ -350,9 +350,15 @@ class _CalendarTabState extends State<CalendarTab> {
             ),
           ),
           const Spacer(),
-          _buildActionButton(Icons.history_rounded, () {}),
+          _buildActionButton(
+            Icons.format_list_bulleted_rounded,
+            _showPendingEventsList,
+          ),
           const SizedBox(width: 8),
-          _buildActionButton(Icons.calendar_month_rounded, () {}),
+          _buildActionButton(
+            Icons.today_rounded,
+            () => setState(() => _selectedDate = DateTime.now()),
+          ),
         ],
       ),
     );
@@ -538,6 +544,298 @@ class _CalendarTabState extends State<CalendarTab> {
           (match) => _buildDietEventCard(theme, match),
         ),
       ],
+    );
+  }
+
+
+  List<_CalendarPendingEvent> _getPendingEvents({int daysAhead = 30}) {
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day);
+    final events = <_CalendarPendingEvent>[];
+
+    for (var i = 0; i <= daysAhead; i++) {
+      final date = start.add(Duration(days: i));
+      final dayKey = DateTime(date.year, date.month, date.day);
+
+      for (final cita in _citasMap[dayKey] ?? const []) {
+        events.add(
+          _CalendarPendingEvent(
+            date: date,
+            title: '${cita['title'] ?? 'Cita'}',
+            subtitle: '${cita['hora'] ?? ''}'.trim().isEmpty
+                ? 'Cita programada'
+                : '${cita['hora']}',
+            icon: Icons.event_rounded,
+            color: const Color(0xFF409EFF),
+            onTap: () => setState(() => _selectedDate = date),
+          ),
+        );
+      }
+
+      for (final training in _getTrainingsForDate(date)) {
+        events.add(
+          _CalendarPendingEvent(
+            date: date,
+            title: training.entrenamiento.titulo,
+            subtitle: training.dia.nombre.isNotEmpty
+                ? training.dia.nombre
+                : 'Entrenamiento asignado',
+            icon: Icons.fitness_center_rounded,
+            color: const Color(0xFFFF9500),
+            onTap: () {
+              if (training.entrenamiento.id != null) {
+                context.push('/entrenamientos/sesion/${training.entrenamiento.id}');
+              } else {
+                setState(() => _selectedDate = date);
+              }
+            },
+          ),
+        );
+      }
+
+      for (final diet in _getDietasForDate(date)) {
+        events.add(
+          _CalendarPendingEvent(
+            date: date,
+            title: diet.dieta.nombre,
+            subtitle: '${diet.dia.comidas.length} comidas · ${diet.dia.dia}',
+            icon: Icons.restaurant_menu_rounded,
+            color: const Color(0xFF34C759),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DailyDietViewerScreen(
+                    dieta: diet.dieta,
+                    dia: diet.dia,
+                    fecha: date,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }
+    }
+
+    events.sort((a, b) => a.date.compareTo(b.date));
+    return events;
+  }
+
+  void _showPendingEventsList() {
+    final theme = Theme.of(context);
+    final events = _getPendingEvents(daysAhead: 30);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final height = MediaQuery.of(sheetContext).size.height * 0.78;
+
+        return Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.dividerColor.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Eventos pendientes',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Próximos 30 días',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.hintColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD700).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${events.length}',
+                        style: const TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: events.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.event_available_rounded,
+                                size: 56,
+                                color: theme.hintColor.withOpacity(0.35),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                'No hay eventos pendientes',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Cuando haya citas, entrenamientos o dietas asignadas aparecerán aquí.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.hintColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                        itemCount: events.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, index) {
+                          final event = events[index];
+                          return _buildPendingEventTile(
+                            theme,
+                            event,
+                            onTap: () {
+                              Navigator.pop(sheetContext);
+                              event.onTap();
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPendingEventTile(
+    ThemeData theme,
+    _CalendarPendingEvent event, {
+    required VoidCallback onTap,
+  }) {
+    final isToday = _isSameDay(event.date, DateTime.now());
+    final dateText = isToday
+        ? 'Hoy'
+        : DateFormat('EEE d MMM', 'es').format(event.date);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: event.color.withOpacity(0.16)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.035),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: event.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(event.icon, color: event.color, size: 23),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      event.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.hintColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    dateText,
+                    style: TextStyle(
+                      color: event.color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Icon(Icons.chevron_right_rounded, color: theme.dividerColor),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -998,4 +1296,24 @@ class _DietDayMatch {
   final Dieta dieta;
   final DiaCalendario dia;
   const _DietDayMatch({required this.dieta, required this.dia});
+}
+
+
+/// Unified pending calendar item shown in the bottom-sheet list.
+class _CalendarPendingEvent {
+  final DateTime date;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CalendarPendingEvent({
+    required this.date,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 }
