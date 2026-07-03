@@ -458,12 +458,23 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
   void _addSubtaskDialog(BuildContext ctx, List<SubTask> list, void Function(void Function()) setModalState) {
     final c = TextEditingController();
-    showDialog(context: ctx, builder: (_) => AlertDialog(
+    showDialog(context: ctx, builder: (dialogContext) => AlertDialog(
       title: const Text('Nueva subtarea'),
       content: TextField(controller: c, autofocus: true, decoration: const InputDecoration(hintText: 'Ej. Enviar PDF')),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () { if (c.text.trim().isNotEmpty) setModalState(() => list.add(SubTask(title: c.text.trim()))); Navigator.pop(ctx); }, child: const Text('Añadir')),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (c.text.trim().isNotEmpty) {
+              setModalState(() => list.add(SubTask(title: c.text.trim())));
+            }
+            Navigator.of(dialogContext).pop();
+          },
+          child: const Text('Añadir'),
+        ),
       ],
     ));
   }
